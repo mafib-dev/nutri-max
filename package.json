@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "import:exercises": "tsx scripts/import-exercises.ts",
+    "import:exercises": "tsx --env-file=.env scripts/import-exercises.ts",
     "db:types": "supabase gen types typescript --local > src/lib/database.types.ts"
   },
   "dependencies": {
