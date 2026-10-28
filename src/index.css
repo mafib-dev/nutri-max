@@ -1,0 +1,23 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color-scheme: light dark;
+  color: #1a1f1b;
+  background: #f6f8f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color: #e8ece9;
+    background: #0b0f0c;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 16px;
+}
