@@ -1,10 +1,63 @@
-function App() {
+import { Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { useAuth } from './lib/auth'
+import Login from './pages/Login'
+import Today from './pages/Today'
+import Exercises from './pages/Exercises'
+import Routines from './pages/Routines'
+import RoutineEdit from './pages/RoutineEdit'
+import Workout from './pages/Workout'
+import History from './pages/History'
+import Progress from './pages/Progress'
+
+const icon = (d: string) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={d} />
+  </svg>
+)
+
+const TABS = [
+  { to: '/', label: 'Hoje', icon: icon('M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z') },
+  { to: '/rotinas', label: 'Rotinas', icon: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01') },
+  { to: '/exercicios', label: 'Exercícios', icon: icon('M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12') },
+  { to: '/historico', label: 'Histórico', icon: icon('M3 3v18h18M7 15l4-4 3 3 5-6') },
+]
+
+function TabBar() {
   return (
-    <main className="app">
-      <h1>NutriMax</h1>
-      <p>Módulo de musculação em construção.</p>
-    </main>
+    <nav className="tabbar" aria-label="Navegação">
+      {TABS.map(t => (
+        <NavLink key={t.to} to={t.to} end={t.to === '/'}>
+          {t.icon}
+          {t.label}
+        </NavLink>
+      ))}
+    </nav>
   )
 }
 
-export default App
+export default function App() {
+  const { session, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) return <div className="center muted">Carregando…</div>
+  if (!session) return <Login />
+
+  // Durante o treino a barra de baixo dá lugar ao cronômetro de descanso.
+  const inWorkout = location.pathname.startsWith('/treino')
+
+  return (
+    <>
+      <Routes>
+        <Route path="/" element={<Today />} />
+        <Route path="/rotinas" element={<Routines />} />
+        <Route path="/rotinas/:id" element={<RoutineEdit />} />
+        <Route path="/exercicios" element={<Exercises />} />
+        <Route path="/treino" element={<Workout />} />
+        <Route path="/historico" element={<History />} />
+        <Route path="/progresso/:exerciseId" element={<Progress />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {!inWorkout && <TabBar />}
+    </>
+  )
+}

@@ -97,6 +97,10 @@ export interface Prescription {
   kind: 'first' | 'up' | 'hold' | 'deload' | 'off'
   weight?: number
   reps?: number
+  /** Algumas políticas (triple, peso corporal) também mudam o número de séries. */
+  sets?: number
+  /** Repetições por série, quando a meta muda de uma série para outra. */
+  rowReps?: number[]
   sec?: number
   why?: [string, ...unknown[]]
 }
