@@ -3,8 +3,8 @@
 Aplicação de saúde com treino e nutrição acompanhados por IA. Web, instalável como PWA,
 com Supabase como backend.
 
-Este primeiro passo é a base do **módulo de musculação**: estrutura do projeto, schema do
-banco e importação do catálogo de exercícios.
+O **módulo de musculação** já tem login, catálogo de exercícios, rotinas, registro do treino
+com carga sugerida pela progressão, histórico e evolução do 1RM por exercício.
 
 ## Stack
 
@@ -31,11 +31,16 @@ aplicam as mesmas migrations.
 
 ```
 src/
-  lib/supabase.ts             cliente do Supabase
+  pages/                      telas (Hoje, Rotinas, Exercícios, Treino, Histórico, Progresso)
+  components/                 componentes compartilhados (busca de exercícios)
+  lib/                        cliente do Supabase, login, formatação
   modules/training/           módulo de musculação
     muscles.ts                os 18 músculos acompanhados e o mapeamento do free-exercise-db
     catalogue.ts              conversão de um exercício para a tabela exercises
     state.ts                  monta o histórico do Supabase e sugere a próxima carga
+    session.ts                treino em andamento: séries, gravação e recordes
+    data.ts                   leituras e gravações no Supabase
+    why.ts                    explicação da sugestão de carga em português
     opengym/                  lógica de treino portada do openGym (AGPL-3.0)
 supabase/migrations/          schema do banco (tabelas, RLS, views)
 scripts/import-exercises.ts   importação do catálogo
