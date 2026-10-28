@@ -35,6 +35,8 @@ src/
   modules/training/           módulo de musculação
     muscles.ts                os 18 músculos acompanhados e o mapeamento do free-exercise-db
     catalogue.ts              conversão de um exercício para a tabela exercises
+    state.ts                  monta o histórico do Supabase e sugere a próxima carga
+    opengym/                  lógica de treino portada do openGym (AGPL-3.0)
 supabase/migrations/          schema do banco (tabelas, RLS, views)
 scripts/import-exercises.ts   importação do catálogo
 ```
@@ -59,5 +61,5 @@ Pesos são sempre gravados em kg.
 ## Créditos
 
 - Exercícios e fotos: [free-exercise-db](https://github.com/yuhonas/free-exercise-db), domínio público.
-- A lógica de treino que será portada nas próximas etapas vem do
-  [openGym](https://github.com/DuarteSantos8/openGym), sob AGPL-3.0.
+- A lógica de treino em `src/modules/training/opengym` vem do
+  [openGym](https://github.com/DuarteSantos8/openGym), sob AGPL-3.0. Detalhes no README da pasta.

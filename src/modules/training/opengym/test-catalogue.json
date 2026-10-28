@@ -1,0 +1,263 @@
+[
+ {
+  "id": "5965",
+  "n": "1 2 stick drill",
+  "bp": "full body",
+  "eq": "body weight",
+  "tg": "cardiovascular system",
+  "mg": "quadriceps",
+  "sm": [
+   "quadriceps",
+   "calves",
+   "core"
+  ]
+ },
+ {
+  "id": "4209",
+  "n": "1 to 2 jump box",
+  "bp": "upper legs",
+  "eq": "body weight",
+  "tg": "quads",
+  "mg": "glutes",
+  "sm": [
+   "glutes",
+   "hamstrings",
+   "calves"
+  ]
+ },
+ {
+  "id": "0001",
+  "n": "3/4 sit-up",
+  "bp": "waist",
+  "eq": "body weight",
+  "tg": "abs",
+  "mg": "hip flexors",
+  "sm": [
+   "hip flexors",
+   "lower back"
+  ]
+ },
+ {
+  "id": "0002",
+  "n": "45° side bend",
+  "bp": "waist",
+  "eq": "body weight",
+  "tg": "abs",
+  "mg": "obliques",
+  "sm": [
+   "obliques"
+  ]
+ },
+ {
+  "id": "2269",
+  "n": "ab roller crunch",
+  "bp": "waist",
+  "eq": "wheel roller",
+  "tg": "abs",
+  "mg": "lower abs",
+  "sm": [
+   "lower abs",
+   "core",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "4918",
+  "n": "alternate high hop",
+  "bp": "cardio",
+  "eq": "body weight",
+  "tg": "cardiovascular system",
+  "mg": "calves",
+  "sm": [
+   "calves",
+   "quadriceps",
+   "glutes"
+  ]
+ },
+ {
+  "id": "0011",
+  "n": "assisted hanging knee raise",
+  "bp": "waist",
+  "eq": "assisted",
+  "tg": "abs",
+  "mg": "hip flexors",
+  "sm": [
+   "hip flexors"
+  ]
+ },
+ {
+  "id": "0017",
+  "n": "assisted pull-up",
+  "bp": "back",
+  "eq": "leverage machine",
+  "tg": "lats",
+  "mg": "biceps",
+  "sm": [
+   "biceps",
+   "forearms"
+  ]
+ },
+ {
+  "id": "1027",
+  "n": "assisted single leg press",
+  "bp": "upper legs",
+  "eq": "leverage machine",
+  "tg": "quads",
+  "mg": "glutes",
+  "sm": [
+   "glutes",
+   "hamstrings",
+   "calves"
+  ]
+ },
+ {
+  "id": "0025",
+  "n": "barbell bench press",
+  "bp": "chest",
+  "eq": "barbell",
+  "tg": "pectorals",
+  "mg": "triceps",
+  "sm": [
+   "triceps",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "0047",
+  "n": "barbell incline bench press",
+  "bp": "chest",
+  "eq": "barbell",
+  "tg": "pectorals",
+  "mg": "shoulders",
+  "sm": [
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "0271",
+  "n": "crunch (on stability ball)",
+  "bp": "waist",
+  "eq": "stability ball",
+  "tg": "abs",
+  "mg": "hip flexors",
+  "sm": [
+   "hip flexors"
+  ]
+ },
+ {
+  "id": "0289",
+  "n": "dumbbell bench press",
+  "bp": "chest",
+  "eq": "dumbbell",
+  "tg": "pectorals",
+  "mg": "triceps",
+  "sm": [
+   "triceps",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "0293",
+  "n": "dumbbell bent over row",
+  "bp": "back",
+  "eq": "dumbbell",
+  "tg": "upper back",
+  "mg": "biceps",
+  "sm": [
+   "biceps",
+   "forearms"
+  ]
+ },
+ {
+  "id": "4837",
+  "n": "dumbbell single arm bent over row",
+  "bp": "back",
+  "eq": "dumbbell",
+  "tg": "lats",
+  "mg": "upper back",
+  "sm": [
+   "upper back",
+   "biceps",
+   "rhomboids",
+   "forearms"
+  ]
+ },
+ {
+  "id": "0463",
+  "n": "front plank",
+  "bp": "waist",
+  "eq": "body weight",
+  "tg": "abs",
+  "mg": "core",
+  "sm": [
+   "core",
+   "shoulders",
+   "glutes"
+  ],
+  "hd": 1
+ },
+ {
+  "id": "0464",
+  "n": "front plank with twist",
+  "bp": "waist",
+  "eq": "body weight",
+  "tg": "abs",
+  "mg": "obliques",
+  "sm": [
+   "obliques",
+   "shoulders"
+  ]
+ },
+ {
+  "id": "1801",
+  "n": "one arm lat stretch",
+  "bp": "back",
+  "eq": "body weight",
+  "tg": "lats",
+  "mg": "obliques",
+  "sm": [
+   "obliques",
+   "shoulders",
+   "triceps"
+  ]
+ },
+ {
+  "id": "0653",
+  "n": "push-up (bosu ball)",
+  "bp": "chest",
+  "eq": "bosu ball",
+  "tg": "pectorals",
+  "mg": "triceps",
+  "sm": [
+   "triceps",
+   "shoulders",
+   "core"
+  ]
+ },
+ {
+  "id": "0667",
+  "n": "raise single leg push up",
+  "bp": "chest",
+  "eq": "body weight",
+  "tg": "pectorals",
+  "mg": "triceps",
+  "sm": [
+   "triceps",
+   "shoulders",
+   "glutes",
+   "core"
+  ]
+ },
+ {
+  "id": "0857",
+  "n": "wheel rollerout",
+  "bp": "waist",
+  "eq": "wheel roller",
+  "tg": "abs",
+  "mg": "lower back",
+  "sm": [
+   "lower back"
+  ]
+ }
+]
