@@ -13,13 +13,6 @@ export default function History() {
   const byId = useMemo(() => new Map(catalogue.map(e => [e.id, e])), [catalogue])
   const detail = useMemo(() => new Map((state?.workouts ?? []).map(w => [w.id, w])), [state])
 
-  // Exercícios já treinados, do mais recente para o mais antigo: atalho para a evolução de cada um.
-  const trained = useMemo(() => {
-    const seen = new Set<string>()
-    for (const w of [...(state?.workouts ?? [])].reverse()) for (const e of w.entries) seen.add(e.id)
-    return [...seen]
-  }, [state])
-
   async function remove(id: string) {
     if (!confirm('Apagar este treino do histórico?')) return
     try {
@@ -36,20 +29,6 @@ export default function History() {
       {list.loading && <p className="muted">Carregando…</p>}
       {(list.error || error) && <p className="error">{list.error ?? error}</p>}
       {list.data && workouts.length === 0 && <p className="muted">Nenhum treino salvo ainda.</p>}
-
-      {trained.length > 0 && (
-        <>
-          <h2>Evolução por exercício</h2>
-          <div className="chips">
-            {trained.map(id => (
-              <Link key={id} to={`/progresso/${id}`} className="chip" style={{ textDecoration: 'none', color: 'inherit' }}>
-                {exerciseName(byId.get(id))}
-              </Link>
-            ))}
-          </div>
-          <h2>Treinos</h2>
-        </>
-      )}
 
       {workouts.map(w => {
         const og = detail.get(w.id)

@@ -4,6 +4,7 @@
 
 export const EXDB = []
 export const EXIDX = {}
+const BUILTIN = new Set()
 
 // Equipamento do free-exercise-db -> vocabulário do openGym.
 const EQUIPMENT = {
@@ -50,13 +51,34 @@ export function fromExerciseRow(row) {
 /** Troca o catálogo inteiro (por exemplo, depois de carregar do Supabase). */
 export function registerCatalogue(rows) {
   EXDB.length = 0
+  BUILTIN.clear()
   for (const key of Object.keys(EXIDX)) delete EXIDX[key]
   for (const row of rows) {
     const ex = 'n' in row ? row : fromExerciseRow(row)
     EXDB.push(ex)
     EXIDX[ex.id] = ex
+    if (!ex.custom) BUILTIN.add(ex)
   }
 }
+
+// Exercícios do próprio usuário, por cima do catálogo (no app eles também vêm de public.exercises).
+let customIds = new Set()
+export function registerCustom(list) {
+  customIds.forEach(id => {
+    delete EXIDX[id]
+    const builtIn = EXDB.find(ex => ex.id === id)
+    if (builtIn) EXIDX[id] = builtIn
+  })
+  const xs = (Array.isArray(list) ? list : []).filter(e => e && e.id != null)
+  customIds = new Set(xs.map(e => e.id))
+  xs.forEach(e => { EXIDX[e.id] = e })
+}
+
+// Músculos secundários. No openGym há um pequeno acréscimo manual por exercício; aqui não.
+export const smOf = ex => (Array.isArray(ex?.sm) ? ex.sm : ex?.sm ? [ex.sm] : [])
+
+// Exercício do catálogo (não um personalizado nem uma cópia): o que se deriva dele pode ficar em cache.
+export const isBuiltinEx = ex => BUILTIN.has(ex)
 
 export const exerciseOf = idOrEx => (typeof idOrEx === 'string' ? EXIDX[idOrEx] : idOrEx)
 

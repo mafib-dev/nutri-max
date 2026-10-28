@@ -255,7 +255,7 @@ h2 {
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);
@@ -436,4 +436,51 @@ h2 {
 .password .eye svg {
   width: 20px;
   height: 20px;
+}
+
+.meter {
+  position: relative;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.meter > i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: var(--text);
+}
+
+.meter .ready {
+  background: var(--accent);
+}
+
+.meter .recovering {
+  background: var(--warn);
+}
+
+.meter .fatigued {
+  background: var(--danger);
+}
+
+.fatigue-label.ready {
+  color: var(--accent);
+}
+
+.fatigue-label.recovering {
+  color: var(--warn);
+}
+
+.fatigue-label.fatigued {
+  color: var(--danger);
 }

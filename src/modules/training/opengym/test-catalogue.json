@@ -62,6 +62,19 @@
   ]
  },
  {
+  "id": "2098",
+  "n": "adduction hand with elbow extended stretch",
+  "bp": "lower arms",
+  "eq": "body weight",
+  "tg": "forearms",
+  "mg": "wrist flexors",
+  "sm": [
+   "wrist flexors",
+   "wrist extensors"
+  ],
+  "cat": "stretching"
+ },
+ {
   "id": "4918",
   "n": "alternate high hop",
   "bp": "cardio",
@@ -84,6 +97,19 @@
   "sm": [
    "hip flexors"
   ]
+ },
+ {
+  "id": "1907",
+  "n": "assisted lying adductors stretch",
+  "bp": "upper legs",
+  "eq": "assisted",
+  "tg": "adductors",
+  "mg": "inner thighs",
+  "sm": [
+   "inner thighs",
+   "groin"
+  ],
+  "cat": "stretching"
  },
  {
   "id": "0017",
@@ -109,6 +135,19 @@
    "hamstrings",
    "calves"
   ]
+ },
+ {
+  "id": "1254",
+  "n": "band bench press",
+  "bp": "chest",
+  "eq": "band",
+  "tg": "pectorals",
+  "mg": "triceps",
+  "sm": [
+   "triceps",
+   "shoulders"
+  ],
+  "cat": "strength"
  },
  {
   "id": "0025",
