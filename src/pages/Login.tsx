@@ -5,11 +5,16 @@ export default function Login() {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
+    if (mode === 'signup' && password !== confirm) {
+      setMessage({ text: 'As senhas não são iguais.', error: true })
+      return
+    }
     setBusy(true)
     setMessage(null)
     const { data, error } =
@@ -40,16 +45,18 @@ export default function Login() {
         </label>
         <label className="field">
           <span>Senha</span>
-          <input
-            className="input"
-            type="password"
+          <PasswordInput
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-            minLength={6}
-            required
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={setPassword}
           />
         </label>
+        {mode === 'signup' && (
+          <label className="field">
+            <span>Confirmar senha</span>
+            <PasswordInput autoComplete="new-password" value={confirm} onChange={setConfirm} />
+          </label>
+        )}
         {message && <p className={message.error ? 'error small' : 'small'}>{message.text}</p>}
         <button className="btn primary block" disabled={busy}>
           {busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
@@ -59,12 +66,43 @@ export default function Login() {
           className="btn ghost block"
           onClick={() => {
             setMode(mode === 'login' ? 'signup' : 'login')
+            setConfirm('')
             setMessage(null)
           }}
         >
           {mode === 'login' ? 'Ainda não tenho conta' : 'Já tenho conta'}
         </button>
       </form>
+    </div>
+  )
+}
+
+function PasswordInput(props: { value: string; onChange: (v: string) => void; autoComplete: string }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="password">
+      <input
+        className="input"
+        type={visible ? 'text' : 'password'}
+        autoComplete={props.autoComplete}
+        minLength={6}
+        required
+        value={props.value}
+        onChange={e => props.onChange(e.target.value)}
+      />
+      <button
+        type="button"
+        className="eye"
+        aria-label={visible ? 'Esconder senha' : 'Mostrar senha'}
+        aria-pressed={visible}
+        onClick={() => setVisible(v => !v)}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+          {visible && <path d="M3 3l18 18" />}
+        </svg>
+      </button>
     </div>
   )
 }
