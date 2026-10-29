@@ -51,7 +51,7 @@ export default function Workout() {
 
   if (!session) {
     return (
-      <main className="page stack">
+      <main className="page narrow stack">
         <h1>Nenhum treino em andamento</h1>
         <Link to="/" className="btn primary">
           Escolher um treino
@@ -139,7 +139,7 @@ export default function Workout() {
   }
 
   return (
-    <main className="page stack" style={{ paddingBottom: restUntil ? 130 : 48 }}>
+    <main className="page narrow stack" style={{ paddingBottom: restUntil ? 130 : 48 }}>
       <div className="page-head">
         <div style={{ minWidth: 0 }}>
           <span className="eyebrow">Treino em andamento</span>
@@ -353,7 +353,7 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
 
 function Summary(props: { volume: number; sets: number; records: NewRecord[]; minutes: number; onClose: () => void }) {
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <span className="eyebrow">Mandou bem</span>
       <h1>Treino salvo!</h1>
       <div className="grid-3">

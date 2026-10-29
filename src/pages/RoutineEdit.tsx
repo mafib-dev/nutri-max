@@ -103,7 +103,7 @@ export default function RoutineEdit() {
   if (loaded.error) return <main className="page error">{loaded.error}</main>
 
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate('/rotinas')}>
         <Icon.back /> Rotinas
       </button>

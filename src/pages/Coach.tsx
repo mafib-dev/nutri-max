@@ -7,7 +7,7 @@ export default function Coach() {
   const [params, setParams] = useSearchParams()
 
   return (
-    <main className="page stack coach">
+    <main className="page narrow stack coach">
       <div className="page-head">
         <button type="button" className="btn ghost small" style={{ marginLeft: -10 }} onClick={() => navigate(-1)}>
           <Icon.back /> Voltar

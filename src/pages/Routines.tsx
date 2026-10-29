@@ -48,16 +48,18 @@ export default function Routines() {
           </p>
         </div>
       )}
-      {data?.map(r => (
-        <Link key={r.id} to={`/rotinas/${r.id}`} className="list-item" style={{ padding: 14 }}>
-          <span className="day-badge">{r.weekday == null ? '—' : WEEKDAYS[r.weekday].slice(0, 3)}</span>
-          <div className="grow">
-            <div className="title">{r.name}</div>
-            <div className="muted small">{r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}</div>
-          </div>
-          <span className="chev">›</span>
-        </Link>
-      ))}
+      <div className="grid-list">
+        {data?.map(r => (
+          <Link key={r.id} to={`/rotinas/${r.id}`} className="list-item" style={{ padding: 14 }}>
+            <span className="day-badge">{r.weekday == null ? '—' : WEEKDAYS[r.weekday].slice(0, 3)}</span>
+            <div className="grow">
+              <div className="title">{r.name}</div>
+              <div className="muted small">{r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}</div>
+            </div>
+            <span className="chev">›</span>
+          </Link>
+        ))}
+      </div>
     </main>
   )
 }

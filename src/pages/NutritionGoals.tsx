@@ -79,7 +79,7 @@ export default function NutritionGoals() {
   }
 
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate('/nutricao')}>
         <Icon.back /> Nutrição
       </button>

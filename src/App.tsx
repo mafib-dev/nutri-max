@@ -32,6 +32,9 @@ const TABS = [
 function TabBar() {
   return (
     <nav className="tabbar" aria-label="Navegação">
+      <div className="nav-brand" aria-hidden="true">
+        Nutri<span>Max</span>
+      </div>
       {TABS.map(t => (
         <NavLink key={t.to} to={t.to} end={t.to === '/'}>
           {t.icon}
@@ -53,7 +56,7 @@ export default function App() {
   const inWorkout = location.pathname.startsWith('/treino')
 
   return (
-    <>
+    <div className={inWorkout ? 'shell' : 'shell has-nav'}>
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/rotinas" element={<Routines />} />
@@ -71,6 +74,6 @@ export default function App() {
       </Routes>
       {!inWorkout && <TabBar />}
       <CoachDock />
-    </>
+    </div>
   )
 }

@@ -163,7 +163,7 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
   }
 
   return (
-    <div className="stack">
+    <div className="stack form-width">
       <p className="muted small" style={{ margin: 0 }}>
         Responda como numa consulta. Com isso eu monto o cardápio do dia com as suas metas, os horários e as trocas possíveis.
       </p>
@@ -386,28 +386,30 @@ function PlanView(props: {
 
   return (
     <>
-      <div className="card hero stack" style={{ gap: 8 }}>
-        <span className="eyebrow">Seu dia</span>
-        <div className="stat">
-          <strong>{fmt(t.kcal)} kcal</strong>
+      <div className="cols">
+        <div className="card hero stack" style={{ gap: 8 }}>
+          <span className="eyebrow">Seu dia</span>
+          <div className="stat">
+            <strong>{fmt(t.kcal)} kcal</strong>
+          </div>
+          <div className="muted small">
+            Proteína {fmt(t.p)} g · Carboidrato {fmt(t.c)} g · Gordura {fmt(t.f)} g · Fibra {fmt(t.fiber)} g
+          </div>
+          <div className="muted tiny">
+            Meta: {fmt(targets.kcal)} kcal, P {targets.protein_g} · C {targets.carbs_g} · G {targets.fat_g}. Nos dias de treino, as calorias extras entram como um lanche a mais ou porções maiores.
+          </div>
+          {lowProtein && (
+            <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
+              Com as suas restrições, a proteína ficou abaixo da meta. Um scoop de whey ou proteína de soja num lanche resolve.
+            </p>
+          )}
+          <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={props.onRedo}>
+            Refazer a consulta
+          </button>
         </div>
-        <div className="muted small">
-          Proteína {fmt(t.p)} g · Carboidrato {fmt(t.c)} g · Gordura {fmt(t.f)} g · Fibra {fmt(t.fiber)} g
-        </div>
-        <div className="muted tiny">
-          Meta: {fmt(targets.kcal)} kcal, P {targets.protein_g} · C {targets.carbs_g} · G {targets.fat_g}. Nos dias de treino, as calorias extras entram como um lanche a mais ou porções maiores.
-        </div>
-        {lowProtein && (
-          <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
-            Com as suas restrições, a proteína ficou abaixo da meta. Um scoop de whey ou proteína de soja num lanche resolve.
-          </p>
-        )}
-        <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={props.onRedo}>
-          Refazer a consulta
-        </button>
-      </div>
 
-      <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />
+        <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />
+      </div>
 
       <div className="chips" role="tablist">
         {(
@@ -428,7 +430,11 @@ function PlanView(props: {
           <strong>Creatina:</strong> 3 a 5 g todo dia, junto com qualquer refeição.
         </p>
       )}
-      {tab === 'menu' && plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
+      {tab === 'menu' && (
+        <div className="grid-list">
+          {plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
+        </div>
+      )}
 
       {tab === 'tips' && (
         <div className="stack">

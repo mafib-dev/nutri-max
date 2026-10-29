@@ -150,218 +150,224 @@ export default function Today() {
       {loadError && <p className="error">{loadError}</p>}
       {!ready && !loadError && <p className="muted">Carregando…</p>}
 
-      {body.data && (
-        <BodyCard
-          weight={weight}
-          trend={trend}
-          goal={profile?.goal ?? null}
-          targetKg={profile?.target_weight_kg ?? null}
-          rateKg={profile?.weekly_rate_kg ?? null}
-          weighedToday={weights.at(-1)?.date === today}
-          onSaved={body.reload}
-          today={today}
-        />
-      )}
-
-      {active ? (
-        <Link to="/treino" className="card hero" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <span className="eyebrow">Em andamento</span>
-          <div className="spread" style={{ marginTop: 6 }}>
-            <div style={{ minWidth: 0 }}>
-              <h3 className="ellipsis" style={{ fontSize: '1.6rem' }}>{active.name}</h3>
-              <div className="muted small">
-                {active.entries.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)} de{' '}
-                {active.entries.reduce((n, e) => n + e.sets.length, 0)} séries feitas
-              </div>
-            </div>
-            <span className="btn primary">Continuar</span>
-          </div>
-        </Link>
-      ) : trainedToday ? (
-        <div className="card hero">
-          <span className="eyebrow">Treino de hoje</span>
-          <h3 style={{ fontSize: '1.8rem', marginTop: 4 }}>Feito ✓</h3>
-          <div className="muted small">
-            {fmt(minutesToday.reduce((a, m) => a + m, 0))} min de musculação
-            {weight ? ` · cerca de ${fmt(minutesToday.reduce((a, m) => a + workoutKcal(m, weight), 0))} kcal gastas` : ''}
-          </div>
-        </div>
-      ) : (
-        todays.map(r => <RoutineCard key={r.id} name={r.name} hint="Programado para hoje" starting={starting === r.id} onStart={() => start(r.id)} highlight />)
-      )}
-
-      {training.data && routines.length === 0 && (
-        <div className="empty">
-          <h3>Nenhuma rotina ainda</h3>
-          <span className="muted small">Monte seu primeiro treino: escolha os exercícios, as séries e o dia da semana.</span>
-          <Link to="/rotinas" className="btn primary">
-            Criar rotina
-          </Link>
-        </div>
-      )}
-
-      {day && day.adjusted && day.rest.length > 0 && (
-        <p className="card small replan-note" style={{ margin: 0 }}>
-          {day.skipped.length
-            ? `Você não registrou ${day.skipped.map(s => s.label.toLowerCase()).join(', ')}. `
-            : 'O que você comeu até agora fugiu do plano. '}
-          Ajustei {day.rest.length === 1 ? 'a próxima refeição' : `as próximas ${day.rest.length} refeições`} para fechar o dia: faltam {fmt(day.missing.kcal)} kcal e {fmt(day.missing.p)} g de proteína.
-        </p>
-      )}
-
-      {upcoming ? (
-        <Link to="/nutricao/plano" className="card next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div className="spread">
-            <span className="eyebrow">
-              Próxima refeição · {upcoming.time}
-              {day?.adjusted ? ' · ajustada' : ''}
-            </span>
-            <span className="muted tiny">{fmt(upcoming.total.kcal)} kcal</span>
-          </div>
-          <h3 style={{ marginTop: 4 }}>{upcoming.label}</h3>
-          <ul>
-            {upcoming.items.map(i => (
-              <li key={`${i.role}-${i.key}`} className="small">
-                <span>{i.food.name}</span> <span className="muted">{portion(i.food, i.grams)}</span>
-              </li>
-            ))}
-          </ul>
-        </Link>
-      ) : (
-        mealPlan.data === null &&
-        !mealPlan.loading &&
-        baseTargets && (
-          <Link to="/nutricao/plano" className="list-item" style={{ padding: 14 }}>
-            <div className="grow">
-              <div className="title">Monte seu plano alimentar</div>
-              <div className="muted small">O que comer em cada refeição, com horários e quantidades para bater a meta.</div>
-            </div>
-            <span className="chev">›</span>
-          </Link>
-        )
-      )}
-
-      <section className="card coach-card" aria-label="Seu nutricionista">
-        <div className="spread">
-          <div>
-            <span className="eyebrow">Seu nutricionista · IA</span>
-            <h3 style={{ marginTop: 4 }}>Precisa de ajuda com o dia?</h3>
-          </div>
-          <button type="button" className="btn small" onClick={() => openCoach()}>
-            Conversar
-          </button>
-        </div>
-        <div className="chips wrap">
-          {QUICK_PROMPTS.slice(0, 3).map(q => (
-            <button key={q} type="button" className="chip small-chip" onClick={() => openCoach(q)}>
-              {q}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {tips.length > 0 && (
-        <section className="card stack tips" style={{ gap: 10 }} aria-label="Dicas do dia">
-          <span className="eyebrow">Treino + dieta hoje</span>
-          {tips.map(t => (
-            <p key={t.text} className={`tip ${t.tone}`}>
-              {t.text}
-            </p>
-          ))}
-        </section>
-      )}
-
-      {food.data && body.data && (
-        <>
-          <div className="spread">
-            <h2>Alimentação de hoje</h2>
-            <Link to="/nutricao" className="btn ghost small">
-              Lançar
-            </Link>
-          </div>
-          <Link to="/nutricao" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="Abrir o diário alimentar">
-            <NutritionSummary total={eaten} targets={targets} trainingKcal={trainingKcal} />
-          </Link>
-
-          <div className="card">
-            <div className="spread small">
-              <span style={{ fontWeight: 600 }}>Água</span>
-              <span className="muted">
-                {liters(water)} / {liters(waterGoal)} L
-              </span>
-            </div>
-            <div className="meter">
-              <span className="macro w" style={{ width: `${Math.min((water / waterGoal) * 100, 100)}%` }} />
-            </div>
-            <div className="spread" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
-              <div className="row" style={{ gap: 6 }}>
-                <button type="button" className="btn small" onClick={() => addWater(250)}>
-                  + 250 ml
-                </button>
-                <button type="button" className="btn small" onClick={() => addWater(500)}>
-                  + 500 ml
-                </button>
-              </div>
-              <span className="muted small">Ideal até agora: {liters(waterExpected(waterGoal, now.getHours() + now.getMinutes() / 60))} L</span>
-            </div>
-          </div>
-        </>
-      )}
-
-      {training.data && food.data && (
-        <>
-          <h2>Sua semana</h2>
-          <div className="grid-2 week-stats">
-            <Stat label="Treinos" value={`${thisWeek?.workouts ?? 0}${planned ? ` / ${planned}` : ''}`} hint={planned ? 'feitos / planejados' : 'nesta semana'} />
-            <Stat label="Volume" value={formatTons(thisWeek?.volume ?? 0)} hint={`${thisWeek?.sets ?? 0} séries`} />
-            <Stat
-              label="Média kcal"
-              value={week.days ? fmt(week.avgKcal) : '–'}
-              hint={week.days ? (targets ? `meta ${fmt(targets.kcal - trainingKcal)} · ${week.days} dias` : `${week.days} dias`) : 'sem registros'}
+      <div className="cols">
+        <div className="col">
+          {body.data && (
+            <BodyCard
+              weight={weight}
+              trend={trend}
+              goal={profile?.goal ?? null}
+              targetKg={profile?.target_weight_kg ?? null}
+              rateKg={profile?.weekly_rate_kg ?? null}
+              weighedToday={weights.at(-1)?.date === today}
+              onSaved={body.reload}
+              today={today}
             />
-            <Stat
-              label="Proteína"
-              value={week.days ? `${fmt(week.avgProtein)} g` : '–'}
-              hint={week.days && targets ? `meta batida em ${week.proteinDays} de ${week.days} dias` : 'média por dia'}
-            />
-          </div>
-          {recovery.length > 0 && state && state.workouts.length > 0 && (
-            <Link to="/progresso" className="list-item" style={{ padding: 14 }}>
-              <div className="grow">
-                <div className="title">{tired.length ? `${tired.length} músculos se recuperando` : 'Todos os músculos recuperados'}</div>
-                <div className="muted small ellipsis">{tired.length ? tired.join(', ') : 'Pode treinar o que quiser.'}</div>
-              </div>
-              <span className="chev">›</span>
-            </Link>
           )}
-        </>
-      )}
 
-      {others.length > 0 && <h2>{todays.length ? 'Outras rotinas' : 'Suas rotinas'}</h2>}
-      {others.map(r => (
-        <RoutineCard
-          key={r.id}
-          name={r.name}
-          hint={r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}
-          starting={starting === r.id}
-          onStart={() => start(r.id)}
-        />
-      ))}
-
-      {last && (
-        <>
-          <h2>Último treino</h2>
-          <Link to="/historico" className="list-item" style={{ padding: 14 }}>
-            <div className="grow">
-              <div className="title">{last.name ?? 'Treino'}</div>
+          {active ? (
+            <Link to="/treino" className="card hero" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <span className="eyebrow">Em andamento</span>
+              <div className="spread" style={{ marginTop: 6 }}>
+                <div style={{ minWidth: 0 }}>
+                  <h3 className="ellipsis" style={{ fontSize: '1.6rem' }}>{active.name}</h3>
+                  <div className="muted small">
+                    {active.entries.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)} de{' '}
+                    {active.entries.reduce((n, e) => n + e.sets.length, 0)} séries feitas
+                  </div>
+                </div>
+                <span className="btn primary">Continuar</span>
+              </div>
+            </Link>
+          ) : trainedToday ? (
+            <div className="card hero">
+              <span className="eyebrow">Treino de hoje</span>
+              <h3 style={{ fontSize: '1.8rem', marginTop: 4 }}>Feito ✓</h3>
               <div className="muted small">
-                {formatDay(last.started_at)} · {last.sets} séries · {formatKg(last.volume)}
+                {fmt(minutesToday.reduce((a, m) => a + m, 0))} min de musculação
+                {weight ? ` · cerca de ${fmt(minutesToday.reduce((a, m) => a + workoutKcal(m, weight), 0))} kcal gastas` : ''}
               </div>
             </div>
-            <span className="chev">›</span>
-          </Link>
-        </>
-      )}
+          ) : (
+            todays.map(r => <RoutineCard key={r.id} name={r.name} hint="Programado para hoje" starting={starting === r.id} onStart={() => start(r.id)} highlight />)
+          )}
+
+          {training.data && routines.length === 0 && (
+            <div className="empty">
+              <h3>Nenhuma rotina ainda</h3>
+              <span className="muted small">Monte seu primeiro treino: escolha os exercícios, as séries e o dia da semana.</span>
+              <Link to="/rotinas" className="btn primary">
+                Criar rotina
+              </Link>
+            </div>
+          )}
+
+          {day && day.adjusted && day.rest.length > 0 && (
+            <p className="card small replan-note" style={{ margin: 0 }}>
+              {day.skipped.length
+                ? `Você não registrou ${day.skipped.map(s => s.label.toLowerCase()).join(', ')}. `
+                : 'O que você comeu até agora fugiu do plano. '}
+              Ajustei {day.rest.length === 1 ? 'a próxima refeição' : `as próximas ${day.rest.length} refeições`} para fechar o dia: faltam {fmt(day.missing.kcal)} kcal e {fmt(day.missing.p)} g de proteína.
+            </p>
+          )}
+
+          {upcoming ? (
+            <Link to="/nutricao/plano" className="card next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <div className="spread">
+                <span className="eyebrow">
+                  Próxima refeição · {upcoming.time}
+                  {day?.adjusted ? ' · ajustada' : ''}
+                </span>
+                <span className="muted tiny">{fmt(upcoming.total.kcal)} kcal</span>
+              </div>
+              <h3 style={{ marginTop: 4 }}>{upcoming.label}</h3>
+              <ul>
+                {upcoming.items.map(i => (
+                  <li key={`${i.role}-${i.key}`} className="small">
+                    <span>{i.food.name}</span> <span className="muted">{portion(i.food, i.grams)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Link>
+          ) : (
+            mealPlan.data === null &&
+            !mealPlan.loading &&
+            baseTargets && (
+              <Link to="/nutricao/plano" className="list-item" style={{ padding: 14 }}>
+                <div className="grow">
+                  <div className="title">Monte seu plano alimentar</div>
+                  <div className="muted small">O que comer em cada refeição, com horários e quantidades para bater a meta.</div>
+                </div>
+                <span className="chev">›</span>
+              </Link>
+            )
+          )}
+
+          <section className="card coach-card" aria-label="Seu nutricionista">
+            <div className="spread">
+              <div>
+                <span className="eyebrow">Seu nutricionista · IA</span>
+                <h3 style={{ marginTop: 4 }}>Precisa de ajuda com o dia?</h3>
+              </div>
+              <button type="button" className="btn small" onClick={() => openCoach()}>
+                Conversar
+              </button>
+            </div>
+            <div className="chips wrap">
+              {QUICK_PROMPTS.slice(0, 3).map(q => (
+                <button key={q} type="button" className="chip small-chip" onClick={() => openCoach(q)}>
+                  {q}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {tips.length > 0 && (
+            <section className="card stack tips" style={{ gap: 10 }} aria-label="Dicas do dia">
+              <span className="eyebrow">Treino + dieta hoje</span>
+              {tips.map(t => (
+                <p key={t.text} className={`tip ${t.tone}`}>
+                  {t.text}
+                </p>
+              ))}
+            </section>
+          )}
+
+        </div>
+        <div className="col">
+          {food.data && body.data && (
+            <>
+              <div className="spread">
+                <h2>Alimentação de hoje</h2>
+                <Link to="/nutricao" className="btn ghost small">
+                  Lançar
+                </Link>
+              </div>
+              <Link to="/nutricao" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="Abrir o diário alimentar">
+                <NutritionSummary total={eaten} targets={targets} trainingKcal={trainingKcal} />
+              </Link>
+
+              <div className="card">
+                <div className="spread small">
+                  <span style={{ fontWeight: 600 }}>Água</span>
+                  <span className="muted">
+                    {liters(water)} / {liters(waterGoal)} L
+                  </span>
+                </div>
+                <div className="meter">
+                  <span className="macro w" style={{ width: `${Math.min((water / waterGoal) * 100, 100)}%` }} />
+                </div>
+                <div className="spread" style={{ marginTop: 10, gap: 8, flexWrap: 'wrap' }}>
+                  <div className="row" style={{ gap: 6 }}>
+                    <button type="button" className="btn small" onClick={() => addWater(250)}>
+                      + 250 ml
+                    </button>
+                    <button type="button" className="btn small" onClick={() => addWater(500)}>
+                      + 500 ml
+                    </button>
+                  </div>
+                  <span className="muted small">Ideal até agora: {liters(waterExpected(waterGoal, now.getHours() + now.getMinutes() / 60))} L</span>
+                </div>
+              </div>
+            </>
+          )}
+
+          {training.data && food.data && (
+            <>
+              <h2>Sua semana</h2>
+              <div className="grid-2 week-stats">
+                <Stat label="Treinos" value={`${thisWeek?.workouts ?? 0}${planned ? ` / ${planned}` : ''}`} hint={planned ? 'feitos / planejados' : 'nesta semana'} />
+                <Stat label="Volume" value={formatTons(thisWeek?.volume ?? 0)} hint={`${thisWeek?.sets ?? 0} séries`} />
+                <Stat
+                  label="Média kcal"
+                  value={week.days ? fmt(week.avgKcal) : '–'}
+                  hint={week.days ? (targets ? `meta ${fmt(targets.kcal - trainingKcal)} · ${week.days} dias` : `${week.days} dias`) : 'sem registros'}
+                />
+                <Stat
+                  label="Proteína"
+                  value={week.days ? `${fmt(week.avgProtein)} g` : '–'}
+                  hint={week.days && targets ? `meta batida em ${week.proteinDays} de ${week.days} dias` : 'média por dia'}
+                />
+              </div>
+              {recovery.length > 0 && state && state.workouts.length > 0 && (
+                <Link to="/progresso" className="list-item" style={{ padding: 14 }}>
+                  <div className="grow">
+                    <div className="title">{tired.length ? `${tired.length} músculos se recuperando` : 'Todos os músculos recuperados'}</div>
+                    <div className="muted small ellipsis">{tired.length ? tired.join(', ') : 'Pode treinar o que quiser.'}</div>
+                  </div>
+                  <span className="chev">›</span>
+                </Link>
+              )}
+            </>
+          )}
+
+          {others.length > 0 && <h2>{todays.length ? 'Outras rotinas' : 'Suas rotinas'}</h2>}
+          {others.map(r => (
+            <RoutineCard
+              key={r.id}
+              name={r.name}
+              hint={r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}
+              starting={starting === r.id}
+              onStart={() => start(r.id)}
+            />
+          ))}
+
+          {last && (
+            <>
+              <h2>Último treino</h2>
+              <Link to="/historico" className="list-item" style={{ padding: 14 }}>
+                <div className="grow">
+                  <div className="title">{last.name ?? 'Treino'}</div>
+                  <div className="muted small">
+                    {formatDay(last.started_at)} · {last.sets} séries · {formatKg(last.volume)}
+                  </div>
+                </div>
+                <span className="chev">›</span>
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
     </main>
   )
 }
