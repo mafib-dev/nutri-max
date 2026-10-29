@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
-import { buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
+import { optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
 
 const targets = { kcal: 2400, protein_g: 160, carbs_g: 290, fat_g: 67 }
 const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { settings: { ...DEFAULT_SETTINGS, ...s }, picks: {} })
@@ -8,7 +8,7 @@ const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { sett
 describe('alimentos do plano', () => {
   it('existem na TACO com os mesmos valores', () => {
     const byId = new Map((taco as { id: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }[]).map(f => [f.id, f]))
-    for (const f of Object.values(PLAN_FOODS)) {
+    for (const f of Object.values(PLAN_FOODS).filter(f => f.id !== 'whey')) {
       const t = byId.get(f.id)
       expect(t, f.name).toBeDefined()
       expect([t!.kcal, t!.protein_g, t!.carbs_g, t!.fat_g], f.name).toEqual([f.kcal, f.p, f.c, f.f])
@@ -81,6 +81,43 @@ describe('buildPlan', () => {
       if (i.key === 'ovo') expect(i.grams).toBeLessThanOrEqual(200)
       if (i.role === 'fruit') expect(i.grams).toBeLessThanOrEqual(250)
     }
+  })
+})
+
+describe('consulta completa', () => {
+  it('whey entra no pós-treino no lugar da proteína', () => {
+    const p = plan({ meals: 6, wake: '06:00', train: '07:00', whey: { scoops: 1, scoopG: 30, when: 'post', food: null } })
+    const post = p.meals.find(m => m.kind === 'post_workout')!
+    expect(post.items.find(i => i.role === 'protein')!.key).toBe('whey')
+    expect(post.items.filter(i => i.role === 'protein')).toHaveLength(1)
+    expect(post.items.find(i => i.key === 'whey')!.grams).toBe(30)
+  })
+
+  it('usa o whey cadastrado com os valores do rótulo', () => {
+    const food = { id: 'meu-whey', name: 'Whey Baunilha', kcal: 380, p: 76, c: 8, f: 6 }
+    const p = plan({ whey: { scoops: 2, scoopG: 32, when: 'breakfast', food } })
+    const w = p.meals[0].items.find(i => i.key === 'whey')!
+    expect([w.food.id, w.food.name, w.grams]).toEqual(['meu-whey', 'Whey Baunilha', 64])
+  })
+
+  it('o que tem em casa vem primeiro', () => {
+    expect(optionsFor('lunch', 'protein', withDefaults({ likes: ['carneMoida'] }))[0]).toBe('carneMoida')
+  })
+
+  it('orçamento curto prioriza o barato', () => {
+    const opts = optionsFor('lunch', 'protein', withDefaults({ budget: 'low' }))
+    expect(opts.indexOf('frango')).toBeLessThan(opts.indexOf('maminha'))
+    expect(opts.slice(0, 3)).not.toContain('maminha')
+  })
+
+  it('consulta antiga ganha os valores padrão', () => {
+    const old = { meals: 4, wake: '07:00', sleep: '23:00', train: null, diet: 'omnivore', noLactose: false, noGluten: false, noFish: false, noPork: false, dislikes: [] } as Partial<PlanSettings>
+    expect(() => buildPlan(targets, { settings: old as PlanSettings, picks: {} })).not.toThrow()
+    expect(withDefaults(old).whey.scoops).toBe(0)
+  })
+
+  it('almoço no restaurante traz a orientação', () => {
+    expect(plan({ lunchAt: 'restaurant' }).meals.find(m => m.kind === 'lunch')!.note).toContain('restaurante')
   })
 })
 

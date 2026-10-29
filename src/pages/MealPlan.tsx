@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
-import { logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
+import { loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import {
   buildPlan,
   buyAmount,
   DEFAULT_SETTINGS,
+  withDefaults,
+  type WheyFood,
   guidance,
   itemMacros,
   optionsFor,
@@ -39,11 +41,14 @@ const ROLE_LABEL: Record<Role, string> = {
 export default function MealPlan() {
   const navigate = useNavigate()
   const ctx = useAsync(loadPlanContext)
+  // Proteínas em pó que a pessoa cadastrou (pelo rótulo ou código de barras) para usar como o whey do plano.
+  const powders = useAsync(async () => (await loadFoods()).filter(f => f.source === 'custom' && /whey|prote[ií]na|isolad|albumina/i.test(f.name)))
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState<SavedPlan | null>(null)
 
   const data = ctx.data
-  const current = saved ?? data?.saved ?? null
+  const raw = saved ?? data?.saved ?? null
+  const current = raw ? { ...raw, settings: withDefaults(raw.settings) } : null
   const targets = data?.targets ?? null
   const plan = targets && current ? buildPlan(targets, current) : null
 
@@ -77,7 +82,8 @@ export default function MealPlan() {
 
       {data && targets && (!current || editing) && (
         <Consultation
-          initial={current?.settings ?? DEFAULT_SETTINGS}
+          initial={withDefaults(current?.settings ?? DEFAULT_SETTINGS)}
+          powders={(powders.data ?? []).map(f => ({ id: f.id, name: f.name, kcal: f.kcal, p: f.protein_g, c: f.carbs_g, f: f.fat_g }))}
           onCancel={current ? () => setEditing(false) : undefined}
           onSave={async settings => {
             await persist({ settings, picks: {} })
@@ -104,21 +110,43 @@ export default function MealPlan() {
 
 // ---------- Consulta ----------
 
-const DISLIKE_GROUPS: [string, FoodKey[]][] = [
-  ['Proteínas', ['frango', 'patinho', 'maminha', 'peru', 'lombo', 'merluza', 'sardinha', 'ovo', 'tofu', 'iogurte', 'ricota', 'minas', 'presunto', 'soja']],
-  ['Carboidratos', ['arroz', 'integral', 'batataDoce', 'mandioca', 'batata', 'paoFrances', 'paoIntegral', 'aveia', 'cuscuz']],
-  ['Feijões e legumes', ['feijao', 'feijaoPreto', 'lentilha', 'brocolis', 'cenoura', 'abobrinha', 'couveFlor']],
-  ['Frutas e gorduras', ['banana', 'maca', 'mamao', 'laranja', 'morango', 'manga', 'castanha', 'amendoim', 'abacate']],
+const FOOD_GROUPS: [string, FoodKey[]][] = [
+  ['Proteínas', ['frango', 'coxa', 'patinho', 'carneMoida', 'maminha', 'peru', 'lombo', 'merluza', 'sardinha', 'atum', 'ovo', 'tofu', 'iogurte', 'ricota', 'minas', 'prato', 'presunto', 'soja']],
+  ['Carboidratos', ['arroz', 'integral', 'batataDoce', 'mandioca', 'batata', 'macarrao', 'polenta', 'milho', 'paoFrances', 'paoIntegral', 'aveia', 'cuscuz']],
+  ['Feijões, verduras e legumes', ['feijao', 'feijaoPreto', 'lentilha', 'ervilha', 'alface', 'repolho', 'brocolis', 'cenoura', 'abobrinha', 'couveFlor', 'abobora', 'beterraba', 'chuchu']],
+  ['Frutas', ['banana', 'maca', 'mamao', 'laranja', 'mexerica', 'morango', 'manga', 'goiaba', 'melancia', 'abacaxi', 'uva']],
+  ['Gorduras boas', ['castanha', 'caju', 'amendoim', 'abacate', 'linhaca']],
 ]
+
+function Choice<T extends string | number>({ value, options, onChange }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void }) {
+  return (
+    <div className="chips wrap">
+      {options.map(([v, label]) => (
+        <button key={String(v)} type="button" className={`chip ${value === v ? 'on' : ''}`} aria-pressed={value === v} onClick={() => onChange(v)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 const short = (k: FoodKey) => PLAN_FOODS[k].name.replace(/ (grelhad[oa]|cozid[oa]|assad[oa])$/, '')
 
-function Consultation({ initial, onSave, onCancel }: { initial: PlanSettings; onSave: (s: PlanSettings) => Promise<void>; onCancel?: () => void }) {
+function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSettings; powders: WheyFood[]; onSave: (s: PlanSettings) => Promise<void>; onCancel?: () => void }) {
   const [s, setS] = useState<PlanSettings>(initial)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof PlanSettings>(k: K, v: PlanSettings[K]) => setS(prev => ({ ...prev, [k]: v }))
-  const toggleDislike = (k: FoodKey) => set('dislikes', s.dislikes.includes(k) ? s.dislikes.filter(d => d !== k) : [...s.dislikes, k])
+  // Cada toque: neutro → tenho em casa → não como → neutro.
+  const cycle = (k: FoodKey) =>
+    setS(prev =>
+      prev.likes.includes(k)
+        ? { ...prev, likes: prev.likes.filter(x => x !== k), dislikes: [...prev.dislikes, k] }
+        : prev.dislikes.includes(k)
+          ? { ...prev, dislikes: prev.dislikes.filter(x => x !== k) }
+          : { ...prev, likes: [...prev.likes, k] },
+    )
+  const setWhey = (patch: Partial<PlanSettings['whey']>) => setS(prev => ({ ...prev, whey: { ...prev.whey, ...patch } }))
 
   async function submit() {
     setBusy(true)
@@ -206,17 +234,116 @@ function Consultation({ initial, onSave, onCancel }: { initial: PlanSettings; on
       </div>
 
       <div className="field">
-        <span>O que você não come?</span>
-        <small className="muted tiny">Toque para tirar do plano.</small>
-        {DISLIKE_GROUPS.map(([title, keys]) => (
+        <span>Suplementos</span>
+        <div className="card stack" style={{ gap: 12 }}>
+          <div className="field">
+            <span>Whey por dia</span>
+            <Choice
+              value={s.whey.scoops}
+              options={[
+                [0, 'Não tomo'],
+                [1, '1 scoop'],
+                [2, '2 scoops'],
+              ]}
+              onChange={v => setWhey({ scoops: v })}
+            />
+          </div>
+          {s.whey.scoops > 0 && (
+            <>
+              <div className="grid-2">
+                <label className="field">
+                  <span>Scoop (g)</span>
+                  <input className="input" inputMode="numeric" value={String(s.whey.scoopG)} onChange={e => setWhey({ scoopG: Math.min(80, Math.max(10, Number(e.target.value.replace(/\D/g, '')) || 30)) })} />
+                </label>
+                <div className="field">
+                  <span>Quando</span>
+                  <select className="input" value={s.whey.when} onChange={e => setWhey({ when: e.target.value as PlanSettings['whey']['when'] })}>
+                    <option value="post">Depois do treino</option>
+                    <option value="breakfast">No café da manhã</option>
+                    <option value="snack">Num lanche</option>
+                  </select>
+                </div>
+              </div>
+              <div className="field">
+                <span>Qual whey</span>
+                <select
+                  className="input"
+                  value={s.whey.food?.id ?? ''}
+                  onChange={e => setWhey({ food: powders.find(p => p.id === e.target.value) ?? null })}
+                >
+                  <option value="">Whey concentrado comum (24 g de proteína a cada 30 g)</option>
+                  {powders.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                <small className="muted tiny">Cadastre o seu pelo código de barras ou pelo rótulo em Nutrição e ele aparece aqui com os valores certos.</small>
+              </div>
+            </>
+          )}
+          <label className="row small" style={{ gap: 8 }}>
+            <input type="checkbox" checked={s.creatine} onChange={e => set('creatine', e.target.checked)} /> Tomo creatina
+          </label>
+        </div>
+      </div>
+
+      <div className="field">
+        <span>Onde você almoça?</span>
+        <Choice
+          value={s.lunchAt}
+          options={[
+            ['home', 'Em casa'],
+            ['lunchbox', 'Marmita'],
+            ['restaurant', 'Restaurante'],
+          ]}
+          onChange={v => set('lunchAt', v)}
+        />
+      </div>
+
+      <div className="field">
+        <span>Tempo para cozinhar</span>
+        <Choice
+          value={s.cooking}
+          options={[
+            ['little', 'Pouco'],
+            ['some', 'Médio'],
+            ['plenty', 'Bastante'],
+          ]}
+          onChange={v => set('cooking', v)}
+        />
+      </div>
+
+      <div className="field">
+        <span>Orçamento com comida</span>
+        <Choice
+          value={s.budget}
+          options={[
+            ['low', 'Apertado'],
+            ['medium', 'Médio'],
+            ['high', 'Folgado'],
+          ]}
+          onChange={v => set('budget', v)}
+        />
+      </div>
+
+      <div className="field">
+        <span>O que você tem e o que não come</span>
+        <small className="muted tiny">
+          Toque uma vez: <strong style={{ color: 'var(--accent)' }}>costumo ter</strong> (entra primeiro no plano). Duas vezes: <s>não como</s>. Três vezes: volta ao normal.
+        </small>
+        {FOOD_GROUPS.map(([title, keys]) => (
           <div key={title} className="stack" style={{ gap: 6, marginTop: 6 }}>
             <span className="muted tiny">{title}</span>
             <div className="chips wrap">
-              {keys.map(k => (
-                <button key={k} type="button" className={`chip ${s.dislikes.includes(k) ? 'off' : ''}`} aria-pressed={s.dislikes.includes(k)} onClick={() => toggleDislike(k)}>
-                  {short(k)}
-                </button>
-              ))}
+              {keys.map(k => {
+                const state = s.likes.includes(k) ? 'on' : s.dislikes.includes(k) ? 'off' : ''
+                return (
+                  <button key={k} type="button" className={`chip ${state}`} aria-label={`${short(k)}${state === 'on' ? ', costumo ter' : state === 'off' ? ', não como' : ''}`} onClick={() => cycle(k)}>
+                    {short(k)}
+                  </button>
+                )
+              })}
             </div>
           </div>
         ))}
@@ -290,6 +417,11 @@ function PlanView(props: {
         ))}
       </div>
 
+      {tab === 'menu' && saved.settings.creatine && (
+        <p className="card small" style={{ margin: 0 }}>
+          <strong>Creatina:</strong> 3 a 5 g todo dia, junto com qualquer refeição.
+        </p>
+      )}
       {tab === 'menu' && plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
 
       {tab === 'tips' && (
@@ -361,6 +493,7 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
           )}
         </button>
       </div>
+      {meal.note && <p className="muted tiny" style={{ margin: '8px 0 0' }}>{meal.note}</p>}
       {state !== 'idle' && state !== 'busy' && state !== 'done' && <p className="error small">{state}</p>}
       <div className="meal-items">
         {meal.items.map(i => (

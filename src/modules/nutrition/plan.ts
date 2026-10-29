@@ -27,9 +27,13 @@ export interface PlanFood {
   whole?: boolean
   /** Teto por refeição (ninguém come 5 bananas de uma vez). */
   max?: number
+  /** 1 = barato, 2 = médio, 3 = caro. */
+  price?: 1 | 2 | 3
+  /** Pronto ou quase: abrir, esquentar, cozinhar rápido. */
+  quick?: boolean
 }
 
-const food = (id: string, name: string, kcal: number, p: number, c: number, f: number, fiber: number, tags: Tag[], unit: [string, string, number], whole = false, max?: number): PlanFood => ({
+const food = (id: string, name: string, kcal: number, p: number, c: number, f: number, fiber: number, tags: Tag[], unit: [string, string, number], whole = false, max?: number, extra: Pick<PlanFood, 'price' | 'quick'> = {}): PlanFood => ({
   id,
   name,
   kcal,
@@ -41,56 +45,79 @@ const food = (id: string, name: string, kcal: number, p: number, c: number, f: n
   unit,
   whole,
   max,
+  ...extra,
 })
 
 export const PLAN_FOODS = {
   // Proteínas do almoço e do jantar
-  frango: food('taco-410', 'Peito de frango grelhado', 159, 32, 0, 2.5, 0, ['meat'], ['filé médio', 'filés médios', 100]),
-  patinho: food('taco-377', 'Patinho grelhado', 219, 35.9, 0, 7.3, 0, ['meat'], ['bife médio', 'bifes médios', 100]),
-  maminha: food('taco-368', 'Maminha grelhada', 153, 30.7, 0, 2.4, 0, ['meat'], ['fatia média', 'fatias médias', 100]),
-  peru: food('taco-425', 'Peru assado', 163, 26.2, 0, 5.7, 0, ['meat'], ['fatia grossa', 'fatias grossas', 50]),
-  lombo: food('taco-432', 'Lombo de porco assado', 210, 35.7, 0, 6.4, 0, ['meat', 'pork'], ['fatia média', 'fatias médias', 80]),
-  merluza: food('taco-301', 'Filé de merluza assado', 122, 26.6, 0, 0.9, 0, ['fish'], ['filé médio', 'filés médios', 120]),
-  sardinha: food('taco-318', 'Sardinha assada', 164, 32.2, 0, 3, 0, ['fish'], ['sardinha', 'sardinhas', 40]),
-  ovo: food('taco-488', 'Ovo cozido', 146, 13.3, 0.6, 9.5, 0, ['egg'], ['ovo', 'ovos', 50], true, 200),
-  tofu: food('taco-584', 'Tofu', 64, 6.6, 2.1, 4, 0.8, [], ['fatia', 'fatias', 50]),
+  frango: food('taco-410', 'Peito de frango grelhado', 159, 32, 0, 2.5, 0, ['meat'], ['filé médio', 'filés médios', 100], false, undefined, { price: 1, quick: true }),
+  patinho: food('taco-377', 'Patinho grelhado', 219, 35.9, 0, 7.3, 0, ['meat'], ['bife médio', 'bifes médios', 100], false, undefined, { price: 2 }),
+  maminha: food('taco-368', 'Maminha grelhada', 153, 30.7, 0, 2.4, 0, ['meat'], ['fatia média', 'fatias médias', 100], false, undefined, { price: 3 }),
+  peru: food('taco-425', 'Peru assado', 163, 26.2, 0, 5.7, 0, ['meat'], ['fatia grossa', 'fatias grossas', 50], false, undefined, { price: 3 }),
+  lombo: food('taco-432', 'Lombo de porco assado', 210, 35.7, 0, 6.4, 0, ['meat', 'pork'], ['fatia média', 'fatias médias', 80], false, undefined, { price: 2 }),
+  merluza: food('taco-301', 'Filé de merluza assado', 122, 26.6, 0, 0.9, 0, ['fish'], ['filé médio', 'filés médios', 120], false, undefined, { price: 2 }),
+  sardinha: food('taco-318', 'Sardinha assada', 164, 32.2, 0, 3, 0, ['fish'], ['sardinha', 'sardinhas', 40], false, undefined, { price: 1 }),
+  ovo: food('taco-488', 'Ovo cozido', 146, 13.3, 0.6, 9.5, 0, ['egg'], ['ovo', 'ovos', 50], true, 200, { price: 1, quick: true }),
+  tofu: food('taco-584', 'Tofu', 64, 6.6, 2.1, 4, 0.8, [], ['fatia', 'fatias', 50], false, undefined, { price: 3 }),
   // Proteínas do café e dos lanches
-  iogurte: food('taco-449', 'Iogurte natural desnatado', 41, 3.8, 5.8, 0.3, 0, ['lactose'], ['pote', 'potes', 170]),
-  ricota: food('taco-469', 'Ricota', 140, 12.6, 3.8, 8.1, 0, ['lactose'], ['fatia', 'fatias', 30]),
-  minas: food('taco-461', 'Queijo minas frescal', 264, 17.4, 3.2, 20.2, 0, ['lactose'], ['fatia', 'fatias', 30]),
-  presunto: food('taco-439', 'Presunto magro', 94, 14.3, 2.1, 2.7, 0, ['meat', 'pork'], ['fatia', 'fatias', 15]),
-  soja: food('taco-582', 'Bebida de soja', 39, 2.4, 4.3, 1.6, 0.4, [], ['copo', 'copos', 200]),
+  iogurte: food('taco-449', 'Iogurte natural desnatado', 41, 3.8, 5.8, 0.3, 0, ['lactose'], ['pote', 'potes', 170], false, undefined, { price: 1, quick: true }),
+  ricota: food('taco-469', 'Ricota', 140, 12.6, 3.8, 8.1, 0, ['lactose'], ['fatia', 'fatias', 30], false, undefined, { price: 2, quick: true }),
+  minas: food('taco-461', 'Queijo minas frescal', 264, 17.4, 3.2, 20.2, 0, ['lactose'], ['fatia', 'fatias', 30], false, undefined, { price: 2, quick: true }),
+  presunto: food('taco-439', 'Presunto magro', 94, 14.3, 2.1, 2.7, 0, ['meat', 'pork'], ['fatia', 'fatias', 15], false, undefined, { price: 2, quick: true }),
+  soja: food('taco-582', 'Bebida de soja', 39, 2.4, 4.3, 1.6, 0.4, [], ['copo', 'copos', 200], false, undefined, { price: 2, quick: true }),
   // Carboidratos
-  arroz: food('taco-3', 'Arroz branco cozido', 128, 2.5, 28.1, 0.2, 1.6, [], ['col. de sopa', 'col. de sopa', 25]),
-  integral: food('taco-1', 'Arroz integral cozido', 124, 2.6, 25.8, 1, 2.7, [], ['col. de sopa', 'col. de sopa', 25]),
+  arroz: food('taco-3', 'Arroz branco cozido', 128, 2.5, 28.1, 0.2, 1.6, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1 }),
+  integral: food('taco-1', 'Arroz integral cozido', 124, 2.6, 25.8, 1, 2.7, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1 }),
   batataDoce: food('taco-88', 'Batata-doce cozida', 77, 0.6, 18.4, 0.1, 2.2, [], ['pedaço médio', 'pedaços médios', 80]),
-  mandioca: food('taco-129', 'Mandioca cozida', 125, 0.6, 30.1, 0.3, 1.6, [], ['pedaço médio', 'pedaços médios', 60]),
-  batata: food('taco-91', 'Batata inglesa cozida', 52, 1.2, 11.9, 0, 1.3, [], ['batata média', 'batatas médias', 120]),
-  paoFrances: food('taco-53', 'Pão francês', 300, 8, 58.6, 3.1, 2.3, ['gluten'], ['pão', 'pães', 50], true),
-  paoIntegral: food('taco-52', 'Pão integral de forma', 253, 9.4, 49.9, 3.7, 6.9, ['gluten'], ['fatia', 'fatias', 25], true),
-  aveia: food('taco-7', 'Aveia em flocos', 394, 13.9, 66.6, 8.5, 9.1, ['gluten'], ['col. de sopa', 'col. de sopa', 15]),
-  cuscuz: food('taco-533', 'Cuscuz de milho', 113, 2.2, 25.3, 0.7, 2.1, [], ['fatia média', 'fatias médias', 100]),
+  mandioca: food('taco-129', 'Mandioca cozida', 125, 0.6, 30.1, 0.3, 1.6, [], ['pedaço médio', 'pedaços médios', 60], false, undefined, { price: 1 }),
+  batata: food('taco-91', 'Batata inglesa cozida', 52, 1.2, 11.9, 0, 1.3, [], ['batata média', 'batatas médias', 120], false, undefined, { price: 1 }),
+  paoFrances: food('taco-53', 'Pão francês', 300, 8, 58.6, 3.1, 2.3, ['gluten'], ['pão', 'pães', 50], true, undefined, { price: 1, quick: true }),
+  paoIntegral: food('taco-52', 'Pão integral de forma', 253, 9.4, 49.9, 3.7, 6.9, ['gluten'], ['fatia', 'fatias', 25], true, undefined, { price: 2, quick: true }),
+  aveia: food('taco-7', 'Aveia em flocos', 394, 13.9, 66.6, 8.5, 9.1, ['gluten'], ['col. de sopa', 'col. de sopa', 15], false, undefined, { price: 1, quick: true }),
+  cuscuz: food('taco-533', 'Cuscuz de milho', 113, 2.2, 25.3, 0.7, 2.1, [], ['fatia média', 'fatias médias', 100], false, undefined, { price: 1, quick: true }),
   // Leguminosas, verduras e legumes
-  feijao: food('taco-561', 'Feijão carioca cozido', 76, 4.8, 13.6, 0.5, 8.5, [], ['concha', 'conchas', 80]),
-  feijaoPreto: food('taco-567', 'Feijão preto cozido', 77, 4.5, 14, 0.5, 8.4, [], ['concha', 'conchas', 80]),
+  feijao: food('taco-561', 'Feijão carioca cozido', 76, 4.8, 13.6, 0.5, 8.5, [], ['concha', 'conchas', 80], false, undefined, { price: 1 }),
+  feijaoPreto: food('taco-567', 'Feijão preto cozido', 77, 4.5, 14, 0.5, 8.4, [], ['concha', 'conchas', 80], false, undefined, { price: 1 }),
   lentilha: food('taco-577', 'Lentilha cozida', 93, 6.3, 16.3, 0.5, 7.9, [], ['concha', 'conchas', 80]),
-  alface: food('taco-78', 'Salada de folhas (alface)', 11, 1.3, 1.7, 0.2, 1.8, [], ['prato de sobremesa', 'pratos de sobremesa', 100]),
+  alface: food('taco-78', 'Salada de folhas (alface)', 11, 1.3, 1.7, 0.2, 1.8, [], ['prato de sobremesa', 'pratos de sobremesa', 100], false, undefined, { price: 1, quick: true }),
   brocolis: food('taco-100', 'Brócolis cozido', 25, 2.1, 4.4, 0.5, 3.4, [], ['col. de servir', 'col. de servir', 40]),
-  cenoura: food('taco-109', 'Cenoura cozida', 30, 0.8, 6.7, 0.2, 2.6, [], ['col. de servir', 'col. de servir', 40]),
+  cenoura: food('taco-109', 'Cenoura cozida', 30, 0.8, 6.7, 0.2, 2.6, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
   abobrinha: food('taco-70', 'Abobrinha cozida', 15, 1.1, 3, 0.2, 1.6, [], ['col. de servir', 'col. de servir', 40]),
   couveFlor: food('taco-118', 'Couve-flor cozida', 19, 1.2, 3.9, 0.3, 2.1, [], ['col. de servir', 'col. de servir', 40]),
   // Frutas
-  banana: food('taco-182', 'Banana prata', 98, 1.3, 26, 0.1, 2, [], ['banana', 'bananas', 70], true, 250),
-  maca: food('taco-222', 'Maçã fuji', 56, 0.3, 15.2, 0, 1.3, [], ['maçã', 'maçãs', 130], true, 250),
-  mamao: food('taco-226', 'Mamão papaia', 40, 0.5, 10.4, 0.1, 1, [], ['metade', 'metades', 150], false, 250),
-  laranja: food('taco-214', 'Laranja pera', 37, 1, 8.9, 0.1, 0.8, [], ['laranja', 'laranjas', 140], true, 250),
-  morango: food('taco-239', 'Morango', 30, 0.9, 6.8, 0.3, 1.7, [], ['morango', 'morangos', 12], false, 250),
-  manga: food('taco-231', 'Manga', 51, 0.9, 12.8, 0.2, 2.1, [], ['fatia', 'fatias', 80], false, 250),
+  banana: food('taco-182', 'Banana prata', 98, 1.3, 26, 0.1, 2, [], ['banana', 'bananas', 70], true, 250, { price: 1, quick: true }),
+  maca: food('taco-222', 'Maçã fuji', 56, 0.3, 15.2, 0, 1.3, [], ['maçã', 'maçãs', 130], true, 250, { price: 2, quick: true }),
+  mamao: food('taco-226', 'Mamão papaia', 40, 0.5, 10.4, 0.1, 1, [], ['metade', 'metades', 150], false, 250, { price: 1, quick: true }),
+  laranja: food('taco-214', 'Laranja pera', 37, 1, 8.9, 0.1, 0.8, [], ['laranja', 'laranjas', 140], true, 250, { price: 1, quick: true }),
+  morango: food('taco-239', 'Morango', 30, 0.9, 6.8, 0.3, 1.7, [], ['morango', 'morangos', 12], false, 250, { price: 3, quick: true }),
+  manga: food('taco-231', 'Manga', 51, 0.9, 12.8, 0.2, 2.1, [], ['fatia', 'fatias', 80], false, 250, { price: 2, quick: true }),
   // Gorduras boas
-  azeite: food('taco-260', 'Azeite de oliva', 884, 0, 0, 100, 0, [], ['col. de sobremesa', 'col. de sobremesa', 5]),
-  castanha: food('taco-589', 'Castanha-do-pará', 643, 14.5, 15.1, 63.5, 7.9, [], ['unidade', 'unidades', 4], true),
-  amendoim: food('taco-557', 'Amendoim', 544, 27.2, 20.3, 43.9, 8, [], ['col. de sopa', 'col. de sopa', 15]),
-  abacate: food('taco-163', 'Abacate', 96, 1.2, 6, 8.4, 6.3, [], ['col. de sopa', 'col. de sopa', 30]),
+  azeite: food('taco-260', 'Azeite de oliva', 884, 0, 0, 100, 0, [], ['col. de sobremesa', 'col. de sobremesa', 5], false, undefined, { price: 2, quick: true }),
+  castanha: food('taco-589', 'Castanha-do-pará', 643, 14.5, 15.1, 63.5, 7.9, [], ['unidade', 'unidades', 4], true, undefined, { price: 3, quick: true }),
+  amendoim: food('taco-557', 'Amendoim', 544, 27.2, 20.3, 43.9, 8, [], ['col. de sopa', 'col. de sopa', 15], false, undefined, { price: 1, quick: true }),
+  abacate: food('taco-163', 'Abacate', 96, 1.2, 6, 8.4, 6.3, [], ['col. de sopa', 'col. de sopa', 30], false, undefined, { price: 2, quick: true }),
+  // Mais opções do dia a dia
+  coxa: food('taco-398', 'Coxa de frango sem pele cozida', 167, 26.9, 0, 5.8, 0, ['meat'], ['coxa', 'coxas', 70], false, undefined, { price: 1 }),
+  carneMoida: food('taco-326', 'Carne moída (acém) cozida', 212, 26.7, 0, 10.9, 0, ['meat'], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1, quick: true }),
+  atum: food('taco-277', 'Atum em conserva', 166, 26.2, 0, 6, 0, ['fish'], ['lata (drenada)', 'latas (drenadas)', 120], false, undefined, { price: 2, quick: true }),
+  prato: food('taco-467', 'Queijo prato', 360, 22.7, 1.9, 29.1, 0, ['lactose'], ['fatia', 'fatias', 20], false, undefined, { price: 2, quick: true }),
+  macarrao: food('taco-40', 'Macarrão (peso cru)', 371, 10, 77.9, 1.3, 2.9, ['gluten'], ['xícara crua', 'xícaras cruas', 80], false, 160, { price: 1, quick: true }),
+  milho: food('taco-45', 'Milho verde em conserva', 98, 3.2, 17.1, 2.4, 4.6, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1, quick: true }),
+  polenta: food('taco-62', 'Polenta', 103, 2.3, 23.3, 0.3, 2.4, [], ['fatia', 'fatias', 80], false, undefined, { price: 1 }),
+  ervilha: food('taco-560', 'Ervilha em conserva', 74, 4.6, 13.4, 0.4, 5.1, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1, quick: true }),
+  repolho: food('taco-149', 'Salada de repolho', 17, 0.9, 3.9, 0.1, 1.9, [], ['prato de sobremesa', 'pratos de sobremesa', 100], false, undefined, { price: 1, quick: true }),
+  abobora: food('taco-64', 'Abóbora cabotiá cozida', 48, 1.4, 10.8, 0.7, 2.5, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
+  beterraba: food('taco-97', 'Beterraba cozida', 32, 1.3, 7.2, 0.1, 1.9, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
+  chuchu: food('taco-112', 'Chuchu cozido', 19, 0.4, 4.8, 0, 1, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
+  goiaba: food('taco-200', 'Goiaba', 54, 1.1, 13, 0.4, 6.2, [], ['goiaba', 'goiabas', 150], true, 300, { price: 1, quick: true }),
+  mexerica: food('taco-238', 'Mexerica', 37, 0.7, 9.3, 0.1, 2.7, [], ['mexerica', 'mexericas', 130], true, 260, { price: 1, quick: true }),
+  melancia: food('taco-235', 'Melancia', 33, 0.9, 8.1, 0, 0.1, [], ['fatia média', 'fatias médias', 200], false, 400, { price: 1, quick: true }),
+  abacaxi: food('taco-164', 'Abacaxi', 48, 0.9, 12.3, 0.1, 1, [], ['fatia', 'fatias', 75], false, 250, { price: 2, quick: true }),
+  uva: food('taco-256', 'Uva itália', 53, 0.7, 13.6, 0.2, 0.9, [], ['cacho pequeno', 'cachos pequenos', 100], false, 250, { price: 2, quick: true }),
+  caju: food('taco-588', 'Castanha de caju', 570, 18.5, 29.1, 46.3, 3.7, [], ['unidade', 'unidades', 2.5], false, undefined, { price: 3, quick: true }),
+  linhaca: food('taco-594', 'Linhaça', 495, 14.1, 43.3, 32.3, 33.5, [], ['col. de sopa', 'col. de sopa', 10], false, undefined, { price: 1, quick: true }),
+  // Suplemento: valores de um whey concentrado comum; trocados pelos do rótulo quando a pessoa escolhe o dela.
+  whey: food('whey', 'Whey protein', 400, 80, 10, 5, 0, ['lactose'], ['scoop', 'scoops', 30], false, undefined, { price: 2, quick: true }),
 } satisfies Record<string, PlanFood>
 
 export type FoodKey = keyof typeof PLAN_FOODS
@@ -114,6 +141,24 @@ export interface PlanSettings {
   noPork: boolean
   /** Alimentos que a pessoa não come. */
   dislikes: FoodKey[]
+  /** O que costuma ter em casa: vem primeiro nas escolhas. */
+  likes: FoodKey[]
+  /** Whey: scoops por dia (0 = não toma), gramas do scoop, quando toma e qual (o cadastrado ou o padrão). */
+  whey: { scoops: 0 | 1 | 2; scoopG: number; when: 'post' | 'breakfast' | 'snack'; food: WheyFood | null }
+  creatine: boolean
+  lunchAt: 'home' | 'lunchbox' | 'restaurant'
+  cooking: 'little' | 'some' | 'plenty'
+  budget: 'low' | 'medium' | 'high'
+}
+
+/** Whey cadastrado pela pessoa (valores por 100 g do rótulo). */
+export interface WheyFood {
+  id: string
+  name: string
+  kcal: number
+  p: number
+  c: number
+  f: number
 }
 
 export const DEFAULT_SETTINGS: PlanSettings = {
@@ -127,6 +172,17 @@ export const DEFAULT_SETTINGS: PlanSettings = {
   noFish: false,
   noPork: false,
   dislikes: [],
+  likes: [],
+  whey: { scoops: 0, scoopG: 30, when: 'post', food: null },
+  creatine: false,
+  lunchAt: 'home',
+  cooking: 'some',
+  budget: 'medium',
+}
+
+/** Consultas salvas antes de existirem as perguntas novas ganham os valores padrão. */
+export function withDefaults(s: Partial<PlanSettings>): PlanSettings {
+  return { ...DEFAULT_SETTINGS, ...s, whey: { ...DEFAULT_SETTINGS.whey, ...s.whey } }
 }
 
 /** O que fica salvo no perfil: a consulta e as trocas que a pessoa escolheu. */
@@ -138,7 +194,7 @@ export interface SavedPlan {
 
 function allowed(key: FoodKey, s: PlanSettings) {
   const f = F[key]
-  if (s.dislikes.includes(key)) return false
+  if (key === 'whey' || s.dislikes.includes(key)) return false
   if (s.diet === 'vegetarian' && (f.tags.includes('meat') || f.tags.includes('fish'))) return false
   if (s.noLactose && f.tags.includes('lactose')) return false
   if (s.noGluten && f.tags.includes('gluten')) return false
@@ -165,31 +221,31 @@ const KIND: Record<SlotKind, { label: string; log: Meal }> = {
 /** Opções de cada papel em cada tipo de refeição, na ordem de preferência. */
 const OPTIONS: Record<'main' | 'morning' | 'snack' | 'pre' | 'supper', Partial<Record<Role, FoodKey[]>>> = {
   main: {
-    protein: ['frango', 'patinho', 'merluza', 'maminha', 'peru', 'lombo', 'sardinha', 'ovo', 'tofu'],
-    carb: ['arroz', 'integral', 'batataDoce', 'mandioca', 'batata'],
-    legume: ['feijao', 'feijaoPreto', 'lentilha'],
-    salad: ['alface'],
-    veg: ['brocolis', 'cenoura', 'abobrinha', 'couveFlor'],
+    protein: ['frango', 'patinho', 'merluza', 'carneMoida', 'coxa', 'maminha', 'atum', 'peru', 'lombo', 'sardinha', 'ovo', 'tofu'],
+    carb: ['arroz', 'integral', 'batataDoce', 'mandioca', 'batata', 'macarrao', 'polenta', 'milho'],
+    legume: ['feijao', 'feijaoPreto', 'lentilha', 'ervilha'],
+    salad: ['alface', 'repolho'],
+    veg: ['brocolis', 'cenoura', 'abobrinha', 'couveFlor', 'abobora', 'beterraba', 'chuchu'],
     fat: ['azeite'],
   },
   morning: {
-    carb: ['paoFrances', 'paoIntegral', 'cuscuz', 'aveia', 'batataDoce'],
-    protein: ['ovo', 'minas', 'ricota', 'presunto', 'iogurte', 'tofu'],
-    fruit: ['mamao', 'banana', 'morango', 'maca', 'laranja', 'manga'],
+    carb: ['paoFrances', 'paoIntegral', 'cuscuz', 'aveia', 'batataDoce', 'mandioca'],
+    protein: ['ovo', 'minas', 'ricota', 'presunto', 'iogurte', 'prato', 'tofu'],
+    fruit: ['mamao', 'banana', 'morango', 'maca', 'laranja', 'manga', 'mexerica', 'melancia', 'abacaxi', 'goiaba', 'uva'],
   },
   snack: {
-    protein: ['ovo', 'iogurte', 'ricota', 'minas', 'soja', 'tofu'],
-    fruit: ['banana', 'maca', 'mamao', 'laranja', 'manga', 'morango'],
+    protein: ['ovo', 'iogurte', 'ricota', 'minas', 'atum', 'soja', 'tofu'],
+    fruit: ['banana', 'maca', 'mamao', 'laranja', 'manga', 'morango', 'mexerica', 'goiaba', 'abacaxi', 'uva', 'melancia'],
     carb: ['aveia', 'paoIntegral', 'cuscuz'],
-    fat: ['castanha', 'amendoim', 'abacate'],
+    fat: ['castanha', 'amendoim', 'caju', 'abacate', 'linhaca'],
   },
   pre: {
-    carb: ['banana', 'paoFrances', 'batataDoce', 'aveia', 'cuscuz', 'maca'],
-    protein: ['ovo', 'iogurte', 'presunto', 'ricota', 'soja', 'tofu'],
+    carb: ['banana', 'paoFrances', 'batataDoce', 'aveia', 'cuscuz', 'maca', 'mandioca', 'uva'],
+    protein: ['ovo', 'iogurte', 'presunto', 'ricota', 'atum', 'soja', 'tofu'],
   },
   supper: {
-    protein: ['iogurte', 'ovo', 'ricota', 'soja', 'tofu'],
-    fat: ['castanha', 'amendoim', 'abacate'],
+    protein: ['iogurte', 'ovo', 'ricota', 'minas', 'soja', 'tofu'],
+    fat: ['castanha', 'amendoim', 'caju', 'abacate', 'linhaca'],
   },
 }
 
@@ -287,6 +343,7 @@ export interface PlanItem {
 }
 
 export interface PlanMeal extends Slot {
+  note?: string
   items: PlanItem[]
   target: { p: number; c: number; f: number }
   total: { kcal: number; p: number; c: number; f: number; fiber: number }
@@ -369,7 +426,8 @@ function fitGrams(fixed: PlanItem[], free: PlanItem[], target: { p: number; c: n
     }
   }
   pinned.push(...open.map(i => ({ ...i, grams: LIMITS[i.role][0] })))
-  return [...fixed, ...free.map(f => pinned.find(p => p.role === f.role)!)].map(i => ({ ...i, grams: roundGrams(i.food, i.grams, i.role) }))
+  // Os fixos já vêm em porções prontas (o scoop de whey, por exemplo, fica exato).
+  return [...fixed, ...free.map(f => pinned.find(p => p.role === f.role)!).map(i => ({ ...i, grams: roundGrams(i.food, i.grams, i.role) }))]
 }
 
 export function itemMacros(i: Pick<PlanItem, 'food' | 'grams'>) {
@@ -392,7 +450,40 @@ function sumItems(items: Pick<PlanItem, 'food' | 'grams'>[]) {
 
 /** Opções permitidas de um papel numa refeição. */
 export function optionsFor(kind: SlotKind, role: Role, s: PlanSettings): FoodKey[] {
-  return (OPTIONS[GROUP[kind]][role] ?? []).filter(k => allowed(k, s))
+  // O que a pessoa tem em casa vem primeiro; com orçamento curto, o mais barato; com pouco tempo, o mais prático.
+  const score = (k: FoodKey) => {
+    const f: PlanFood = F[k]
+    const price = s.budget === 'low' ? (f.price ?? 2) * 10 : s.budget === 'medium' && f.price === 3 ? 10 : 0
+    return (s.likes.includes(k) ? 0 : 100) + price + (s.cooking === 'little' && !f.quick ? 5 : 0)
+  }
+  return (OPTIONS[GROUP[kind]][role] ?? [])
+    .filter(k => allowed(k, s))
+    .map((k, i) => ({ k, rank: score(k) * 100 + i }))
+    .sort((a, b) => a.rank - b.rank)
+    .map(x => x.k)
+}
+
+/** O whey da pessoa (valores do rótulo) ou o padrão, com o scoop dela. */
+export function wheyFood(s: PlanSettings): PlanFood {
+  const w = s.whey.food
+  const unit: [string, string, number] = ['scoop', 'scoops', s.whey.scoopG]
+  return w ? { ...F.whey, id: w.id, name: w.name, kcal: w.kcal, p: w.p, c: w.c, f: w.f, unit } : { ...F.whey, unit }
+}
+
+/** Em qual refeição entra o whey: no pós-treino, no café ou num lanche. */
+function wheySlot(slots: Slot[], s: PlanSettings): string | null {
+  if (!s.whey.scoops) return null
+  const find = (...kinds: SlotKind[]) => kinds.map(k => slots.find(x => x.kind === k)).find(Boolean)?.key ?? null
+  if (s.whey.when === 'breakfast') return find('breakfast')
+  if (s.whey.when === 'snack') return find('afternoon_snack', 'morning_snack', 'supper', 'pre_workout', 'post_workout')
+  const post = find('post_workout')
+  if (post) return post
+  if (s.train) {
+    const train = toMin(s.train)
+    const after = slots.find(x => toMin(x.time) > train)
+    if (after) return after.key
+  }
+  return find('afternoon_snack', 'morning_snack', 'breakfast')
 }
 
 function pick(kind: SlotKind, role: Role, s: PlanSettings, variant: number, chosen?: FoodKey): FoodKey | null {
@@ -403,8 +494,9 @@ function pick(kind: SlotKind, role: Role, s: PlanSettings, variant: number, chos
 
 /** Monta o cardápio do dia a partir das metas e da consulta. */
 export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
-  const s = saved.settings
+  const s = withDefaults(saved.settings)
   const slots = buildSlots(s)
+  const wheyAt = wheySlot(slots, s)
   const weight = (m: 'p' | 'c' | 'f') => slots.reduce((a, sl) => a + SHARE[sl.kind][m], 0)
   const W = { p: weight('p'), c: weight('c'), f: weight('f') }
   let mainCount = 0
@@ -419,6 +511,7 @@ export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
     const variant = group === 'main' ? mainCount++ : group === 'snack' || group === 'pre' ? snackCount++ : 0
     const choose = (role: Role) => pick(slot.kind, role, s, variant, picks[role])
     const item = (role: Role, key: FoodKey | null, grams = 0): PlanItem[] => (key ? [{ role, key, food: F[key], grams }] : [])
+    const whey: PlanItem[] = slot.key === wheyAt ? [{ role: 'protein', key: 'whey', food: wheyFood(s), grams: s.whey.scoops * s.whey.scoopG }] : []
 
     let fixed: PlanItem[] = []
     let free: PlanItem[] = []
@@ -444,13 +537,24 @@ export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
     } else {
       free = [...item('protein', choose('protein')), ...item('fat', choose('fat'))]
     }
+    // Com whey nesta refeição, ele é a proteína: sai a proteína sugerida.
+    if (whey.length) {
+      free = free.filter(i => i.role !== 'protein')
+      fixed = [...whey, ...fixed]
+    }
     // A leguminosa no lugar da proteína resolve a proteína.
     const items = fitGrams(
       fixed,
       free.map(i => (i.role === 'legume' ? { ...i, role: 'protein' as Role } : i)),
       target,
     ).map(i => (i.key === free.find(f => f.role === 'legume')?.key ? { ...i, role: 'legume' as Role } : i))
-    return { ...slot, items, target, total: sumItems(items) }
+    const note =
+      slot.kind === 'lunch' && s.lunchAt === 'restaurant'
+        ? 'No restaurante: use as quantidades como referência para montar o prato. Prefira grelhados e deixe frituras e molhos cremosos de lado.'
+        : slot.kind === 'lunch' && s.lunchAt === 'lunchbox'
+          ? 'Marmita: cozinhe arroz, feijão e a proteína para 3 dias de uma vez e congele as porções.'
+          : undefined
+    return { ...slot, items, target, total: sumItems(items), note }
   })
 
   balance(meals, targets)
@@ -469,7 +573,7 @@ function balance(meals: PlanMeal[], targets: Targets) {
     for (const meal of mains) {
       meal.items = meal.items.map(i => {
         const m = i.role === 'protein' ? 'p' : i.role === 'carb' ? 'c' : i.role === 'fat' ? 'f' : null
-        if (!m || i.food.whole || i.food[m] <= 0) return i
+        if (!m || i.food.whole || i.key === 'whey' || i.food[m] <= 0) return i
         return { ...i, grams: roundGrams(i.food, i.grams + (diff[m] / mains.length) * (100 / i.food[m]), i.role) }
       })
     }
@@ -574,10 +678,26 @@ export function guidance(opts: { goal: Goal | null; targets: Targets; weightKg: 
     title: 'Pesagem e ajuste',
     text: 'Pese-se 2 a 3 vezes por semana, de manhã, em jejum e depois do banheiro. O app recalcula as metas com o seu peso. Se em 2 a 3 semanas a média de 7 dias não andar no ritmo escolhido, ajuste a meta em 100 a 150 kcal.',
   })
-  g.push({
-    title: 'Suplementos',
-    text: 'Creatina (3 a 5 g por dia, todo dia) tem boa evidência para força e massa. Whey é só praticidade para bater a proteína e pode substituir o iogurte ou os ovos dos lanches. Converse com um profissional de saúde antes de começar.',
-  })
+  const w = settings.whey
+  const wheyText = w.scoops
+    ? `Seu whey (${w.scoops} ${w.scoops === 1 ? 'scoop' : 'scoops'} de ${w.scoopG} g) já está no cardápio e conta na proteína do dia. Se um dia não tomar, troque por 3 ovos ou um pote grande de iogurte.`
+    : 'Whey não é obrigatório: é só praticidade para bater a proteína. Se quiser usar, marque na consulta e ele entra no lugar de outra proteína.'
+  const creatineText = settings.creatine
+    ? 'Creatina: 3 a 5 g todo dia, inclusive nos dias sem treino, em qualquer horário. Não precisa de fase de saturação.'
+    : 'Creatina (3 a 5 g por dia) tem boa evidência para força e massa, se quiser incluir.'
+  g.push({ title: 'Suplementos', text: `${wheyText} ${creatineText} Converse com um profissional de saúde antes de começar algo novo.` })
+  if (settings.cooking === 'little') {
+    g.push({
+      title: 'Pouco tempo para cozinhar',
+      text: 'Reserve 1 hora no domingo e outra no meio da semana: arroz, feijão e frango ou carne moída para 3 dias, legumes no vapor. Atum, ovos cozidos, iogurte e frutas resolvem os lanches sem fogão.',
+    })
+  }
+  if (settings.budget === 'low') {
+    g.push({
+      title: 'Proteína sem pesar no bolso',
+      text: 'Ovos, frango (coxa e peito), carne moída, sardinha e feijão são as proteínas mais baratas por grama. Compre frutas da estação e em feira no fim do dia.',
+    })
+  }
   g.push({
     title: 'Sono e sal',
     text: 'Durma de 7 a 9 horas: sono curto aumenta a fome e atrapalha a recuperação. Tempere com ervas, alho e limão e evite temperos prontos, que são cheios de sódio.',

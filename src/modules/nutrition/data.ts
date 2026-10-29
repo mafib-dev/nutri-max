@@ -253,12 +253,14 @@ export async function saveMealPlan(plan: SavedPlan | null) {
 export async function logPlanMeal(date: string, meal: PlanMeal) {
   const [uid, catalogue] = await Promise.all([userId(), loadFoods()])
   const byId = new Map(catalogue.map(f => [f.id, f]))
-  const rows = meal.items.flatMap(i => {
+  const rows = meal.items.map(i => {
     const food = byId.get(i.food.id)
-    if (!food) return []
-    return [{ user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }]
+    if (food) return { user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
+    // Fora do catálogo (o whey padrão): entra com os valores do plano.
+    const k = i.grams / 100
+    const r = (n: number) => Math.round(n * k * 10) / 10
+    return { user_id: uid, date, meal: meal.log, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
   })
-  if (!rows.length) throw new Error('Os alimentos do plano não foram encontrados. Rode a importação da TACO.')
   const { error } = await supabase.from('food_logs').insert(rows)
   fail('Falha ao lançar a refeição do plano', error)
 }
