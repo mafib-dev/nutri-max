@@ -16,6 +16,8 @@ export const Icon = {
   up: () => svg(<path d="M6 15l6-6 6 6" />),
   down: () => svg(<path d="M6 9l6 6 6-6" />),
   back: () => svg(<path d="M15 6l-6 6 6 6" />),
+  barcode: () => svg(<path d="M3 5v14M7 5v14M10 5v14M14 5v14M17 5v14M21 5v14" />),
+  bolt: () => svg(<path d="M13 2L4 14h7l-1 8 9-12h-7z" />),
 }
 
 let openModals = 0

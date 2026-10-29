@@ -6,6 +6,8 @@ import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { fmtRecoveryIn } from '../modules/training/opengym/recovery-view.js'
 import { BarChart, LineChart } from '../components/charts'
 import { useAsync } from '../lib/useAsync'
+import { loadNutritionProfile } from '../modules/nutrition/data'
+import { weeksToTarget, weightTrend } from '../modules/nutrition/targets'
 import { formatKg } from '../lib/format'
 
 const STATE_LABEL: Record<MuscleRecovery['state'], string> = {
@@ -160,6 +162,11 @@ function SetsRow({ name, thisWeek, average }: { name: string; thisWeek: number; 
 }
 
 function BodyWeightSection({ weights, onSaved }: { weights: { date: string; weight_kg: number }[]; onSaved: () => void }) {
+  const profile = useAsync(() => loadNutritionProfile().catch(() => null))
+  const target = profile.data?.target_weight_kg ?? null
+  const trend = weightTrend(weights)
+  const trendNow = trend.at(-1)
+  const weeks = trendNow ? weeksToTarget(trendNow.avg, target, profile.data?.weekly_rate_kg ?? null) : null
   const today = todayIso()
   const todays = weights.find(w => w.date === today)
   const [value, setValue] = useState(todays ? String(todays.weight_kg).replace('.', ',') : '')
@@ -208,7 +215,15 @@ function BodyWeightSection({ weights, onSaved }: { weights: { date: string; weig
           </p>
         )}
       </form>
-      {weights.length >= 2 && <LineChart label="Peso corporal" points={weights.map(w => ({ label: w.date, value: w.weight_kg }))} />}
+      {weights.length >= 2 && (
+        <LineChart label="Peso corporal" points={weights.map(w => ({ label: w.date, value: w.weight_kg }))} trend={weights.length >= 3 ? trend.map(t => t.avg) : undefined} target={target} />
+      )}
+      {trendNow && trendNow.samples >= 2 && (
+        <p className="muted small" style={{ margin: 0 }}>
+          Média dos últimos 7 dias: <strong style={{ color: 'var(--text)' }}>{formatKg(trendNow.avg)}</strong>. O peso do dia varia até 2 kg com água e sal; a linha grossa mostra a tendência.
+          {target != null && weeks != null && (weeks === 0 ? ' Você chegou ao peso-alvo!' : ` No ritmo escolhido, faltam cerca de ${weeks} ${weeks === 1 ? 'semana' : 'semanas'} para o alvo.`)}
+        </p>
+      )}
     </>
   )
 }

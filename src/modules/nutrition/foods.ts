@@ -13,6 +13,7 @@ export interface Food {
   sodium_mg: number | null
   serving_name: string | null
   serving_g: number | null
+  barcode: string | null
   source: 'taco' | 'custom'
 }
 
@@ -38,7 +39,25 @@ export interface FoodLog extends Macros {
   meal: Meal
   food_id: string | null
   name: string
-  grams: number
+  /** Nulo na adição rápida, que tem só as calorias e os macros. */
+  grams: number | null
+  fiber_g: number | null
+  sodium_mg: number | null
+}
+
+/** Fibra e sódio da porção; nulos quando o alimento não informa. */
+export function microsFor(food: Pick<Food, 'fiber_g' | 'sodium_mg'>, grams: number) {
+  const k = grams / 100
+  return {
+    fiber_g: food.fiber_g == null ? null : Math.round(food.fiber_g * k * 10) / 10,
+    sodium_mg: food.sodium_mg == null ? null : Math.round(food.sodium_mg * k),
+  }
+}
+
+/** Soma fibra e sódio do dia, ignorando o que não tem o valor. */
+export function sumMicros(items: Pick<FoodLog, 'fiber_g' | 'sodium_mg'>[]) {
+  const sum = (k: 'fiber_g' | 'sodium_mg') => items.reduce((a, i) => a + (i[k] == null ? 0 : Number(i[k])), 0)
+  return { fiber_g: Math.round(sum('fiber_g') * 10) / 10, sodium_mg: Math.round(sum('sodium_mg')) }
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10

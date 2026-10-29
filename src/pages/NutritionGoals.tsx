@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
 import { loadNutritionProfile, saveNutritionProfile, todayIso } from '../modules/nutrition/data'
-import { ACTIVITY, calculatedKcal, GOALS, missingForTargets, splitMacros, type ActivityLevel, type Goal, type NutritionProfile, type Sex } from '../modules/nutrition/targets'
+import { ACTIVITY, calculatedKcal, GOALS, kcalFloor, missingForTargets, splitMacros, weeksToTarget, type ActivityLevel, type Goal, type NutritionProfile, type Sex } from '../modules/nutrition/targets'
 import { listBodyWeights, saveBodyWeight } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
 
@@ -15,6 +15,7 @@ export default function NutritionGoals() {
   const [p, setP] = useState<NutritionProfile | null>(null)
   const [weight, setWeight] = useState('')
   const [height, setHeight] = useState('')
+  const [targetWeight, setTargetWeight] = useState('')
   const [manual, setManual] = useState({ kcal: '', protein: '', carbs: '', fat: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +26,7 @@ export default function NutritionGoals() {
     setP(profile)
     setWeight(toStr(weights.at(-1)?.weight_kg))
     setHeight(toStr(profile.height_cm))
+    setTargetWeight(toStr(profile.target_weight_kg))
     setManual({ kcal: toStr(profile.kcal_target), protein: toStr(profile.protein_target_g), carbs: toStr(profile.carbs_target_g), fat: toStr(profile.fat_target_g) })
   }, [loaded.data])
 
@@ -32,11 +34,14 @@ export default function NutritionGoals() {
   if (loaded.error || !p) return <main className="page error">{loaded.error}</main>
 
   const kg = toNum(weight)
-  const current = { ...p, height_cm: toNum(height) }
+  const current = { ...p, height_cm: toNum(height), target_weight_kg: toNum(targetWeight) }
   const missing = missingForTargets(current, kg)
   const autoKcal = kg ? calculatedKcal(current, kg, new Date()) : null
   const kcal = toNum(manual.kcal) ?? autoKcal
   const split = kcal && kg ? splitMacros(kcal, kg, p.goal ?? 'maintain') : null
+  const goal = p.goal ?? 'maintain'
+  const weeks = kg && goal !== 'maintain' ? weeksToTarget(kg, current.target_weight_kg, p.weekly_rate_kg) : null
+  const lowKcal = kcal != null && kcal < kcalFloor(p.sex)
   const set = <K extends keyof NutritionProfile>(k: K, v: NutritionProfile[K]) => setP({ ...p, [k]: v })
   const setManualField = (k: keyof typeof manual) => (e: { target: { value: string } }) => setManual(m => ({ ...m, [k]: e.target.value }))
 
@@ -48,6 +53,8 @@ export default function NutritionGoals() {
     const ints = [manual.kcal, manual.protein, manual.carbs, manual.fat].map(toNum)
     if (ints.some(v => v != null && (!Number.isFinite(v) || v < 0))) return setError('Confira as metas definidas à mão.')
     if (ints[0] != null && (ints[0] < 800 || ints[0] > 6000)) return setError('A meta de calorias precisa ficar entre 800 e 6.000.')
+    const tw = toNum(targetWeight)
+    if (tw != null && !(tw >= 30 && tw <= 300)) return setError('Peso-alvo em kg, por exemplo 75.')
     setBusy(true)
     setError(null)
     try {
@@ -55,6 +62,8 @@ export default function NutritionGoals() {
       await saveNutritionProfile({
         ...p!,
         height_cm: h,
+        target_weight_kg: goal === 'maintain' ? null : tw,
+        weekly_rate_kg: goal === 'maintain' ? null : p!.weekly_rate_kg,
         kcal_target: round(ints[0]),
         protein_target_g: round(ints[1]),
         carbs_target_g: round(ints[2]),
@@ -90,6 +99,32 @@ export default function NutritionGoals() {
             ))}
           </div>
         </div>
+
+        {goal !== 'maintain' && (
+          <div className="card stack" style={{ gap: 12 }}>
+            <label className="field">
+              <span>Peso-alvo (kg)</span>
+              <input className="input" inputMode="decimal" placeholder={goal === 'lose' ? '75' : '85'} value={targetWeight} onChange={e => setTargetWeight(e.target.value)} />
+            </label>
+            <div className="field">
+              <span>Ritmo por semana</span>
+              <div className="chips wrap">
+                {[null, 0.25, 0.5, 0.75, 1].map(r => (
+                  <button key={String(r)} type="button" className={`chip ${p.weekly_rate_kg === r ? 'on' : ''}`} onClick={() => set('weekly_rate_kg', r)}>
+                    {r == null ? 'Padrão' : `${r.toLocaleString('pt-BR')} kg`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="muted tiny" style={{ margin: 0 }}>
+              {p.weekly_rate_kg
+                ? `${p.weekly_rate_kg.toLocaleString('pt-BR')} kg por semana dá cerca de ${Math.round(p.weekly_rate_kg * 1100)} kcal por dia ${goal === 'lose' ? 'a menos' : 'a mais'}.`
+                : `Padrão: ${goal === 'lose' ? '20% a menos' : '10% a mais'} que o seu gasto.`}{' '}
+              Com peso-alvo, a diferença diminui sozinha nos últimos 5 kg e vira manutenção a 1 kg do alvo.
+              {weeks != null && weeks > 0 && ` Previsão: cerca de ${weeks} ${weeks === 1 ? 'semana' : 'semanas'}.`}
+            </p>
+          </div>
+        )}
 
         <div className="field">
           <span>Sexo</span>
@@ -137,6 +172,16 @@ export default function NutritionGoals() {
           </div>
         </div>
 
+        <label className="card toggle">
+          <input type="checkbox" checked={p.add_workout_kcal} onChange={e => set('add_workout_kcal', e.target.checked)} />
+          <div>
+            <div style={{ fontWeight: 700 }}>Somar as calorias dos treinos</div>
+            <div className="muted tiny">
+              Nos dias de treino a meta sobe conforme a duração (cerca de 5 MET, contando 72% do gasto, porque o corpo compensa parte dele). Se ligar, escolha o nível de atividade sem contar a academia.
+            </div>
+          </div>
+        </label>
+
         <div className="card hero stack" style={{ gap: 10 }}>
           <span className="eyebrow">Sua meta diária</span>
           {kcal ? (
@@ -149,10 +194,15 @@ export default function NutritionGoals() {
                   Proteína {toNum(manual.protein) ?? split.protein_g} g · Carboidrato {toNum(manual.carbs) ?? split.carbs_g} g · Gordura {toNum(manual.fat) ?? split.fat_g} g
                 </div>
               )}
+              {lowKcal && (
+                <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
+                  Abaixo de {kcalFloor(p.sex).toLocaleString('pt-BR')} kcal fica difícil bater as vitaminas e minerais do dia. Considere um ritmo mais leve ou converse com um nutricionista.
+                </p>
+              )}
               <p className="muted tiny" style={{ margin: 0 }}>
                 {toNum(manual.kcal) != null
                   ? 'Calorias definidas por você.'
-                  : `Gasto estimado pela fórmula de Mifflin-St Jeor${p.goal === 'lose' ? ', com 20% a menos para perder gordura' : p.goal === 'gain' ? ', com 10% a mais para ganhar massa' : ''}. Proteína de ${GOALS[p.goal ?? 'maintain'].proteinPerKg.toLocaleString('pt-BR')} g por kg e 25% das calorias em gordura.`}
+                  : `Gasto estimado pela fórmula de Mifflin-St Jeor${p.weekly_rate_kg && goal !== 'maintain' ? `, ajustado para ${p.weekly_rate_kg.toLocaleString('pt-BR')} kg por semana` : goal === 'lose' ? ', com 20% a menos para perder gordura' : goal === 'gain' ? ', com 10% a mais para ganhar massa' : ''}${current.target_weight_kg != null && goal !== 'maintain' ? ' e reduzido perto do peso-alvo' : ''}. Proteína de ${GOALS[goal].proteinPerKg.toLocaleString('pt-BR')} g por kg e 25% das calorias em gordura.`}
               </p>
             </>
           ) : (

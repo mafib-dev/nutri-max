@@ -7,7 +7,9 @@ O **módulo de musculação** já tem login, catálogo de exercícios, rotinas, 
 com carga sugerida pela progressão, histórico e evolução do 1RM por exercício.
 
 O **módulo de nutrição** tem o diário de refeições com os 597 alimentos da tabela TACO,
-alimentos próprios (copiados do rótulo) e metas de calorias e macros calculadas pelo perfil.
+alimentos próprios (copiados do rótulo ou lidos pelo código de barras no Open Food Facts),
+adição rápida de calorias, refeições salvas, água, fibra e sódio, e metas de calorias e macros
+calculadas pelo perfil, com peso-alvo, ritmo semanal e opção de somar as calorias dos treinos.
 
 ## Stack
 
@@ -67,6 +69,8 @@ scripts/import-foods.ts       importação dos alimentos da TACO
 | `body_metrics` | Peso e medidas, compartilhados com o módulo de nutrição |
 | `foods` | Alimentos da TACO (por 100 g) e alimentos criados pelo usuário |
 | `food_logs` | O que foi comido, por dia e refeição, com os macros copiados na hora |
+| `saved_meals` | Refeições salvas para lançar de novo com um toque |
+| `water_logs` | Água bebida por dia |
 | `ai_insights` | Sugestões da IA, aprovadas ou recusadas pelo usuário |
 
 Views: `last_sets` (última série de cada exercício, usada pela progressão) e
@@ -78,6 +82,9 @@ Pesos são sempre gravados em kg.
 
 - Alimentos: [TACO, Tabela Brasileira de Composição de Alimentos](https://nepa.unicamp.br/publicacoes/tabela-taco-pdf/), 4ª edição, NEPA/UNICAMP,
   a partir dos dados organizados pelo [taco-api](https://github.com/raulfdm/taco-api) (MIT).
+- Produtos embalados: [Open Food Facts](https://world.openfoodfacts.org), dados sob ODbL.
+- Ideias do módulo de nutrição (código de barras, adição rápida, calorias do treino, água) inspiradas no
+  [OpenNutriTracker](https://github.com/simonoppowa/OpenNutriTracker). Nenhum código foi copiado.
 - Exercícios e fotos: [free-exercise-db](https://github.com/yuhonas/free-exercise-db), domínio público.
 - A lógica de treino em `src/modules/training/opengym` vem do
   [openGym](https://github.com/DuarteSantos8/openGym), sob AGPL-3.0. Detalhes no README da pasta.
