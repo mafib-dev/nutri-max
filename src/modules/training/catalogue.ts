@@ -36,13 +36,14 @@ export interface ExerciseRow {
 // Categorias que não são musculação: ficam no catálogo, mas fora da busca padrão.
 export const NON_STRENGTH_CATEGORIES = ['stretching', 'cardio', 'strongman'] as const
 
-export function toExerciseRow(ex: FreeExerciseDbExercise): ExerciseRow {
+/** `namePt`: nome em português (scripts/data/exercise-names-pt.json), quando houver. */
+export function toExerciseRow(ex: FreeExerciseDbExercise, namePt: string | null = null): ExerciseRow {
   const primary = toMuscles(ex.primaryMuscles)
   return {
     id: ex.id,
     owner_id: null,
     name: ex.name,
-    name_pt: null,
+    name_pt: namePt,
     force: ex.force,
     level: ex.level,
     mechanic: ex.mechanic,

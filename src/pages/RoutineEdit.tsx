@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser'
+import { ExerciseDetail, muscleName } from '../components/ExerciseDetail'
+import { Icon, Modal } from '../components/ui'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import {
   deleteRoutine,
@@ -46,6 +48,8 @@ export default function RoutineEdit() {
   const [weekday, setWeekday] = useState<number | null>(null)
   const [items, setItems] = useState<Item[]>([])
   const [picking, setPicking] = useState(false)
+  const [viewing, setViewing] = useState<ExerciseRow | null>(null)
+  const [added, setAdded] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null)
 
@@ -100,45 +104,61 @@ export default function RoutineEdit() {
 
   return (
     <main className="page stack">
-      <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => navigate('/rotinas')}>
-        ‹ Rotinas
+      <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate('/rotinas')}>
+        <Icon.back /> Rotinas
       </button>
-      <label className="field">
-        <span>Nome</span>
-        <input className="input" value={name} onChange={e => setName(e.target.value)} />
-      </label>
-      <label className="field">
-        <span>Dia da semana</span>
-        <select className="input" value={weekday ?? ''} onChange={e => setWeekday(e.target.value === '' ? null : Number(e.target.value))}>
-          <option value="">Sem dia fixo</option>
-          {WEEKDAYS.map((d, i) => (
-            <option key={d} value={i}>
-              {d}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div>
+        <span className="eyebrow">Editando rotina</span>
+        <h1>{name || 'Rotina'}</h1>
+      </div>
+      <div className="grid-2">
+        <label className="field">
+          <span>Nome</span>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} />
+        </label>
+        <label className="field">
+          <span>Dia da semana</span>
+          <select className="input" value={weekday ?? ''} onChange={e => setWeekday(e.target.value === '' ? null : Number(e.target.value))}>
+            <option value="">Sem dia fixo</option>
+            {WEEKDAYS.map((d, i) => (
+              <option key={d} value={i}>
+                {d}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-      <h2>Exercícios</h2>
-      {items.length === 0 && <p className="muted small">Nenhum exercício ainda.</p>}
+      <h2>Exercícios · {items.length}</h2>
+      {items.length === 0 && (
+        <div className="empty">
+          <span className="muted small">Nenhum exercício ainda. Abra a lista, veja como cada um é feito e adicione os que quiser.</span>
+        </div>
+      )}
       {items.map((it, i) => {
         const ex = byId.get(it.exercise_id)
         const policy = it.progression.policy ?? 'double'
         return (
-          <div key={`${it.exercise_id}-${i}`} className="card stack">
+          <div key={`${it.exercise_id}-${i}`} className="card stack" style={{ gap: 14 }}>
             <div className="row">
-              {ex?.images[0] ? <img className="thumb" src={imageUrl(ex.images[0])} alt="" /> : <div className="thumb" />}
-              <div className="grow" style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600 }} className="ellipsis">
-                  {i + 1}. {exerciseName(ex)}
+              <button type="button" className="ex-head" onClick={() => ex && setViewing(ex)} aria-label={`Ver detalhes de ${exerciseName(ex)}`}>
+                {ex?.images[0] ? <img className="thumb" src={imageUrl(ex.images[0])} alt="" /> : <div className="thumb" />}
+                <div className="grow">
+                  <span className="eyebrow">Exercício {i + 1}</span>
+                  <div className="title clamp-2" style={{ fontWeight: 700 }}>
+                    {exerciseName(ex)}
+                  </div>
+                  {ex && <div className="muted tiny ellipsis">{ex.primary_muscles.map(muscleName).join(', ')} · ver como fazer</div>}
                 </div>
+              </button>
+              <div style={{ display: 'grid', gap: 2 }}>
+                <button type="button" className="btn ghost icon" aria-label="Subir" onClick={() => move(i, -1)} disabled={i === 0}>
+                  <Icon.up />
+                </button>
+                <button type="button" className="btn ghost icon" aria-label="Descer" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
+                  <Icon.down />
+                </button>
               </div>
-              <button type="button" className="btn ghost small" aria-label="Subir" onClick={() => move(i, -1)} disabled={i === 0}>
-                ↑
-              </button>
-              <button type="button" className="btn ghost small" aria-label="Descer" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
-                ↓
-              </button>
             </div>
             <div className="grid-3">
               <label className="field">
@@ -192,12 +212,12 @@ export default function RoutineEdit() {
           </div>
         )
       })}
-      <button type="button" className="btn" onClick={() => setPicking(true)}>
-        + Adicionar exercício
+      <button type="button" className="btn block" style={{ borderStyle: 'dashed' }} onClick={() => setPicking(true)}>
+        <Icon.plus /> Adicionar exercício
       </button>
 
       {status && <p className={status.error ? 'error' : 'muted'}>{status.text}</p>}
-      <button type="button" className="btn primary block" onClick={save} disabled={saving}>
+      <button type="button" className="btn primary big block" onClick={save} disabled={saving}>
         {saving ? 'Salvando…' : 'Salvar rotina'}
       </button>
       <button type="button" className="btn ghost danger" onClick={remove}>
@@ -205,23 +225,45 @@ export default function RoutineEdit() {
       </button>
 
       {picking && (
-        <div className="sheet-backdrop" onClick={() => setPicking(false)}>
-          <div className="sheet stack" onClick={e => e.stopPropagation()}>
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Adicionar exercício</h2>
-              <button type="button" className="btn ghost small" onClick={() => setPicking(false)}>
-                Fechar
-              </button>
-            </div>
-            <ExerciseBrowser
-              onPick={ex => {
-                setItems(list => [...list, newItem(ex)])
-                setPicking(false)
-              }}
-            />
-          </div>
-        </div>
+        <Modal
+          tall
+          title="Adicionar exercício"
+          onClose={() => {
+            setPicking(false)
+            setAdded(null)
+          }}
+          footer={
+            added && (
+              <div className="spread">
+                <span className="small ellipsis">
+                  <span style={{ color: 'var(--accent)' }}>✓</span> {added} adicionado
+                </span>
+                <button
+                  type="button"
+                  className="btn primary small"
+                  onClick={() => {
+                    setPicking(false)
+                    setAdded(null)
+                  }}
+                >
+                  Concluir
+                </button>
+              </div>
+            )
+          }
+        >
+          <p className="muted small" style={{ marginTop: 0 }}>
+            Toque num exercício para ver como ele é feito. Use o + para adicionar direto.
+          </p>
+          <ExerciseBrowser
+            onPick={ex => {
+              setItems(list => [...list, newItem(ex)])
+              setAdded(exerciseName(ex))
+            }}
+          />
+        </Modal>
       )}
+      {viewing && <ExerciseDetail exercise={viewing} onClose={() => setViewing(null)} />}
     </main>
   )
 }

@@ -27,9 +27,10 @@ export default function Progress() {
 
   return (
     <main className="page stack">
-      <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => navigate(-1)}>
+      <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate(-1)}>
         ‹ Voltar
       </button>
+      <span className="eyebrow">Evolução do exercício</span>
       {data.loading && <p className="muted">Carregando…</p>}
       {data.error && <p className="error">{data.error}</p>}
       {data.data && (

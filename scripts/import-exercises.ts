@@ -9,6 +9,7 @@
 // fotos já enviadas são sobrescritas.
 import { createClient } from '@supabase/supabase-js'
 import { toExerciseRow, type FreeExerciseDbExercise } from '../src/modules/training/catalogue'
+import namesPt from './data/exercise-names-pt.json' with { type: 'json' }
 
 const SOURCE = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main'
 const BUCKET = 'exercise-images'
@@ -30,7 +31,8 @@ async function main() {
   const exercises = (await res.json()) as FreeExerciseDbExercise[]
   console.log(`${exercises.length} exercícios encontrados.`)
 
-  const rows = exercises.map(toExerciseRow)
+  const names = namesPt as Record<string, string>
+  const rows = exercises.map(ex => toExerciseRow(ex, names[ex.id] ?? null))
   for (let i = 0; i < rows.length; i += BATCH) {
     const { error } = await supabase.from('exercises').upsert(rows.slice(i, i + BATCH), { onConflict: 'id' })
     if (error) throw new Error(`Falha ao gravar exercícios: ${error.message}`)

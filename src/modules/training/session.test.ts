@@ -67,3 +67,10 @@ describe('newRecords', () => {
     expect(newRecords(history, s)).toEqual([])
   })
 })
+
+describe('buildEntry', () => {
+  it('guarda a última vez que o exercício foi feito', () => {
+    const s = buildSession(history, { id: 'r1', name: 'Peito' }, [{ row, name: 'Supino reto' }])
+    expect(s.entries[0].last).toEqual({ date: '2026-10-20', sets: [{ w: 60, r: 5 }, { w: 60, r: 5 }, { w: 60, r: 5 }] })
+  })
+})

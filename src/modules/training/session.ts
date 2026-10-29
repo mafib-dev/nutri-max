@@ -28,6 +28,13 @@ export interface SessionEntry {
   suggestion: Prescription
   restSec: number
   sets: SessionSet[]
+  /** Séries de trabalho da última vez que o exercício foi feito (ausente em treinos salvos antes). */
+  last?: LastPerformance | null
+}
+
+export interface LastPerformance {
+  date: string
+  sets: { w: number; r: number }[]
 }
 
 export interface Session {
@@ -40,13 +47,13 @@ export interface Session {
 
 export const DEFAULT_REST_SEC = 90
 
-/** Última carga de trabalho registrada para um exercício, para preencher quando não há sugestão. */
-function lastWorkWeight(state: TrainingState, exerciseId: string): number | null {
+/** As séries de trabalho feitas da última vez que o exercício apareceu num treino. */
+export function lastPerformance(state: TrainingState, exerciseId: string): LastPerformance | null {
   for (let i = state.workouts.length - 1; i >= 0; i--) {
     for (const entry of state.workouts[i].entries) {
       if (entry.id !== exerciseId) continue
       const work = entry.sets.filter(s => s.done && s.phase !== 'warmup')
-      if (work.length) return Math.max(...work.map(s => s.w))
+      if (work.length) return { date: state.workouts[i].d, sets: work.map(s => ({ w: s.w, r: s.r })) }
     }
   }
   return null
@@ -60,7 +67,9 @@ export function buildEntry(
   const cfg = toExerciseConfig(row)
   const suggestion = suggestNext(state, cfg)
   const count = suggestion.sets ?? cfg.sets
-  const weight = suggestion.weight ?? lastWorkWeight(state, cfg.id)
+  const last = lastPerformance(state, cfg.id)
+  // Sem sugestão da progressão, começa com a maior carga da última vez.
+  const weight = suggestion.weight ?? (last ? Math.max(...last.sets.map(s => s.w)) : null)
   const sets: SessionSet[] = Array.from({ length: count }, (_, i) => ({
     kind: 'work',
     weight,
@@ -68,7 +77,7 @@ export function buildEntry(
     rir: null,
     done: false,
   }))
-  return { exerciseId: cfg.id, name, cfg, suggestion, restSec: row.rest_sec ?? DEFAULT_REST_SEC, sets }
+  return { exerciseId: cfg.id, name, cfg, suggestion, restSec: row.rest_sec ?? DEFAULT_REST_SEC, sets, last }
 }
 
 export function buildSession(

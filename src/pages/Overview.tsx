@@ -42,6 +42,7 @@ export default function Overview() {
 
   return (
     <main className="page stack">
+      <span className="eyebrow">Como seu corpo está</span>
       <h1>Progresso</h1>
       {data.loading && !data.data && <p className="muted">Carregando…</p>}
       {data.error && <p className="error">{data.error}</p>}

@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser'
+import { ExerciseDetail, equipmentName, muscleName } from '../components/ExerciseDetail'
+import { Icon, Modal } from '../components/ui'
+import type { ExerciseRow } from '../modules/training/catalogue'
 import { useActiveSession } from '../modules/training/activeSession'
-import { exerciseName, loadState, saveWorkout } from '../modules/training/data'
-import { buildEntry, newRecords, sessionVolume, type NewRecord, type SessionSet } from '../modules/training/session'
+import { exerciseName, imageUrl, loadCatalogue, loadState, saveWorkout } from '../modules/training/data'
+import { buildEntry, newRecords, sessionVolume, type NewRecord, type SessionEntry, type SessionSet } from '../modules/training/session'
 import { explain } from '../modules/training/why'
 import { formatClock, formatKg } from '../lib/format'
+import { useAsync } from '../lib/useAsync'
 
 const parseNum = (v: string) => {
   if (v.trim() === '') return null
@@ -27,6 +31,9 @@ export default function Workout() {
   const [session, setSession] = useActiveSession()
   const [restUntil, setRestUntil] = useState<number | null>(null)
   const [picking, setPicking] = useState(false)
+  const [viewing, setViewing] = useState<number | null>(null)
+  const catalogue = useAsync(loadCatalogue)
+  const byId = new Map((catalogue.data ?? []).map(e => [e.id, e]))
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{ volume: number; sets: number; records: NewRecord[]; minutes: number } | null>(null)
@@ -55,6 +62,7 @@ export default function Workout() {
 
   const elapsed = Math.max(0, Math.floor((now - Date.parse(session.startedAt)) / 1000))
   const doneCount = session.entries.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)
+  const totalSets = session.entries.reduce((n, e) => n + e.sets.length, 0)
 
   const editSet = (ei: number, si: number, change: Partial<SessionSet>) =>
     setSession(s =>
@@ -131,32 +139,67 @@ export default function Workout() {
   }
 
   return (
-    <main className="page stack" style={{ paddingBottom: restUntil ? 120 : 40 }}>
-      <div className="spread">
-        <div>
-          <h1>{session.name}</h1>
-          <p className="muted small" style={{ margin: 0 }}>
-            {formatClock(elapsed)} · {doneCount} séries feitas
-          </p>
+    <main className="page stack" style={{ paddingBottom: restUntil ? 130 : 48 }}>
+      <div className="page-head">
+        <div style={{ minWidth: 0 }}>
+          <span className="eyebrow">Treino em andamento</span>
+          <h1 className="ellipsis">{session.name}</h1>
         </div>
         <button type="button" className="btn primary" onClick={finish} disabled={finishing}>
           {finishing ? 'Salvando…' : 'Finalizar'}
         </button>
+      </div>
+      <div className="grid-3">
+        <div className="card stat">
+          <span>Tempo</span>
+          <strong>{formatClock(elapsed)}</strong>
+        </div>
+        <div className="card stat">
+          <span>Séries</span>
+          <strong>
+            {doneCount}
+            <small className="muted" style={{ fontSize: '1rem' }}>
+              /{totalSets}
+            </small>
+          </strong>
+        </div>
+        <div className="card stat">
+          <span>Volume</span>
+          <strong>{Math.round(sessionVolume(session))}</strong>
+        </div>
       </div>
       {error && <p className="error">{error}</p>}
 
       {session.entries.map((entry, ei) => {
         const why = explain(entry.suggestion.why)
         return (
-          <section key={`${entry.exerciseId}-${ei}`} className="card">
-            <div className="spread">
-              <strong>{entry.name}</strong>
-              <button type="button" className="btn ghost small" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
-                ✕
+          <section key={`${entry.exerciseId}-${ei}`} className="card stack" style={{ gap: 12 }}>
+            <div className="row" style={{ alignItems: 'flex-start' }}>
+              <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
+                {byId.get(entry.exerciseId)?.images[0] ? (
+                  <img className="thumb" src={imageUrl(byId.get(entry.exerciseId)!.images[0])} alt="" />
+                ) : (
+                  <div className="thumb" />
+                )}
+                <div className="grow">
+                  <span className="eyebrow">
+                    {ei + 1} de {session.entries.length}
+                  </span>
+                  <div className="clamp-2" style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                    {entry.name}
+                  </div>
+                  <div className="muted tiny row" style={{ gap: 4 }}>
+                    <Icon.info /> Como fazer
+                  </div>
+                </div>
+              </button>
+              <button type="button" className="btn ghost icon" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
+                <Icon.close />
               </button>
             </div>
+            <EntryMeta entry={entry} exercise={byId.get(entry.exerciseId)} />
             {why && <p className="why">{why}</p>}
-            <div className="set-grid" style={{ marginTop: why ? 0 : 10 }}>
+            <div className="set-grid">
               <span className="head">#</span>
               <span className="head">kg</span>
               <span className="head">reps</span>
@@ -201,22 +244,19 @@ export default function Workout() {
                       aria-label={`Série ${si + 1} feita`}
                       onClick={() => toggleDone(ei, si)}
                     >
-                      ✓
+                      <Icon.check />
                     </button>
                   </div>
                 )
               })}
             </div>
-            <div className="row" style={{ marginTop: 10 }}>
+            <div className="row">
               <button type="button" className="btn small" onClick={() => addSet(ei, 'work')}>
                 + Série
               </button>
               <button type="button" className="btn small ghost" onClick={() => addSet(ei, 'warmup')}>
                 + Aquecimento
               </button>
-              <span className="muted small" style={{ marginLeft: 'auto' }}>
-                Descanso {formatClock(entry.restSec)}
-              </span>
             </div>
           </section>
         )
@@ -225,8 +265,8 @@ export default function Workout() {
         Toque duas vezes no número da série para removê-la. "A" é série de aquecimento.
       </p>
 
-      <button type="button" className="btn" onClick={() => setPicking(true)}>
-        + Adicionar exercício
+      <button type="button" className="btn block" style={{ borderStyle: 'dashed' }} onClick={() => setPicking(true)}>
+        <Icon.plus /> Adicionar exercício
       </button>
       <button type="button" className="btn ghost danger" onClick={discard}>
         Descartar treino
@@ -234,7 +274,12 @@ export default function Workout() {
 
       {restUntil && (
         <div className="rest-bar" role="timer" aria-live="polite">
-          <span>Descanso {formatClock(restLeft)}</span>
+          <div>
+            <div className="tiny" style={{ fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              Descanso
+            </div>
+            <div className="clock">{formatClock(restLeft)}</div>
+          </div>
           <div className="row">
             <button type="button" className="btn small" onClick={() => setRestUntil(restUntil + 30000)}>
               +30s
@@ -247,40 +292,69 @@ export default function Workout() {
       )}
 
       {picking && (
-        <div className="sheet-backdrop" onClick={() => setPicking(false)}>
-          <div className="sheet stack" onClick={e => e.stopPropagation()}>
-            <div className="spread">
-              <h2 style={{ margin: 0 }}>Adicionar exercício</h2>
-              <button type="button" className="btn ghost small" onClick={() => setPicking(false)}>
-                Fechar
-              </button>
-            </div>
-            <ExerciseBrowser
-              onPick={async ex => {
-                setPicking(false)
-                try {
-                  const state = await loadState()
-                  const entry = buildEntry(
-                    state,
-                    { routine_id: session.routineId ?? '', exercise_id: ex.id, sets: 3, rep_min: 8, rep_max: 12, rest_sec: 90, progression: { policy: 'double' } },
-                    exerciseName(ex),
-                  )
-                  setSession(s => s && { ...s, entries: [...s.entries, entry] })
-                } catch (err) {
-                  setError((err as Error).message)
-                }
-              }}
-            />
-          </div>
-        </div>
+        <Modal tall title="Adicionar exercício" onClose={() => setPicking(false)}>
+          <ExerciseBrowser
+            pickLabel="Adicionar ao treino"
+            onPick={async ex => {
+              setPicking(false)
+              try {
+                const state = await loadState()
+                const entry = buildEntry(
+                  state,
+                  { routine_id: session.routineId ?? '', exercise_id: ex.id, sets: 3, rep_min: 8, rep_max: 12, rest_sec: 90, progression: { policy: 'double' } },
+                  exerciseName(ex),
+                )
+                setSession(s => s && { ...s, entries: [...s.entries, entry] })
+              } catch (err) {
+                setError((err as Error).message)
+              }
+            }}
+          />
+        </Modal>
+      )}
+      {viewing != null && session.entries[viewing] && byId.get(session.entries[viewing].exerciseId) && (
+        <ExerciseDetail exercise={byId.get(session.entries[viewing].exerciseId)!} onClose={() => setViewing(null)}>
+          <EntryMeta entry={session.entries[viewing]} exercise={undefined} />
+        </ExerciseDetail>
       )}
     </main>
+  )
+}
+
+const kg = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+
+/** Meta do exercício, descanso e o que foi feito da última vez. */
+function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: ExerciseRow | undefined }) {
+  const { cfg } = entry
+  const reps = cfg.repsMin != null && cfg.reps != null && cfg.repsMin !== cfg.reps ? `${cfg.repsMin}–${cfg.reps}` : `${cfg.reps ?? '–'}`
+  const last = entry.last
+  return (
+    <div className="ex-meta">
+      <span>
+        Meta <b>{cfg.sets} × {reps}</b>
+      </span>
+      <span>
+        Descanso <b>{formatClock(entry.restSec)}</b>
+      </span>
+      {exercise && (
+        <span>
+          <b>{exercise.primary_muscles.map(muscleName).join(', ')}</b> · {equipmentName(exercise.equipment)}
+        </span>
+      )}
+      {last && (
+        <span style={{ flexBasis: '100%' }}>
+          Última vez ({new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}):{' '}
+          <b>{last.sets.map(s => `${kg(s.w)}×${s.r}`).join(' · ')}</b>
+        </span>
+      )}
+    </div>
   )
 }
 
 function Summary(props: { volume: number; sets: number; records: NewRecord[]; minutes: number; onClose: () => void }) {
   return (
     <main className="page stack">
+      <span className="eyebrow">Mandou bem</span>
       <h1>Treino salvo!</h1>
       <div className="grid-3">
         <div className="card stat">
@@ -313,7 +387,7 @@ function Summary(props: { volume: number; sets: number; records: NewRecord[]; mi
           ))}
         </>
       )}
-      <button type="button" className="btn primary block" onClick={props.onClose}>
+      <button type="button" className="btn primary big block" onClick={props.onClose}>
         Voltar ao início
       </button>
     </main>
