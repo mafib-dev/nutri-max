@@ -1180,6 +1180,7 @@ select.input {
 
 .meal-items {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   border-top: 1px solid var(--border);
 }
 
@@ -1371,4 +1372,60 @@ details.card summary::marker {
 
 .tip.good {
   border-color: var(--accent);
+}
+
+/* Plano alimentar */
+.chip.off {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.plan-item .meal-item:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.plan-item .subs {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 12px 12px;
+  border-left: 2px solid var(--border-strong);
+  margin-left: 4px;
+}
+
+.plan-item .sub {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.plan-item .sub:hover {
+  border-color: var(--accent);
+}
+
+.shop-list {
+  display: grid;
+  gap: 10px;
+}
+
+.follow-plan {
+  justify-self: start;
+  margin-top: 8px;
+  color: var(--accent);
+}
+
+.next-meal ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
 }

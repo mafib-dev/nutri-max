@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import FoodPicker, { MacroInputs, parseMacroInputs } from '../components/FoodPicker'
 import { Icon, Modal } from '../components/ui'
 import NutritionSummary from '../components/NutritionSummary'
-import { deleteLog, getWater, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
+import { deleteLog, getWater, logPlanMeal, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
 import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
 import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal } from '../modules/nutrition/targets'
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
+import { loadPlanContext } from '../modules/nutrition/planContext'
+import type { PlanMeal } from '../modules/nutrition/plan'
 
 const shift = (iso: string, days: number) => {
   const d = new Date(iso + 'T12:00:00')
@@ -29,7 +31,9 @@ export default function Nutrition() {
   const setup = useAsync(() => Promise.all([loadNutritionProfile(), listBodyWeights(1)]))
   const logs = useAsync(() => listLogs(date), [date])
   const day = useAsync(() => Promise.all([workoutMinutesOn(date), getWater(date)]), [date])
+  const planCtx = useAsync(loadPlanContext)
   const [adding, setAdding] = useState<Meal | null>(null)
+  const [planBusy, setPlanBusy] = useState<string | null>(null)
   const [editing, setEditing] = useState<FoodLog | null>(null)
   const [saving, setSaving] = useState<{ meal: string; items: FoodLog[] } | null>(null)
   const [water, setWaterState] = useState<{ date: string; ml: number } | null>(null)
@@ -58,6 +62,18 @@ export default function Nutrition() {
     }
   }
 
+  async function followPlan(m: PlanMeal) {
+    setPlanBusy(m.key)
+    try {
+      await logPlanMeal(date, m)
+      logs.reload()
+    } catch (err) {
+      alert((err as Error).message)
+    } finally {
+      setPlanBusy(null)
+    }
+  }
+
   return (
     <main className="page stack">
       <div className="page-head">
@@ -65,9 +81,14 @@ export default function Nutrition() {
           <span className="eyebrow">Diário alimentar</span>
           <h1>Nutrição</h1>
         </div>
-        <Link to="/nutricao/metas" className="btn ghost small">
-          Metas
-        </Link>
+        <div className="row" style={{ gap: 4 }}>
+          <Link to="/nutricao/plano" className="btn ghost small">
+            Plano
+          </Link>
+          <Link to="/nutricao/metas" className="btn ghost small">
+            Metas
+          </Link>
+        </div>
       </div>
 
       <div className="day-nav">
@@ -169,6 +190,14 @@ export default function Nutrition() {
                 <Icon.plus /> Adicionar
               </button>
             </div>
+            {mealItems.length === 0 &&
+              (planCtx.data?.plan?.meals ?? [])
+                .filter(m => m.log === meal.key)
+                .map(m => (
+                  <button key={m.key} type="button" className="btn ghost small follow-plan" onClick={() => followPlan(m)} disabled={planBusy != null}>
+                    {planBusy === m.key ? 'Lançando…' : `Seguir o plano: ${m.label} · ${fmt(m.total.kcal)} kcal`}
+                  </button>
+                ))}
             {mealItems.length > 0 && (
               <div className="meal-items">
                 {mealItems.map(i => (

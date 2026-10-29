@@ -4,9 +4,10 @@ import NutritionSummary from '../components/NutritionSummary'
 import { listBodyWeights, listRoutines, listWorkouts, loadState, saveBodyWeight, WEEKDAYS } from '../modules/training/data'
 import { recoveryByMuscle, weeklyTotals } from '../modules/training/insights'
 import { MUSCLE_NAME_PT } from '../modules/training/muscles'
-import { getWater, listLogs, listLogTotals, loadFirstName, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
+import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
 import { sumMacros } from '../modules/nutrition/foods'
 import { dailyTargets, GOALS, waterTarget, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
+import { buildPlan, nextMeal, portion } from '../modules/nutrition/plan'
 import { dayTips, daysBetween, greeting, waterExpected, weekNutrition } from '../modules/home/today'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
@@ -32,6 +33,7 @@ export default function Today() {
   const training = useAsync(() => Promise.all([listRoutines(), listWorkouts(1), loadState(), workoutMinutesOn(today)]))
   const body = useAsync(() => Promise.all([loadFirstName(), loadNutritionProfile(), listBodyWeights(60)]))
   const food = useAsync(() => Promise.all([listLogs(today), getWater(today), listLogTotals(shift(today, -7), today)]))
+  const mealPlan = useAsync(loadMealPlan)
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [waterMl, setWaterMl] = useState<number | null>(null)
@@ -54,6 +56,9 @@ export default function Today() {
   const water = waterMl ?? savedWater
   const waterGoal = waterTarget(weight)
   const week = weekNutrition(weekRows, today, targets?.protein_g ?? null)
+
+  const baseTargets = profile ? dailyTargets(profile, weight, now) : null
+  const upcoming = baseTargets && mealPlan.data ? nextMeal(buildPlan(baseTargets, mealPlan.data), now.getHours() * 60 + now.getMinutes()) : null
 
   const recovery = state ? recoveryByMuscle(state, now.getTime(), weight ?? undefined) : []
   const tired = recovery.filter(m => m.state !== 'ready').map(m => MUSCLE_NAME_PT[m.muscle])
@@ -174,6 +179,35 @@ export default function Today() {
             Criar rotina
           </Link>
         </div>
+      )}
+
+      {upcoming ? (
+        <Link to="/nutricao/plano" className="card next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <div className="spread">
+            <span className="eyebrow">Próxima refeição · {upcoming.time}</span>
+            <span className="muted tiny">{fmt(upcoming.total.kcal)} kcal</span>
+          </div>
+          <h3 style={{ marginTop: 4 }}>{upcoming.label}</h3>
+          <ul>
+            {upcoming.items.map(i => (
+              <li key={i.role} className="small">
+                <span>{i.food.name}</span> <span className="muted">{portion(i.food, i.grams)}</span>
+              </li>
+            ))}
+          </ul>
+        </Link>
+      ) : (
+        mealPlan.data === null &&
+        !mealPlan.loading &&
+        baseTargets && (
+          <Link to="/nutricao/plano" className="list-item" style={{ padding: 14 }}>
+            <div className="grow">
+              <div className="title">Monte seu plano alimentar</div>
+              <div className="muted small">O que comer em cada refeição, com horários e quantidades para bater a meta.</div>
+            </div>
+            <span className="chev">›</span>
+          </Link>
+        )
       )}
 
       {tips.length > 0 && (

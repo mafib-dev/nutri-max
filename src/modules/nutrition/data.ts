@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabase'
 import { macrosFor, microsFor, type Food, type FoodLog, type Meal } from './foods'
 import type { NutritionProfile } from './targets'
+import type { PlanMeal, SavedPlan } from './plan'
 
 const fail = (what: string, error: { message: string } | null) => {
   if (error) throw new Error(`${what}: ${error.message}`)
@@ -235,4 +236,29 @@ export async function loadFirstName(): Promise<string | null> {
   const { data } = await supabase.from('profiles').select('display_name').eq('id', auth.user?.id ?? '').maybeSingle()
   const name = (data?.display_name as string | null)?.trim() || auth.user?.email?.split('@')[0]?.split(/[._\d]/)[0] || ''
   return name ? name[0].toUpperCase() + name.slice(1) : null
+}
+
+export async function loadMealPlan(): Promise<SavedPlan | null> {
+  const { data, error } = await supabase.from('profiles').select('meal_plan').eq('id', await userId()).single()
+  fail('Falha ao carregar o plano alimentar', error)
+  return (data?.meal_plan as SavedPlan | null) ?? null
+}
+
+export async function saveMealPlan(plan: SavedPlan | null) {
+  const { error } = await supabase.from('profiles').update({ meal_plan: plan, updated_at: new Date().toISOString() }).eq('id', await userId())
+  fail('Falha ao salvar o plano alimentar', error)
+}
+
+/** Lança no diário os alimentos de uma refeição do plano, com as gramas do plano. */
+export async function logPlanMeal(date: string, meal: PlanMeal) {
+  const [uid, catalogue] = await Promise.all([userId(), loadFoods()])
+  const byId = new Map(catalogue.map(f => [f.id, f]))
+  const rows = meal.items.flatMap(i => {
+    const food = byId.get(i.food.id)
+    if (!food) return []
+    return [{ user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }]
+  })
+  if (!rows.length) throw new Error('Os alimentos do plano não foram encontrados. Rode a importação da TACO.')
+  const { error } = await supabase.from('food_logs').insert(rows)
+  fail('Falha ao lançar a refeição do plano', error)
 }
