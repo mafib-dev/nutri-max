@@ -40,4 +40,10 @@ describe('toExerciseRow', () => {
     expect(row.primary_muscles).toEqual(['upper-back'])
     expect(row.secondary_muscles).toEqual(['biceps'])
   })
+
+  it('guarda o passo a passo em português ao lado do original', () => {
+    const row = toExerciseRow(curl, 'Rosca', ['Passo 1'])
+    expect(row.name_pt).toBe('Rosca')
+    expect(row.instructions).toEqual({ en: curl.instructions, pt: ['Passo 1'] })
+  })
 })

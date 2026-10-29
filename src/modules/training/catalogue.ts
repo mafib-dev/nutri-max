@@ -36,8 +36,11 @@ export interface ExerciseRow {
 // Categorias que não são musculação: ficam no catálogo, mas fora da busca padrão.
 export const NON_STRENGTH_CATEGORIES = ['stretching', 'cardio', 'strongman'] as const
 
-/** `namePt`: nome em português (scripts/data/exercise-names-pt.json), quando houver. */
-export function toExerciseRow(ex: FreeExerciseDbExercise, namePt: string | null = null): ExerciseRow {
+/**
+ * `namePt` e `stepsPt`: nome e passo a passo em português
+ * (scripts/data/exercise-names-pt.json e exercise-instructions-pt.json), quando houver.
+ */
+export function toExerciseRow(ex: FreeExerciseDbExercise, namePt: string | null = null, stepsPt: string[] | null = null): ExerciseRow {
   const primary = toMuscles(ex.primaryMuscles)
   return {
     id: ex.id,
@@ -52,7 +55,7 @@ export function toExerciseRow(ex: FreeExerciseDbExercise, namePt: string | null 
     primary_muscles: primary,
     // Um músculo que já é primário não conta de novo como secundário.
     secondary_muscles: toMuscles(ex.secondaryMuscles).filter(m => !primary.includes(m)),
-    instructions: { en: ex.instructions },
+    instructions: stepsPt?.length ? { en: ex.instructions, pt: stepsPt } : { en: ex.instructions },
     images: ex.images,
     source: 'free-exercise-db',
   }
