@@ -2,9 +2,10 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import FoodPicker, { MacroInputs, parseMacroInputs } from '../components/FoodPicker'
 import { Icon, Modal } from '../components/ui'
+import NutritionSummary from '../components/NutritionSummary'
 import { deleteLog, getWater, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
-import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Macros, type Meal } from '../modules/nutrition/foods'
-import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal, type Targets } from '../modules/nutrition/targets'
+import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
+import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal } from '../modules/nutrition/targets'
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
 
@@ -94,7 +95,7 @@ export default function Nutrition() {
         </div>
       )}
 
-      <Summary total={total} targets={targets} trainingKcal={trainingKcal} />
+      <NutritionSummary total={total} targets={targets} trainingKcal={trainingKcal} />
       {lowKcal && (
         <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
           Sua meta está abaixo de {fmt(kcalFloor(profile!.sex))} kcal. Fica difícil bater vitaminas e minerais; considere um ritmo mais leve em Metas.
@@ -205,78 +206,6 @@ export default function Nutrition() {
         />
       )}
     </main>
-  )
-}
-
-function Ring({ value, max }: { value: number; max: number }) {
-  const r = 52
-  const c = 2 * Math.PI * r
-  const pct = max > 0 ? Math.min(value / max, 1) : 0
-  const over = max > 0 && value > max * 1.05
-  return (
-    <svg className="ring" viewBox="0 0 120 120" aria-hidden="true">
-      <circle cx="60" cy="60" r={r} className="ring-track" />
-      <circle cx="60" cy="60" r={r} className={`ring-fill ${over ? 'over' : ''}`} strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
-    </svg>
-  )
-}
-
-function Summary({ total, targets, trainingKcal }: { total: Macros; targets: Targets | null; trainingKcal: number }) {
-  const left = targets ? targets.kcal - total.kcal : null
-  const macros: { label: string; key: keyof Omit<Macros, 'kcal'>; cls: string }[] = [
-    { label: 'Proteína', key: 'protein_g', cls: 'p' },
-    { label: 'Carboidrato', key: 'carbs_g', cls: 'c' },
-    { label: 'Gordura', key: 'fat_g', cls: 'f' },
-  ]
-  return (
-    <div className="card hero summary">
-      <div className="ring-wrap">
-        <Ring value={total.kcal} max={targets?.kcal ?? 0} />
-        <div className="ring-label">
-          {left == null ? (
-            <>
-              <strong>{fmt(total.kcal)}</strong>
-              <span>kcal</span>
-            </>
-          ) : left >= 0 ? (
-            <>
-              <strong>{fmt(left)}</strong>
-              <span>kcal restantes</span>
-            </>
-          ) : (
-            <>
-              <strong className="over">{fmt(-left)}</strong>
-              <span>kcal acima</span>
-            </>
-          )}
-        </div>
-      </div>
-      <div className="stack" style={{ gap: 12, minWidth: 0 }}>
-        {targets && (
-          <div className="muted small">
-            {fmt(total.kcal)} de {fmt(targets.kcal)} kcal
-            {trainingKcal > 0 && <span style={{ color: 'var(--accent)' }}> · +{fmt(trainingKcal)} do treino</span>}
-          </div>
-        )}
-        {macros.map(m => {
-          const goal = targets?.[m.key] ?? 0
-          return (
-            <div key={m.key}>
-              <div className="spread small">
-                <span style={{ fontWeight: 600 }}>{m.label}</span>
-                <span className="muted">
-                  {fmt(total[m.key])}
-                  {goal > 0 && ` / ${fmt(goal)}`} g
-                </span>
-              </div>
-              <div className="meter">
-                <span className={`macro ${m.cls}`} style={{ width: `${goal > 0 ? Math.min((total[m.key] / goal) * 100, 100) : 0}%` }} />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
   )
 }
 

@@ -228,3 +228,11 @@ export async function setWater(date: string, ml: number) {
   const { error } = await supabase.from('water_logs').upsert({ user_id: await userId(), date, ml: Math.max(0, Math.round(ml)) }, { onConflict: 'user_id,date' })
   fail('Falha ao salvar a água', error)
 }
+
+/** Primeiro nome para a saudação: o do perfil ou, sem ele, o começo do e-mail. */
+export async function loadFirstName(): Promise<string | null> {
+  const { data: auth } = await supabase.auth.getUser()
+  const { data } = await supabase.from('profiles').select('display_name').eq('id', auth.user?.id ?? '').maybeSingle()
+  const name = (data?.display_name as string | null)?.trim() || auth.user?.email?.split('@')[0]?.split(/[._\d]/)[0] || ''
+  return name ? name[0].toUpperCase() + name.slice(1) : null
+}
