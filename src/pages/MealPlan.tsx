@@ -25,6 +25,7 @@ import {
 import { loadPlanContext } from '../modules/nutrition/planContext'
 import { ageOn, fiberTarget, waterTarget } from '../modules/nutrition/targets'
 import { useAsync } from '../lib/useAsync'
+import { useDataChanged } from '../lib/events'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('pt-BR')
 
@@ -41,6 +42,7 @@ const ROLE_LABEL: Record<Role, string> = {
 export default function MealPlan() {
   const navigate = useNavigate()
   const ctx = useAsync(loadPlanContext)
+  useDataChanged(ctx.reload)
   // Proteínas em pó que a pessoa cadastrou (pelo rótulo ou código de barras) para usar como o whey do plano.
   const powders = useAsync(async () => (await loadFoods()).filter(f => f.source === 'custom' && /whey|prote[ií]na|isolad|albumina/i.test(f.name)))
   const [editing, setEditing] = useState(false)

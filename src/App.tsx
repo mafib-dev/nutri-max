@@ -13,6 +13,7 @@ import Nutrition from './pages/Nutrition'
 import NutritionGoals from './pages/NutritionGoals'
 import MealPlan from './pages/MealPlan'
 import Coach from './pages/Coach'
+import { CoachDock } from './components/CoachDock'
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {!inWorkout && <TabBar />}
+      <CoachDock />
     </>
   )
 }

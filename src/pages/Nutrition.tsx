@@ -8,6 +8,7 @@ import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, ty
 import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal } from '../modules/nutrition/targets'
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
+import { useDataChanged } from '../lib/events'
 import { loadPlanContext } from '../modules/nutrition/planContext'
 import type { PlanMeal } from '../modules/nutrition/plan'
 
@@ -32,6 +33,12 @@ export default function Nutrition() {
   const logs = useAsync(() => listLogs(date), [date])
   const day = useAsync(() => Promise.all([workoutMinutesOn(date), getWater(date)]), [date])
   const planCtx = useAsync(loadPlanContext)
+  useDataChanged(() => {
+    setup.reload()
+    logs.reload()
+    day.reload()
+    planCtx.reload()
+  })
   const [adding, setAdding] = useState<Meal | null>(null)
   const [planBusy, setPlanBusy] = useState<string | null>(null)
   const [editing, setEditing] = useState<FoodLog | null>(null)

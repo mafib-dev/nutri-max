@@ -13,6 +13,7 @@ import { dayTips, daysBetween, greeting, waterExpected, weekNutrition } from '..
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
+import { openCoach, useDataChanged } from '../lib/events'
 import { supabase } from '../lib/supabase'
 import { formatDay, formatKg } from '../lib/format'
 
@@ -35,6 +36,12 @@ export default function Today() {
   const body = useAsync(() => Promise.all([loadFirstName(), loadNutritionProfile(), listBodyWeights(60)]))
   const food = useAsync(() => Promise.all([listLogs(today), getWater(today), listLogTotals(shift(today, -7), today)]))
   const mealPlan = useAsync(loadMealPlan)
+  // O nutricionista flutuante pode lançar água, refeição, peso ou mudar o plano.
+  useDataChanged(() => {
+    body.reload()
+    food.reload()
+    mealPlan.reload()
+  })
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [waterMl, setWaterMl] = useState<number | null>(null)
@@ -240,13 +247,13 @@ export default function Today() {
             <span className="eyebrow">Seu nutricionista · IA</span>
             <h3 style={{ marginTop: 4 }}>Precisa de ajuda com o dia?</h3>
           </div>
-          <Link to="/nutricionista" className="btn small">
+          <button type="button" className="btn small" onClick={() => openCoach()}>
             Conversar
-          </Link>
+          </button>
         </div>
         <div className="chips wrap">
           {QUICK_PROMPTS.slice(0, 3).map(q => (
-            <button key={q} type="button" className="chip small-chip" onClick={() => navigate(`/nutricionista?q=${encodeURIComponent(q)}`)}>
+            <button key={q} type="button" className="chip small-chip" onClick={() => openCoach(q)}>
               {q}
             </button>
           ))}
