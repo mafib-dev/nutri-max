@@ -9,6 +9,8 @@ import Workout from './pages/Workout'
 import History from './pages/History'
 import Progress from './pages/Progress'
 import Overview from './pages/Overview'
+import Nutrition from './pages/Nutrition'
+import NutritionGoals from './pages/NutritionGoals'
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -18,8 +20,8 @@ const icon = (d: string) => (
 
 const TABS = [
   { to: '/', label: 'Hoje', icon: icon('M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z') },
-  { to: '/rotinas', label: 'Rotinas', icon: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01') },
-  { to: '/exercicios', label: 'Exercícios', icon: icon('M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12') },
+  { to: '/rotinas', label: 'Treinos', icon: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01') },
+  { to: '/nutricao', label: 'Nutrição', icon: icon('M7 3v7a2 2 0 0 0 4 0V3M9 3v18M17 21V3c-2.2 1-3.5 3.6-3.5 7 0 2 1.2 3 3.5 3') },
   { to: '/historico', label: 'Histórico', icon: icon('M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5') },
   { to: '/progresso', label: 'Progresso', icon: icon('M3 3v18h18M7 15l4-4 3 3 5-6') },
 ]
@@ -57,6 +59,8 @@ export default function App() {
         <Route path="/treino" element={<Workout />} />
         <Route path="/historico" element={<History />} />
         <Route path="/progresso" element={<Overview />} />
+        <Route path="/nutricao" element={<Nutrition />} />
+        <Route path="/nutricao/metas" element={<NutritionGoals />} />
         <Route path="/progresso/:exerciseId" element={<Progress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

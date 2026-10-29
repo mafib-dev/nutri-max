@@ -1059,3 +1059,181 @@ select.input {
 .demo {
   max-height: 46dvh;
 }
+
+/* Nutrição: anel de calorias, macros coloridos e diário por refeição. */
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.day-nav strong {
+  font-family: var(--display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.ring-wrap {
+  position: relative;
+  width: 132px;
+  height: 132px;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 11;
+}
+
+.ring-track {
+  stroke: var(--surface-3);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s var(--ease);
+}
+
+.ring-fill.over {
+  stroke: var(--warn);
+}
+
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.ring-label strong {
+  font-family: var(--display);
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring-label strong.over {
+  color: var(--warn);
+}
+
+.ring-label span {
+  max-width: 80px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meter .macro.p {
+  background: var(--accent);
+}
+
+.meter .macro.c {
+  background: #5ec8f2;
+}
+
+.meter .macro.f {
+  background: var(--warn);
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.macro-grid .stat strong {
+  font-size: 1.6rem;
+}
+
+.meal {
+  display: grid;
+  gap: 10px;
+}
+
+.meal h3 {
+  font-size: 1.35rem;
+}
+
+.meal-items {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.meal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meal-item:last-child {
+  border-bottom: 0;
+}
+
+.meal-item .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.meal-item:hover .grow {
+  color: var(--accent);
+}
+
+.list-item.option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.list-item.option svg {
+  color: var(--accent);
+}
+
+details.card summary::marker {
+  color: var(--accent);
+}
+
+@media (max-width: 380px) {
+  .summary {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .summary > .stack {
+    width: 100%;
+  }
+
+  .macro-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
