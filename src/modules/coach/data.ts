@@ -5,7 +5,7 @@ import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNut
 import { sumMacros } from '../nutrition/foods'
 import { buildPlan, replanDay, withDefaults } from '../nutrition/plan'
 import { dailyTargets, waterTarget, weightTrend, workoutKcal } from '../nutrition/targets'
-import { listBodyWeights, listRoutines, listWorkouts, loadState } from '../training/data'
+import { listBodyWeights, listRoutines, listWorkouts, loadState, onDay } from '../training/data'
 import { recoveryByMuscle, weeklyTotals } from '../training/insights'
 import { MUSCLE_NAME_PT } from '../training/muscles'
 import type { CoachRaw, StoredAction } from './coach'
@@ -52,9 +52,9 @@ export async function loadCoachRaw(now = new Date()): Promise<CoachRaw> {
     waterGoal: waterTarget(weight),
     week: weekNutrition(weekRows, today, targets?.protein_g ?? null),
     workoutsToday: minutes,
-    todaysRoutine: routines.find(r => r.weekday === now.getDay())?.name ?? null,
+    todaysRoutine: routines.find(r => onDay(r, now.getDay()))?.name ?? null,
     recentWorkouts: recent,
-    weekWorkouts: { done: thisWeek?.workouts ?? 0, planned: routines.filter(r => r.weekday != null).length },
+    weekWorkouts: { done: thisWeek?.workouts ?? 0, planned: routines.reduce((n, r) => n + r.weekdays.length, 0) },
     tiredMuscles: recoveryByMuscle(state, now.getTime(), weight ?? undefined)
       .filter(m => m.state !== 'ready')
       .map(m => MUSCLE_NAME_PT[m.muscle]),

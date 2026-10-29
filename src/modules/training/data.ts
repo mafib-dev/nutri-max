@@ -8,9 +8,23 @@ import { sessionToRows, type NewRecord, type Session } from './session'
 export interface Routine {
   id: string
   name: string
-  weekday: number | null
+  /** Dias da semana (0 = domingo), em ordem. Vazio = sem dia fixo. */
+  weekdays: number[]
   position: number
 }
+
+const ROUTINE_COLUMNS = 'id, name, weekday, weekdays, position'
+
+// Rotinas criadas antes da coluna `weekdays` só têm `weekday`.
+const toRoutine = (r: Omit<Routine, 'weekdays'> & { weekday: number | null; weekdays: number[] | null }): Routine => ({
+  id: r.id,
+  name: r.name,
+  position: r.position,
+  weekdays: [...(r.weekdays?.length ? r.weekdays : r.weekday != null ? [r.weekday] : [])].sort((a, b) => a - b),
+})
+
+/** A rotina cai nesse dia da semana? */
+export const onDay = (r: Pick<Routine, 'weekdays'>, day: number) => r.weekdays.includes(day)
 
 export interface RoutineExercise extends RoutineExerciseRow {
   id: string
@@ -20,6 +34,17 @@ export interface RoutineExercise extends RoutineExerciseRow {
 }
 
 export const WEEKDAYS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
+
+/** Ordem da semana na tela: começa na segunda, como na academia. */
+export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
+
+/** "Segunda", "Seg e Qui", "Seg, Qua e Sex" ou "Sem dia fixo". */
+export function daysLabel(days: number[]) {
+  if (!days.length) return 'Sem dia fixo'
+  if (days.length === 1) return WEEKDAYS[days[0]]
+  const names = WEEK_ORDER.filter(d => days.includes(d)).map(d => WEEKDAYS[d].slice(0, 3))
+  return `${names.slice(0, -1).join(', ')} e ${names.at(-1)}`
+}
 
 const fail = (what: string, error: { message: string } | null) => {
   if (error) throw new Error(`${what}: ${error.message}`)
@@ -65,9 +90,9 @@ export async function loadState() {
 }
 
 export async function listRoutines(): Promise<Routine[]> {
-  const { data, error } = await supabase.from('routines').select('id, name, weekday, position').order('position').order('created_at')
+  const { data, error } = await supabase.from('routines').select(ROUTINE_COLUMNS).order('position').order('created_at')
   fail('Falha ao carregar rotinas', error)
-  return data as Routine[]
+  return (data ?? []).map(toRoutine)
 }
 
 /** Resumo das rotinas para a aba Treinos: exercícios e séries de cada uma e quando foi feita pela última vez. */
@@ -89,25 +114,26 @@ export async function listRoutineOverview() {
 
 export async function getRoutine(id: string) {
   const [routine, items] = await Promise.all([
-    supabase.from('routines').select('id, name, weekday, position').eq('id', id).single(),
+    supabase.from('routines').select(ROUTINE_COLUMNS).eq('id', id).single(),
     supabase.from('routine_exercises').select('*').eq('routine_id', id).order('position'),
   ])
   fail('Falha ao carregar a rotina', routine.error ?? items.error)
-  return { routine: routine.data as Routine, items: items.data as RoutineExercise[] }
+  return { routine: toRoutine(routine.data!), items: items.data as RoutineExercise[] }
 }
 
-export async function createRoutine(name: string, weekday: number | null): Promise<Routine> {
+export async function createRoutine(name: string, weekdays: number[] = []): Promise<Routine> {
   const { data, error } = await supabase
     .from('routines')
-    .insert({ user_id: await userId(), name, weekday })
-    .select('id, name, weekday, position')
+    .insert({ user_id: await userId(), name, weekdays, weekday: weekdays[0] ?? null })
+    .select(ROUTINE_COLUMNS)
     .single()
   fail('Falha ao criar a rotina', error)
-  return data as Routine
+  return toRoutine(data!)
 }
 
-export async function updateRoutine(id: string, patch: Partial<Pick<Routine, 'name' | 'weekday'>>) {
-  const { error } = await supabase.from('routines').update(patch).eq('id', id)
+export async function updateRoutine(id: string, patch: { name?: string; weekdays?: number[] }) {
+  const row = patch.weekdays ? { ...patch, weekdays: [...patch.weekdays].sort((a, b) => a - b), weekday: patch.weekdays.length ? Math.min(...patch.weekdays) : null } : patch
+  const { error } = await supabase.from('routines').update(row).eq('id', id)
   fail('Falha ao salvar a rotina', error)
 }
 

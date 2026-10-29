@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import NutritionSummary from '../components/NutritionSummary'
-import { listBodyWeights, listRoutines, loadState, saveBodyWeight, WEEKDAYS } from '../modules/training/data'
+import { listBodyWeights, listRoutines, loadState, onDay, saveBodyWeight, WEEKDAYS } from '../modules/training/data'
 import { recoveryByMuscle } from '../modules/training/insights'
 import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
@@ -49,7 +49,7 @@ export default function Today() {
   const [name, profile, weights] = body.data ?? [null, null, []]
   const [logs, savedWater, weekRows] = food.data ?? [[], 0, []]
 
-  const todays = routines.filter(r => r.weekday === weekday)
+  const todays = routines.filter(r => onDay(r, weekday))
   const trainedToday = minutesToday.length > 0
 
   const weight = weights.at(-1)?.weight_kg ?? null

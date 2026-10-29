@@ -14,6 +14,8 @@ import {
   updateRoutine,
   WEEKDAYS,
   type RoutineExercise,
+  daysLabel,
+  WEEK_ORDER,
 } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
 
@@ -45,7 +47,7 @@ export default function RoutineEdit() {
   const navigate = useNavigate()
   const loaded = useAsync(() => Promise.all([getRoutine(id), loadCatalogue()]), [id])
   const [name, setName] = useState('')
-  const [weekday, setWeekday] = useState<number | null>(null)
+  const [weekdays, setWeekdays] = useState<number[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [picking, setPicking] = useState(false)
   const [viewing, setViewing] = useState<ExerciseRow | null>(null)
@@ -59,7 +61,7 @@ export default function RoutineEdit() {
     if (!loaded.data) return
     const { routine, items } = loaded.data[0]
     setName(routine.name)
-    setWeekday(routine.weekday)
+    setWeekdays(routine.weekdays)
     setItems(items.map(({ id: _id, position: _p, routine_id: _r, ...rest }) => rest))
   }, [loaded.data])
 
@@ -77,7 +79,7 @@ export default function RoutineEdit() {
     setSaving(true)
     setStatus(null)
     try {
-      await updateRoutine(id, { name: name.trim() || 'Treino', weekday })
+      await updateRoutine(id, { name: name.trim() || 'Treino', weekdays })
       await saveRoutineExercises(
         id,
         items.map(it => ({ ...it, rep_max: it.rep_max != null && it.rep_min != null && it.rep_max < it.rep_min ? it.rep_min : it.rep_max })),
@@ -111,22 +113,25 @@ export default function RoutineEdit() {
         <span className="eyebrow">Editando rotina</span>
         <h1>{name || 'Rotina'}</h1>
       </div>
-      <div className="grid-2">
+      <div className="grid-2 routine-fields">
         <label className="field">
           <span>Nome</span>
           <input className="input" value={name} onChange={e => setName(e.target.value)} />
         </label>
-        <label className="field">
-          <span>Dia da semana</span>
-          <select className="input" value={weekday ?? ''} onChange={e => setWeekday(e.target.value === '' ? null : Number(e.target.value))}>
-            <option value="">Sem dia fixo</option>
-            {WEEKDAYS.map((d, i) => (
-              <option key={d} value={i}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field">
+          <span>Dias da semana</span>
+          <div className="chips wrap" role="group" aria-label="Dias da semana">
+            {WEEK_ORDER.map(d => {
+              const on = weekdays.includes(d)
+              return (
+                <button key={d} type="button" className={`chip${on ? ' on' : ''}`} aria-pressed={on} onClick={() => setWeekdays(list => (on ? list.filter(x => x !== d) : [...list, d].sort((a, b) => a - b)))}>
+                  {WEEKDAYS[d].slice(0, 3)}
+                </button>
+              )
+            })}
+          </div>
+          <small className="muted tiny">{weekdays.length ? daysLabel(weekdays) : 'Sem dia fixo: a rotina fica disponível para qualquer dia.'}</small>
+        </div>
       </div>
 
       <h2>Exercícios · {items.length}</h2>

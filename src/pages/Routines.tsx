@@ -1,14 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { muscleName } from '../components/ExerciseDetail'
-import { createRoutine, listRoutineOverview, loadCatalogue, WEEKDAYS, type Routine } from '../modules/training/data'
+import { createRoutine, daysLabel, listRoutineOverview, loadCatalogue, onDay, WEEK_ORDER, WEEKDAYS, type Routine } from '../modules/training/data'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
 import { formatDay } from '../lib/format'
-
-// A semana começa na segunda, como na academia.
-const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
 export default function Routines() {
   const { data, error, loading } = useAsync(() => Promise.all([listRoutineOverview(), loadCatalogue()]))
@@ -43,7 +40,7 @@ export default function Routines() {
     setBusy(true)
     setActionError(null)
     try {
-      const routine = await createRoutine(`Treino ${String.fromCharCode(65 + routines.length)}`, null)
+      const routine = await createRoutine(`Treino ${String.fromCharCode(65 + routines.length)}`)
       navigate(`/rotinas/${routine.id}`)
     } catch (err) {
       setActionError((err as Error).message)
@@ -64,7 +61,7 @@ export default function Routines() {
     }
   }
 
-  const byDay = (d: number) => routines.filter(r => r.weekday === d)
+  const byDay = (d: number) => routines.filter(r => onDay(r, d))
   const sorted = [...routines].sort((a, b) => order(a) - order(b))
 
   return (
@@ -121,9 +118,12 @@ export default function Routines() {
             const s = summary.get(r.id)
             const last = overview!.lastDone.get(r.id)
             return (
-              <article key={r.id} className={`card routine-card${r.weekday === today ? ' today' : ''}`}>
+              <article key={r.id} className={`card routine-card${onDay(r, today) ? ' today' : ''}`}>
                 <Link to={`/rotinas/${r.id}`} className="routine-main">
-                  <span className="label">{r.weekday == null ? 'Sem dia fixo' : r.weekday === today ? `${WEEKDAYS[r.weekday]} · hoje` : WEEKDAYS[r.weekday]}</span>
+                  <span className="label">
+                    {daysLabel(r.weekdays)}
+                    {onDay(r, today) ? ' · hoje' : ''}
+                  </span>
                   <div className="title">{r.name}</div>
                   <div className="muted small">
                     {s?.exercises ? `${s.exercises} exercícios · ${s.sets} séries` : 'Nenhum exercício ainda'}
@@ -132,7 +132,7 @@ export default function Routines() {
                   {s && s.muscles.length > 0 && <div className="muted small ellipsis">{s.muscles.slice(0, 4).join(', ')}</div>}
                 </Link>
                 <div className="row" style={{ gap: 6 }}>
-                  <button type="button" className={`btn small${r.weekday === today ? ' primary' : ''}`} onClick={() => start(r.id)} disabled={starting === r.id || !s?.exercises}>
+                  <button type="button" className={`btn small${onDay(r, today) ? ' primary' : ''}`} onClick={() => start(r.id)} disabled={starting === r.id || !s?.exercises}>
                     {starting === r.id ? 'Preparando…' : 'Começar'}
                   </button>
                   <Link to={`/rotinas/${r.id}`} className="btn ghost small">
@@ -149,4 +149,4 @@ export default function Routines() {
 }
 
 // Rotinas na ordem da semana (segunda primeiro); as sem dia fixo vão para o fim.
-const order = (r: Routine) => (r.weekday == null ? 99 : WEEK_ORDER.indexOf(r.weekday))
+const order = (r: Routine) => (r.weekdays.length ? Math.min(...r.weekdays.map(d => WEEK_ORDER.indexOf(d))) : 99)
