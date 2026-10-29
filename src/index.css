@@ -1059,3 +1059,284 @@ select.input {
 .demo {
   max-height: 46dvh;
 }
+
+/* Nutrição: anel de calorias, macros coloridos e diário por refeição. */
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.day-nav strong {
+  font-family: var(--display);
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.ring-wrap {
+  position: relative;
+  width: 132px;
+  height: 132px;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 11;
+}
+
+.ring-track {
+  stroke: var(--surface-3);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.8s var(--ease);
+}
+
+.ring-fill.over {
+  stroke: var(--warn);
+}
+
+.ring-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  text-align: center;
+}
+
+.ring-label strong {
+  font-family: var(--display);
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ring-label strong.over {
+  color: var(--warn);
+}
+
+.ring-label span {
+  max-width: 80px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meter .macro.p {
+  background: var(--accent);
+}
+
+.meter .macro.c {
+  background: #5ec8f2;
+}
+
+.meter .macro.f {
+  background: var(--warn);
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.macro-grid .stat strong {
+  font-size: 1.6rem;
+}
+
+.meal {
+  display: grid;
+  gap: 10px;
+}
+
+.meal h3 {
+  font-size: 1.35rem;
+}
+
+.meal-items {
+  display: grid;
+  border-top: 1px solid var(--border);
+}
+
+.meal-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meal-item:last-child {
+  border-bottom: 0;
+}
+
+.meal-item .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.meal-item:hover .grow {
+  color: var(--accent);
+}
+
+.list-item.option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.list-item.option svg {
+  color: var(--accent);
+}
+
+details.card summary::marker {
+  color: var(--accent);
+}
+
+@media (max-width: 380px) {
+  .summary {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .summary > .stack {
+    width: 100%;
+  }
+
+  .macro-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Leitor de código de barras. */
+.scanner {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  background: #000;
+}
+
+.scanner video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-frame {
+  position: absolute;
+  inset: 28% 12%;
+  border: 2px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 0 0 999px rgb(0 0 0 / 0.45);
+}
+
+.scanner-frame::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 50%;
+  height: 2px;
+  background: var(--danger);
+  opacity: 0.8;
+  animation: scan 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes scan {
+  from {
+    transform: translateY(-30px);
+  }
+  to {
+    transform: translateY(30px);
+  }
+}
+
+.scanner-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.card.toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.card.toggle input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.meter .macro.w {
+  background: #5ec8f2;
+}
+
+.day-extras {
+  display: grid;
+  gap: 16px;
+}
+
+.save-meal {
+  justify-self: start;
+  margin: 6px 0 0 -10px;
+}
+
+.list-item.saved-meal {
+  cursor: default;
+}
+
+.list-item.saved-meal > button.grow {
+  min-width: 0;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.micros {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px 20px;
+}

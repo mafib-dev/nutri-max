@@ -28,9 +28,14 @@ export default function Routines() {
           <span className="eyebrow">Seu plano</span>
           <h1>Rotinas</h1>
         </div>
-        <button type="button" className="btn primary small" onClick={create} disabled={busy}>
-          + Nova rotina
-        </button>
+        <div className="row" style={{ gap: 6 }}>
+          <Link to="/exercicios" className="btn ghost small">
+            Exercícios
+          </Link>
+          <button type="button" className="btn primary small" onClick={create} disabled={busy}>
+            + Nova rotina
+          </button>
+        </div>
       </div>
       {createError && <p className="error">{createError}</p>}
       {loading && <p className="muted">Carregando…</p>}

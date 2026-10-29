@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { listRoutines, listWorkouts, WEEKDAYS } from '../modules/training/data'
+import { listBodyWeights, listRoutines, listWorkouts, WEEKDAYS } from '../modules/training/data'
+import { listLogs, loadNutritionProfile, todayIso } from '../modules/nutrition/data'
+import { sumMacros } from '../modules/nutrition/foods'
+import { dailyTargets } from '../modules/nutrition/targets'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
@@ -13,6 +16,7 @@ export default function Today() {
   const data = useAsync(() => Promise.all([listRoutines(), listWorkouts(1)]))
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const food = useAsync(() => Promise.all([loadNutritionProfile(), listBodyWeights(1), listLogs(todayIso())]))
 
   const today = new Date().getDay()
   const routines = data.data?.[0] ?? []
@@ -93,6 +97,8 @@ export default function Today() {
         />
       ))}
 
+      {food.data && <FoodToday data={food.data} />}
+
       {last && (
         <>
           <h2>Último treino</h2>
@@ -137,5 +143,30 @@ function RoutineCard(props: { name: string; hint: string; starting: boolean; onS
         {props.starting ? 'Preparando…' : 'Começar'}
       </button>
     </div>
+  )
+}
+
+function FoodToday({ data: [profile, weights, logs] }: { data: [Parameters<typeof dailyTargets>[0], { weight_kg: number }[], Parameters<typeof sumMacros>[0]] }) {
+  const total = sumMacros(logs)
+  const targets = dailyTargets(profile, weights.at(-1)?.weight_kg ?? null)
+  const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  return (
+    <>
+      <h2>Alimentação de hoje</h2>
+      <Link to="/nutricao" className="list-item" style={{ padding: 14 }}>
+        <div className="grow">
+          <div className="title">
+            {fmt(total.kcal)}
+            {targets ? ` de ${fmt(targets.kcal)}` : ''} kcal
+          </div>
+          <div className="muted small">
+            {logs.length === 0
+              ? 'Nada registrado ainda. Toque para lançar uma refeição.'
+              : `Proteína ${fmt(total.protein_g)}${targets ? ` de ${fmt(targets.protein_g)}` : ''} g`}
+          </div>
+        </div>
+        <span className="chev">›</span>
+      </Link>
+    </>
   )
 }
