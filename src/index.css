@@ -1615,3 +1615,20 @@ details.card summary::marker {
   margin-top: -4px;
   padding-block: 2px;
 }
+
+/* No computador o botão vai para o canto da janela, fora da coluna do conteúdo, e o painel abre ao lado dele. */
+@media (min-width: 900px) {
+  .coach-fab {
+    right: 28px;
+    bottom: 28px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .coach-panel {
+    right: 28px;
+    bottom: 92px;
+    width: min(400px, calc((100% - 680px) / 2 + 200px));
+    height: min(640px, calc(100dvh - 124px));
+  }
+}
