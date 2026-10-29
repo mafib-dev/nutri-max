@@ -23,30 +23,34 @@ export default function Routines() {
 
   return (
     <main className="page stack">
-      <div className="spread">
-        <h1>Rotinas</h1>
+      <div className="page-head">
+        <div>
+          <span className="eyebrow">Seu plano</span>
+          <h1>Rotinas</h1>
+        </div>
         <button type="button" className="btn primary small" onClick={create} disabled={busy}>
-          Nova rotina
+          + Nova rotina
         </button>
       </div>
       {createError && <p className="error">{createError}</p>}
       {loading && <p className="muted">Carregando…</p>}
       {error && <p className="error">{error}</p>}
       {data?.length === 0 && (
-        <div className="card">
-          <p style={{ marginTop: 0 }}>Você ainda não tem rotinas.</p>
-          <p className="muted small" style={{ marginBottom: 0 }}>
+        <div className="empty">
+          <h3>Você ainda não tem rotinas</h3>
+          <p className="muted small" style={{ margin: 0 }}>
             Crie uma para cada treino da semana (por exemplo, peito e tríceps na segunda) e escolha os exercícios.
           </p>
         </div>
       )}
       {data?.map(r => (
-        <Link key={r.id} to={`/rotinas/${r.id}`} className="list-item">
+        <Link key={r.id} to={`/rotinas/${r.id}`} className="list-item" style={{ padding: 14 }}>
+          <span className="day-badge">{r.weekday == null ? '—' : WEEKDAYS[r.weekday].slice(0, 3)}</span>
           <div className="grow">
-            <div style={{ fontWeight: 600 }}>{r.name}</div>
+            <div className="title">{r.name}</div>
             <div className="muted small">{r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}</div>
           </div>
-          <span className="muted">›</span>
+          <span className="chev">›</span>
         </Link>
       ))}
     </main>

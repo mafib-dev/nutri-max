@@ -25,6 +25,7 @@ export default function History() {
 
   return (
     <main className="page stack">
+      <span className="eyebrow">Tudo o que você já fez</span>
       <h1>Histórico</h1>
       {list.loading && <p className="muted">Carregando…</p>}
       {(list.error || error) && <p className="error">{list.error ?? error}</p>}

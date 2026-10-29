@@ -35,12 +35,12 @@ export default function Today() {
 
   return (
     <main className="page stack">
-      <div className="spread">
+      <div className="page-head">
         <div>
-          <h1>Hoje</h1>
-          <p className="muted small" style={{ margin: 0 }}>
+          <span className="eyebrow">
             {WEEKDAYS[today]}, {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
-          </p>
+          </span>
+          <h1>Bora treinar</h1>
         </div>
         <button type="button" className="btn ghost small" onClick={() => supabase.auth.signOut()}>
           Sair
@@ -48,15 +48,17 @@ export default function Today() {
       </div>
 
       {active && (
-        <Link to="/treino" className="card" style={{ textDecoration: 'none', color: 'inherit', borderColor: 'var(--accent)' }}>
-          <div className="spread">
-            <div>
-              <div style={{ fontWeight: 600 }}>{active.name} em andamento</div>
+        <Link to="/treino" className="card hero" style={{ textDecoration: 'none', color: 'inherit' }}>
+          <span className="eyebrow">Em andamento</span>
+          <div className="spread" style={{ marginTop: 6 }}>
+            <div style={{ minWidth: 0 }}>
+              <h3 className="ellipsis" style={{ fontSize: '1.6rem' }}>{active.name}</h3>
               <div className="muted small">
-                {active.entries.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)} séries feitas
+                {active.entries.reduce((n, e) => n + e.sets.filter(s => s.done).length, 0)} de{' '}
+                {active.entries.reduce((n, e) => n + e.sets.length, 0)} séries feitas
               </div>
             </div>
-            <span className="btn primary small">Continuar</span>
+            <span className="btn primary">Continuar</span>
           </div>
         </Link>
       )}
@@ -66,8 +68,9 @@ export default function Today() {
       {data.error && <p className="error">{data.error}</p>}
 
       {data.data && routines.length === 0 && (
-        <div className="card">
-          <p style={{ marginTop: 0 }}>Comece criando uma rotina de treino.</p>
+        <div className="empty">
+          <h3>Nenhuma rotina ainda</h3>
+          <span className="muted small">Monte seu primeiro treino: escolha os exercícios, as séries e o dia da semana.</span>
           <Link to="/rotinas" className="btn primary">
             Criar rotina
           </Link>
@@ -93,14 +96,14 @@ export default function Today() {
       {last && (
         <>
           <h2>Último treino</h2>
-          <Link to="/historico" className="list-item">
+          <Link to="/historico" className="list-item" style={{ padding: 14 }}>
             <div className="grow">
-              <div style={{ fontWeight: 600 }}>{last.name ?? 'Treino'}</div>
+              <div className="title">{last.name ?? 'Treino'}</div>
               <div className="muted small">
                 {formatDay(last.started_at)} · {last.sets} séries · {formatKg(last.volume)}
               </div>
             </div>
-            <span className="muted">›</span>
+            <span className="chev">›</span>
           </Link>
         </>
       )}
@@ -109,13 +112,28 @@ export default function Today() {
 }
 
 function RoutineCard(props: { name: string; hint: string; starting: boolean; onStart: () => void; highlight?: boolean }) {
+  if (props.highlight) {
+    return (
+      <div className="card hero stack" style={{ gap: 14, padding: 20 }}>
+        <div>
+          <span className="eyebrow">{props.hint}</span>
+          <h3 style={{ fontSize: '2.2rem', marginTop: 4 }}>{props.name}</h3>
+        </div>
+        <button type="button" className="btn primary big block" onClick={props.onStart} disabled={props.starting}>
+          {props.starting ? 'Preparando…' : 'Começar treino'}
+        </button>
+      </div>
+    )
+  }
   return (
-    <div className="card spread" style={props.highlight ? { borderColor: 'var(--accent)' } : undefined}>
-      <div>
-        <div style={{ fontWeight: 600 }}>{props.name}</div>
+    <div className="card spread">
+      <div style={{ minWidth: 0 }}>
+        <div className="title ellipsis" style={{ fontWeight: 700 }}>
+          {props.name}
+        </div>
         <div className="muted small">{props.hint}</div>
       </div>
-      <button type="button" className={`btn small ${props.highlight ? 'primary' : ''}`} onClick={props.onStart} disabled={props.starting}>
+      <button type="button" className="btn small" onClick={props.onStart} disabled={props.starting}>
         {props.starting ? 'Preparando…' : 'Começar'}
       </button>
     </div>

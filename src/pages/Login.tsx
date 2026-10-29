@@ -32,10 +32,12 @@ export default function Login() {
 
   return (
     <div className="center">
-      <form className="card stack" style={{ width: '100%', maxWidth: 380 }} onSubmit={submit}>
+      <form className="card stack" style={{ width: '100%', maxWidth: 400, padding: 24, gap: 14 }} onSubmit={submit}>
         <div>
-          <h1>NutriMax</h1>
-          <p className="muted small" style={{ margin: 0 }}>
+          <div className="brand">
+            Nutri<em>Max</em>
+          </div>
+          <p className="muted small" style={{ margin: '8px 0 0' }}>
             {mode === 'login' ? 'Entre para ver seus treinos.' : 'Crie sua conta.'}
           </p>
         </div>
@@ -58,7 +60,7 @@ export default function Login() {
           </label>
         )}
         {message && <p className={message.error ? 'error small' : 'small'}>{message.text}</p>}
-        <button className="btn primary block" disabled={busy}>
+        <button className="btn primary big block" disabled={busy}>
           {busy ? 'Aguarde…' : mode === 'login' ? 'Entrar' : 'Criar conta'}
         </button>
         <button
