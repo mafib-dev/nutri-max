@@ -493,14 +493,23 @@ function pick(kind: SlotKind, role: Role, s: PlanSettings, variant: number, chos
 }
 
 /** Monta o cardápio do dia a partir das metas e da consulta. */
-export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
+export function buildPlan(targets: Targets, saved: SavedPlan, only?: Set<string>): MealPlan {
   const s = withDefaults(saved.settings)
-  const slots = buildSlots(s)
-  const wheyAt = wheySlot(slots, s)
+  const all = buildSlots(s)
+  const wheyAt = wheySlot(all, s)
+  // Com `only`, as metas se dividem só entre essas refeições (o resto do dia); a variação dos
+  // alimentos continua contada no dia inteiro para não mudar o que já estava no plano.
+  const slots = only ? all.filter(sl => only.has(sl.key)) : all
   const weight = (m: 'p' | 'c' | 'f') => slots.reduce((a, sl) => a + SHARE[sl.kind][m], 0)
   const W = { p: weight('p'), c: weight('c'), f: weight('f') }
   let mainCount = 0
   let snackCount = 0
+
+  const variants = new Map<string, number>()
+  for (const sl of all) {
+    const g = GROUP[sl.kind]
+    variants.set(sl.key, g === 'main' ? mainCount++ : g === 'snack' || g === 'pre' ? snackCount++ : 0)
+  }
 
   const meals = slots.map((slot): PlanMeal => {
     const share = SHARE[slot.kind]
@@ -508,7 +517,7 @@ export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
     const picks = saved.picks[slot.key] ?? {}
     const group = GROUP[slot.kind]
     // Variação: almoço e jantar com proteínas diferentes, lanches com frutas diferentes.
-    const variant = group === 'main' ? mainCount++ : group === 'snack' || group === 'pre' ? snackCount++ : 0
+    const variant = variants.get(slot.key)!
     const choose = (role: Role) => pick(slot.kind, role, s, variant, picks[role])
     const item = (role: Role, key: FoodKey | null, grams = 0): PlanItem[] => (key ? [{ role, key, food: F[key], grams }] : [])
     const whey: PlanItem[] = slot.key === wheyAt ? [{ role: 'protein', key: 'whey', food: wheyFood(s), grams: s.whey.scoops * s.whey.scoopG }] : []
@@ -707,6 +716,50 @@ export function guidance(opts: { goal: Goal | null; targets: Targets; weightKg: 
 }
 
 /** Próxima refeição do plano a partir de agora (minutos desde 0h). */
+export interface DayStatus {
+  /** Refeições que ainda vêm hoje, já com as quantidades ajustadas se preciso. */
+  rest: PlanMeal[]
+  /** Refeições cujo horário passou sem nada lançado naquela refeição do diário. */
+  skipped: Slot[]
+  /** O que ainda falta comer hoje para bater a meta. */
+  missing: { kcal: number; p: number; c: number; f: number }
+  /** O resto do dia foi recalculado porque o que foi comido fugiu do plano. */
+  adjusted: boolean
+}
+
+/**
+ * O dia real contra o plano. Refeição pulada (ou comida a mais) muda o que falta, e o que falta
+ * é repartido entre as refeições que ainda vêm, como faria um nutricionista. Para não virar um
+ * jantar gigante, cada refeição cresce no máximo 50% além do previsto.
+ */
+export function replanDay(targets: Targets, saved: SavedPlan, eaten: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }, logged: Meal[], nowMin: number): DayStatus {
+  const s = withDefaults(saved.settings)
+  const slots = buildSlots(s)
+  const full = buildPlan(targets, saved)
+  const isPast = (sl: Slot) => toMin(sl.time) + 60 < nowMin
+  const skipped = slots.filter(sl => isPast(sl) && !logged.includes(sl.log))
+  const future = full.meals.filter(m => !isPast(m))
+  const missing = {
+    kcal: Math.max(0, targets.kcal - eaten.kcal),
+    p: Math.max(0, targets.protein_g - eaten.protein_g),
+    c: Math.max(0, targets.carbs_g - eaten.carbs_g),
+    f: Math.max(0, targets.fat_g - eaten.fat_g),
+  }
+  if (!future.length) return { rest: [], skipped, missing, adjusted: false }
+
+  const planned = sumItems(future.flatMap(m => m.items))
+  const off = Math.abs(missing.kcal - planned.kcal) > Math.max(150, planned.kcal * 0.1)
+  if (!off) return { rest: future, skipped, missing, adjusted: false }
+
+  const cap = (want: number, base: number) => Math.min(want, base * 1.5)
+  const rest = buildPlan(
+    { kcal: missing.kcal, protein_g: cap(missing.p, planned.p), carbs_g: cap(missing.c, planned.c), fat_g: cap(missing.f, planned.f) },
+    saved,
+    new Set(future.map(m => m.key)),
+  ).meals
+  return { rest, skipped, missing, adjusted: true }
+}
+
 export function nextMeal(plan: MealPlan, nowMin: number): PlanMeal | null {
   return plan.meals.find(m => toMin(m.time) + 30 >= nowMin) ?? null
 }

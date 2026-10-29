@@ -1,4 +1,4 @@
-// Ajuste do plano por IA (DeepSeek, chamado pela função plan-ai do Supabase). A IA só escolhe:
+// Ajuste do plano por IA (Claude, chamado pela função plan-ai do Supabase). A IA só escolhe:
 // respostas da consulta, alimentos preferidos ou evitados, trocas por refeição e dicas. As gramas
 // continuam saindo de buildPlan, e tudo o que ela devolve é conferido aqui antes de valer.
 import { buildSlots, optionsFor, PLAN_FOODS, withDefaults, type FoodKey, type Guidance, type MealPlan, type PlanSettings, type Role, type SavedPlan } from './plan'
@@ -94,6 +94,8 @@ export function applyAiResult(saved: SavedPlanWithAi, result: unknown, request: 
     .map(d => ({ title: text(d?.titulo ?? d?.title, 80), text: text(d?.texto ?? d?.text, 600) }))
     .filter(d => d.title && d.text)
     .slice(0, 5)
+  // Sem dicas novas, ficam as anteriores.
+  if (!tips.length) tips.push(...(saved.ai?.tips ?? []))
   const summary = text(r.resumo, 600) || 'Plano ajustado.'
   const history = [{ at: now.toISOString(), request: request.slice(0, 500), summary }, ...(saved.ai?.history ?? [])].slice(0, 10)
 

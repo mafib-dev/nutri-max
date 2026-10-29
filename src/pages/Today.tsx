@@ -7,7 +7,8 @@ import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
 import { sumMacros } from '../modules/nutrition/foods'
 import { dailyTargets, GOALS, waterTarget, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
-import { buildPlan, nextMeal, portion } from '../modules/nutrition/plan'
+import { portion, replanDay } from '../modules/nutrition/plan'
+import { QUICK_PROMPTS } from '../modules/coach/coach'
 import { dayTips, daysBetween, greeting, waterExpected, weekNutrition } from '../modules/home/today'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
@@ -58,7 +59,18 @@ export default function Today() {
   const week = weekNutrition(weekRows, today, targets?.protein_g ?? null)
 
   const baseTargets = profile ? dailyTargets(profile, weight, now) : null
-  const upcoming = baseTargets && mealPlan.data ? nextMeal(buildPlan(baseTargets, mealPlan.data), now.getHours() * 60 + now.getMinutes()) : null
+  // O dia real contra o plano: refeição pulada ou comida a mais reajusta as próximas.
+  const day =
+    targets && mealPlan.data && food.data
+      ? replanDay(
+          targets,
+          mealPlan.data,
+          eaten,
+          logs.map(l => l.meal),
+          now.getHours() * 60 + now.getMinutes(),
+        )
+      : null
+  const upcoming = day?.rest[0] ?? null
 
   const recovery = state ? recoveryByMuscle(state, now.getTime(), weight ?? undefined) : []
   const tired = recovery.filter(m => m.state !== 'ready').map(m => MUSCLE_NAME_PT[m.muscle])
@@ -181,10 +193,22 @@ export default function Today() {
         </div>
       )}
 
+      {day && day.adjusted && day.rest.length > 0 && (
+        <p className="card small replan-note" style={{ margin: 0 }}>
+          {day.skipped.length
+            ? `Você não registrou ${day.skipped.map(s => s.label.toLowerCase()).join(', ')}. `
+            : 'O que você comeu até agora fugiu do plano. '}
+          Ajustei {day.rest.length === 1 ? 'a próxima refeição' : `as próximas ${day.rest.length} refeições`} para fechar o dia: faltam {fmt(day.missing.kcal)} kcal e {fmt(day.missing.p)} g de proteína.
+        </p>
+      )}
+
       {upcoming ? (
         <Link to="/nutricao/plano" className="card next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div className="spread">
-            <span className="eyebrow">Próxima refeição · {upcoming.time}</span>
+            <span className="eyebrow">
+              Próxima refeição · {upcoming.time}
+              {day?.adjusted ? ' · ajustada' : ''}
+            </span>
             <span className="muted tiny">{fmt(upcoming.total.kcal)} kcal</span>
           </div>
           <h3 style={{ marginTop: 4 }}>{upcoming.label}</h3>
@@ -209,6 +233,25 @@ export default function Today() {
           </Link>
         )
       )}
+
+      <section className="card coach-card" aria-label="Seu nutricionista">
+        <div className="spread">
+          <div>
+            <span className="eyebrow">Seu nutricionista · IA</span>
+            <h3 style={{ marginTop: 4 }}>Precisa de ajuda com o dia?</h3>
+          </div>
+          <Link to="/nutricionista" className="btn small">
+            Conversar
+          </Link>
+        </div>
+        <div className="chips wrap">
+          {QUICK_PROMPTS.slice(0, 3).map(q => (
+            <button key={q} type="button" className="chip small-chip" onClick={() => navigate(`/nutricionista?q=${encodeURIComponent(q)}`)}>
+              {q}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {tips.length > 0 && (
         <section className="card stack tips" style={{ gap: 10 }} aria-label="Dicas do dia">

@@ -265,7 +265,7 @@ export async function logPlanMeal(date: string, meal: PlanMeal) {
   fail('Falha ao lançar a refeição do plano', error)
 }
 
-/** Pede à IA (função plan-ai no Supabase, que chama o DeepSeek) um ajuste do plano. */
+/** Pede à IA (função plan-ai no Supabase, que chama o Claude) um ajuste do plano. */
 export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
   const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })
   if (error) {

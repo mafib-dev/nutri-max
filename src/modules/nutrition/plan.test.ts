@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
-import { optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
+import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
 
 const targets = { kcal: 2400, protein_g: 160, carbs_g: 290, fat_g: 67 }
 const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { settings: { ...DEFAULT_SETTINGS, ...s }, picks: {} })
@@ -168,5 +168,36 @@ describe('extras', () => {
     const p = plan()
     expect(nextMeal(p, 11 * 60)!.kind).toBe('lunch')
     expect(nextMeal(p, 23 * 60)).toBeNull()
+  })
+})
+
+describe('replanDay', () => {
+  const none = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+
+  it('dia em dia: nada muda', () => {
+    const full = plan()
+    const morning = full.meals.slice(0, 2)
+    const eaten = { kcal: morning.reduce((a, m) => a + m.total.kcal, 0), protein_g: morning.reduce((a, m) => a + m.total.p, 0), carbs_g: morning.reduce((a, m) => a + m.total.c, 0), fat_g: morning.reduce((a, m) => a + m.total.f, 0) }
+    const d = replanDay(targets, { settings: DEFAULT_SETTINGS, picks: {} }, eaten, ['breakfast', 'snack'], 12 * 60)
+    expect(d.adjusted).toBe(false)
+    expect(d.skipped).toEqual([])
+    expect(d.rest.map(m => m.kind)).toEqual(['lunch', 'pre_workout', 'dinner'])
+  })
+
+  it('pulou o café: aponta e reparte nas próximas', () => {
+    const d = replanDay(targets, { settings: DEFAULT_SETTINGS, picks: {} }, none, [], 11 * 60)
+    expect(d.skipped.map(s => s.kind)).toEqual(['breakfast'])
+    expect(d.adjusted).toBe(true)
+    const normal = plan().meals.find(m => m.kind === 'lunch')!.total.kcal
+    const now = d.rest.find(m => m.kind === 'lunch')!.total.kcal
+    expect(now).toBeGreaterThan(normal)
+    expect(now).toBeLessThan(normal * 1.6)
+    expect(d.missing.kcal).toBe(2400)
+  })
+
+  it('fim do dia: nada mais para planejar', () => {
+    const d = replanDay(targets, { settings: DEFAULT_SETTINGS, picks: {} }, none, [], 23.5 * 60)
+    expect(d.rest).toEqual([])
+    expect(d.skipped).toHaveLength(5)
   })
 })

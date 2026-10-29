@@ -1,9 +1,10 @@
-// Ajusta o plano alimentar com o DeepSeek. Recebe o pedido em texto livre e o contexto montado
+// Ajusta o plano alimentar com o Claude (Anthropic). Recebe o pedido em texto livre e o contexto montado
 // pelo app (consulta, metas, cardápio e opções válidas) e devolve as mudanças em JSON. O app
 // confere tudo antes de aplicar; as gramas nunca vêm da IA.
 //
-// Segredo necessário: DEEPSEEK_API_KEY (Supabase → Edge Functions → Secrets).
+// Segredo necessário: ANTHROPIC_API_KEY (Supabase → Edge Functions → Secrets).
 import { createClient } from 'npm:@supabase/supabase-js@2'
+import { askClaude } from '../_shared/claude.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -31,7 +32,7 @@ Você pode mudar:
   3 frases, em português do Brasil, sem prometer resultados e sem tratar doenças).
 - "resumo": 1 a 2 frases dizendo o que você mudou e por quê.
 
-Responda APENAS com um objeto JSON: { "resumo": string, "consulta": {...}, "trocas": [...], "dicas": [...] }.
+Responda APENAS com um objeto JSON, sem texto antes ou depois: { "resumo": string, "consulta": {...}, "trocas": [...], "dicas": [...] }.
 Use somente chaves de alimentos que existam em "alimentos".`
 
 Deno.serve(async req => {
@@ -44,8 +45,6 @@ Deno.serve(async req => {
   const { data } = await supabase.auth.getUser()
   if (!data.user) return json(401, { error: 'Faça login de novo.' })
 
-  const key = Deno.env.get('DEEPSEEK_API_KEY')
-  if (!key) return json(500, { error: 'A chave do DeepSeek não está configurada no Supabase (DEEPSEEK_API_KEY).' })
 
   let body: { request?: unknown; context?: unknown }
   try {
@@ -58,29 +57,7 @@ Deno.serve(async req => {
   const context = JSON.stringify(body.context ?? {})
   if (context.length > 60000) return json(400, { error: 'Contexto grande demais.' })
 
-  const res = await fetch('https://api.deepseek.com/chat/completions', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'deepseek-chat',
-      temperature: 0.4,
-      max_tokens: 2000,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM },
-        { role: 'user', content: `Plano atual e opções (JSON):\n${context}\n\nPedido da pessoa:\n${request}` },
-      ],
-    }),
-  })
-  if (!res.ok) {
-    const detail = await res.text()
-    console.error('deepseek', res.status, detail.slice(0, 500))
-    return json(502, { error: res.status === 401 ? 'A chave do DeepSeek foi recusada.' : res.status === 402 ? 'Sem saldo na conta do DeepSeek.' : 'O DeepSeek não respondeu. Tente de novo.' })
-  }
-  const out = await res.json()
-  try {
-    return json(200, { result: JSON.parse(out.choices?.[0]?.message?.content ?? '{}') })
-  } catch {
-    return json(502, { error: 'A resposta da IA veio num formato inválido. Tente de novo.' })
-  }
+  const out = await askClaude(SYSTEM, [{ role: 'user', content: `Plano atual e opções (JSON):\n${context}\n\nPedido da pessoa:\n${request}` }])
+  if (!out.ok) return json(out.status, { error: out.error })
+  return json(200, { result: out.data })
 })
