@@ -173,3 +173,28 @@ export async function deleteWorkout(id: string) {
   const { error } = await supabase.from('workouts').delete().eq('id', id)
   fail('Falha ao apagar o treino', error)
 }
+
+export interface BodyWeight {
+  date: string
+  weight_kg: number
+}
+
+/** Pesagens, da mais antiga para a mais recente. */
+export async function listBodyWeights(limit = 120): Promise<BodyWeight[]> {
+  const { data, error } = await supabase
+    .from('body_metrics')
+    .select('date, weight_kg')
+    .not('weight_kg', 'is', null)
+    .order('date', { ascending: false })
+    .limit(limit)
+  fail('Falha ao carregar o peso', error)
+  return (data ?? []).map(r => ({ date: r.date, weight_kg: Number(r.weight_kg) })).reverse()
+}
+
+/** Registra o peso do dia (uma pesagem por dia: a nova substitui a anterior). */
+export async function saveBodyWeight(date: string, weightKg: number) {
+  const { error } = await supabase
+    .from('body_metrics')
+    .upsert({ user_id: await userId(), date, weight_kg: weightKg }, { onConflict: 'user_id,date' })
+  fail('Falha ao salvar o peso', error)
+}

@@ -8,6 +8,7 @@ import RoutineEdit from './pages/RoutineEdit'
 import Workout from './pages/Workout'
 import History from './pages/History'
 import Progress from './pages/Progress'
+import Overview from './pages/Overview'
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -19,7 +20,8 @@ const TABS = [
   { to: '/', label: 'Hoje', icon: icon('M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z') },
   { to: '/rotinas', label: 'Rotinas', icon: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01') },
   { to: '/exercicios', label: 'Exercícios', icon: icon('M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12') },
-  { to: '/historico', label: 'Histórico', icon: icon('M3 3v18h18M7 15l4-4 3 3 5-6') },
+  { to: '/historico', label: 'Histórico', icon: icon('M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5') },
+  { to: '/progresso', label: 'Progresso', icon: icon('M3 3v18h18M7 15l4-4 3 3 5-6') },
 ]
 
 function TabBar() {
@@ -54,6 +56,7 @@ export default function App() {
         <Route path="/exercicios" element={<Exercises />} />
         <Route path="/treino" element={<Workout />} />
         <Route path="/historico" element={<History />} />
+        <Route path="/progresso" element={<Overview />} />
         <Route path="/progresso/:exerciseId" element={<Progress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

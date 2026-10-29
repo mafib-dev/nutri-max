@@ -10,19 +10,21 @@ sob a mesma licença.
 
 `progression.js`, `onerm.js`, `workout-model.js`, `finish-workout.js`, `history.js` e o que
 eles importam: `dumbbells.js`, `rep-range.js`, `pyramid.js`, `backoff.js`, `format.js`,
-`speed.js`, `incline.js`, `bar.js`, `queue.js`, `superset-meta.js`. Os testes `*.test.js`
+`speed.js`, `incline.js`, `bar.js`, `queue.js`, `superset-meta.js`. Para a recuperação
+muscular: `recovery.js`, `recovery-view.js`, `muscles.js` e `effort.js`. Os testes `*.test.js`
 que só dependem desses arquivos também vieram.
 
 ## O que foi trocado
 
 - `exercises.js`: no openGym o catálogo vem embutido no app. Aqui ele é preenchido com
   `registerCatalogue()` a partir da tabela `exercises` do Supabase. As regras de equipamento,
-  máquina assistida e incremento padrão são as mesmas.
+  máquina assistida e incremento padrão são as mesmas. `smOf` não tem os acréscimos manuais de
+  músculos secundários que o openGym aplica a alguns exercícios.
 - `i18n-core.js`: versão mínima que só preenche os `{0}` das frases, com datas e números em pt-BR.
-- `test-catalogue.json` e `test-setup.js`: os 21 exercícios do catálogo do openGym que os
+- `test-catalogue.json` e `test-setup.js`: os 24 exercícios do catálogo do openGym que os
   testes usam pelo id.
 - Testes de `format.helpers.test.js` e `history.test.js` que conferiam datas e números em
-  inglês agora esperam o formato pt-BR.
+  inglês agora esperam o formato pt-BR, assim como um teste de `recovery-view.test.js`.
 
 Ficaram de fora os testes que dependem de partes não portadas (início de sessão,
 compartilhamento de plano, importação de CSV, traduções).
