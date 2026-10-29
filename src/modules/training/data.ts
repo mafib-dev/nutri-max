@@ -192,12 +192,10 @@ export interface WorkoutSummary {
   volume: number
 }
 
-export async function listWorkouts(limit = 50): Promise<WorkoutSummary[]> {
-  const { data, error } = await supabase
-    .from('workouts')
-    .select('id, name, started_at, ended_at, workout_sets(weight_kg, reps, kind)')
-    .order('started_at', { ascending: false })
-    .limit(limit)
+export async function listWorkouts(limit = 50, since?: Date): Promise<WorkoutSummary[]> {
+  let query = supabase.from('workouts').select('id, name, started_at, ended_at, workout_sets(weight_kg, reps, kind)')
+  if (since) query = query.gte('started_at', since.toISOString())
+  const { data, error } = await query.order('started_at', { ascending: false }).limit(limit)
   fail('Falha ao carregar o histórico', error)
   return (data ?? []).map(w => {
     const work = (w.workout_sets as { weight_kg: number | string | null; reps: number | null; kind: string }[]).filter(s => s.kind !== 'warmup')
