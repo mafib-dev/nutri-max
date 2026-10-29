@@ -537,9 +537,10 @@ export function buildPlan(targets: Targets, saved: SavedPlan): MealPlan {
     } else {
       free = [...item('protein', choose('protein')), ...item('fat', choose('fat'))]
     }
-    // Com whey nesta refeição, ele é a proteína: sai a proteína sugerida.
+    // Com whey num lanche, ele é a proteína. No almoço ou jantar (shake logo depois do treino,
+    // antes da refeição), a proteína do prato continua e só diminui.
     if (whey.length) {
-      free = free.filter(i => i.role !== 'protein')
+      if (group !== 'main') free = free.filter(i => i.role !== 'protein')
       fixed = [...whey, ...fixed]
     }
     // A leguminosa no lugar da proteína resolve a proteína.

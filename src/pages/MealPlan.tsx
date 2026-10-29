@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
-import { loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
+import { askPlanAi, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
+import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
   buildPlan,
   buyAmount,
@@ -20,7 +21,6 @@ import {
   type PlanMeal,
   type PlanSettings,
   type Role,
-  type SavedPlan,
 } from '../modules/nutrition/plan'
 import { loadPlanContext } from '../modules/nutrition/planContext'
 import { ageOn, fiberTarget, waterTarget } from '../modules/nutrition/targets'
@@ -44,15 +44,15 @@ export default function MealPlan() {
   // Proteínas em pó que a pessoa cadastrou (pelo rótulo ou código de barras) para usar como o whey do plano.
   const powders = useAsync(async () => (await loadFoods()).filter(f => f.source === 'custom' && /whey|prote[ií]na|isolad|albumina/i.test(f.name)))
   const [editing, setEditing] = useState(false)
-  const [saved, setSaved] = useState<SavedPlan | null>(null)
+  const [saved, setSaved] = useState<SavedPlanWithAi | null>(null)
 
   const data = ctx.data
-  const raw = saved ?? data?.saved ?? null
+  const raw = (saved ?? data?.saved ?? null) as SavedPlanWithAi | null
   const current = raw ? { ...raw, settings: withDefaults(raw.settings) } : null
   const targets = data?.targets ?? null
   const plan = targets && current ? buildPlan(targets, current) : null
 
-  async function persist(next: SavedPlan) {
+  async function persist(next: SavedPlanWithAi) {
     setSaved(next)
     await saveMealPlan(next)
   }
@@ -86,7 +86,7 @@ export default function MealPlan() {
           powders={(powders.data ?? []).map(f => ({ id: f.id, name: f.name, kcal: f.kcal, p: f.protein_g, c: f.carbs_g, f: f.fat_g }))}
           onCancel={current ? () => setEditing(false) : undefined}
           onSave={async settings => {
-            await persist({ settings, picks: {} })
+            await persist({ ...current, settings, picks: {} })
             setEditing(false)
           }}
         />
@@ -102,6 +102,7 @@ export default function MealPlan() {
           fiberGoal={fiberTarget(data.profile.sex, data.profile.birth_date ? ageOn(data.profile.birth_date, new Date()) : null)}
           onPick={(slot, role, key) => persist({ ...current, picks: { ...current.picks, [slot]: { ...current.picks[slot], [role]: key } } })}
           onRedo={() => setEditing(true)}
+          onAi={persist}
         />
       )}
     </main>
@@ -366,13 +367,14 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
 
 function PlanView(props: {
   plan: ReturnType<typeof buildPlan>
-  saved: SavedPlan
+  saved: SavedPlanWithAi
   targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
   goal: Parameters<typeof guidance>[0]['goal']
   weight: number | null
   fiberGoal: number
   onPick: (slot: string, role: Role, key: FoodKey) => Promise<void>
   onRedo: () => void
+  onAi: (next: SavedPlanWithAi) => Promise<void>
 }) {
   const { plan, targets, saved } = props
   const [tab, setTab] = useState<'menu' | 'tips' | 'shop'>('menu')
@@ -403,6 +405,8 @@ function PlanView(props: {
         </button>
       </div>
 
+      <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />
+
       <div className="chips" role="tablist">
         {(
           [
@@ -426,6 +430,15 @@ function PlanView(props: {
 
       {tab === 'tips' && (
         <div className="stack">
+          {(saved.ai?.tips ?? []).map(g => (
+            <div key={`ai-${g.title}`} className="card ai-tip">
+              <span className="eyebrow">Para você</span>
+              <h3 style={{ fontSize: '1.05rem', marginTop: 4 }}>{g.title}</h3>
+              <p className="small" style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
+                {g.text}
+              </p>
+            </div>
+          ))}
           {tips.map(g => (
             <div key={g.title} className="card">
               <h3 style={{ fontSize: '1.05rem' }}>{g.title}</h3>
@@ -458,7 +471,7 @@ function PlanView(props: {
 }
 
 function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: PlanSettings; onPick: (role: Role, key: FoodKey) => Promise<void> }) {
-  const [open, setOpen] = useState<Role | null>(null)
+  const [open, setOpen] = useState<FoodKey | null>(null)
   const [state, setState] = useState<'idle' | 'busy' | 'done' | string>('idle')
 
   async function log() {
@@ -497,7 +510,7 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
       {state !== 'idle' && state !== 'busy' && state !== 'done' && <p className="error small">{state}</p>}
       <div className="meal-items">
         {meal.items.map(i => (
-          <PlanItemRow key={i.role} item={i} kind={meal.kind} settings={settings} open={open === i.role} onToggle={() => setOpen(o => (o === i.role ? null : i.role))} onPick={k => onPick(i.role, k).then(() => setOpen(null))} />
+          <PlanItemRow key={`${i.role}-${i.key}`} item={i} kind={meal.kind} settings={settings} open={open === i.key} onToggle={() => setOpen(o => (o === i.key ? null : i.key))} onPick={k => onPick(i.role, k).then(() => setOpen(null))} />
         ))}
       </div>
     </section>
@@ -507,7 +520,8 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
 function PlanItemRow(props: { item: PlanItem; kind: PlanMeal['kind']; settings: PlanSettings; open: boolean; onToggle: () => void; onPick: (k: FoodKey) => Promise<void> }) {
   const { item } = props
   const subs = substitutes(props.kind, item, props.settings, 6)
-  const canSwap = subs.length > 0 && optionsFor(props.kind, item.role, props.settings).length > 1
+  // O whey vem da consulta: muda-se lá, não aqui.
+  const canSwap = item.key !== 'whey' && subs.length > 0 && optionsFor(props.kind, item.role, props.settings).length > 1
   return (
     <div className="plan-item">
       <button type="button" className="meal-item" onClick={canSwap ? props.onToggle : undefined} aria-expanded={canSwap ? props.open : undefined} disabled={!canSwap}>
@@ -532,5 +546,77 @@ function PlanItemRow(props: { item: PlanItem; kind: PlanMeal['kind']; settings: 
         </div>
       )}
     </div>
+  )
+}
+
+const EXAMPLES = [
+  'Moro no interior e aqui é difícil achar peixe e frutas vermelhas.',
+  'Almoço no restaurante por quilo de segunda a sexta.',
+  'Troca o jantar por algo mais rápido de fazer.',
+  'Tomo 2 scoops de whey, um de manhã e um depois do treino.',
+]
+
+function AiAdjust(props: { plan: ReturnType<typeof buildPlan>; saved: SavedPlanWithAi; targets: Parameters<typeof aiContext>[2]; goal: Parameters<typeof aiContext>[3]; onApply: (next: SavedPlanWithAi) => Promise<void>; onDone: () => void }) {
+  const [request, setRequest] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+  const last = props.saved.ai?.history?.[0]
+
+  async function submit() {
+    setBusy(true)
+    setError(null)
+    setDone(null)
+    try {
+      const result = await askPlanAi(request, aiContext(props.saved, props.plan, props.targets, props.goal))
+      const { saved, discarded } = applyAiResult(props.saved, result, request)
+      await props.onApply(saved)
+      setDone(saved.ai!.summary + (discarded ? ` (${discarded} sugestão${discarded > 1 ? 'ões' : ''} fora das opções do app ${discarded > 1 ? 'foram ignoradas' : 'foi ignorada'}.)` : ''))
+      setRequest('')
+      props.onDone()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="card stack ai-card" style={{ gap: 10 }} aria-label="Ajustar com IA">
+      <div>
+        <span className="eyebrow">Ajustar com IA</span>
+        <p className="muted small" style={{ margin: '4px 0 0' }}>
+          Conte sua realidade: onde mora, o que encontra, rotina, gostos. A IA troca alimentos e escreve dicas; as quantidades continuam calculadas pelo app.
+        </p>
+      </div>
+      <textarea
+        className="input"
+        rows={3}
+        maxLength={1000}
+        placeholder={EXAMPLES[0]}
+        value={request}
+        onChange={e => setRequest(e.target.value)}
+        aria-label="O que você quer ajustar no plano"
+      />
+      {!request && (
+        <div className="chips wrap">
+          {EXAMPLES.slice(1).map(x => (
+            <button key={x} type="button" className="chip small-chip" onClick={() => setRequest(x)}>
+              {x}
+            </button>
+          ))}
+        </div>
+      )}
+      <button type="button" className="btn primary" onClick={submit} disabled={busy || request.trim().length < 5}>
+        {busy ? 'Pensando…' : 'Ajustar meu plano'}
+      </button>
+      {error && <p className="error small" style={{ margin: 0 }}>{error}</p>}
+      {(done ?? last?.summary) && (
+        <p className="small" style={{ margin: 0 }}>
+          <strong>{done ? 'Feito: ' : 'Último ajuste: '}</strong>
+          {done ?? last!.summary}
+        </p>
+      )}
+    </section>
   )
 }

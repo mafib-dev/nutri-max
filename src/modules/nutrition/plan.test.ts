@@ -93,6 +93,13 @@ describe('consulta completa', () => {
     expect(post.items.find(i => i.key === 'whey')!.grams).toBe(30)
   })
 
+  it('whey depois do treino sem lanche pós-treino entra no jantar sem tirar a carne', () => {
+    const dinner = plan({ whey: { scoops: 1, scoopG: 30, when: 'post', food: null } }).meals.find(m => m.kind === 'dinner')!
+    const proteins = dinner.items.filter(i => i.role === 'protein').map(i => i.key)
+    expect(proteins).toContain('whey')
+    expect(proteins).toHaveLength(2)
+  })
+
   it('usa o whey cadastrado com os valores do rótulo', () => {
     const food = { id: 'meu-whey', name: 'Whey Baunilha', kcal: 380, p: 76, c: 8, f: 6 }
     const p = plan({ whey: { scoops: 2, scoopG: 32, when: 'breakfast', food } })

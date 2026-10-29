@@ -1429,3 +1429,22 @@ details.card summary::marker {
   display: grid;
   gap: 4px;
 }
+
+.ai-card textarea {
+  resize: vertical;
+  min-height: 80px;
+  font: inherit;
+}
+
+.chip.small-chip {
+  flex: 1 1 auto;
+  max-width: 100%;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  text-align: left;
+  white-space: normal;
+}
+
+.ai-tip {
+  border-color: var(--accent);
+}

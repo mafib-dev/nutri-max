@@ -190,7 +190,7 @@ export default function Today() {
           <h3 style={{ marginTop: 4 }}>{upcoming.label}</h3>
           <ul>
             {upcoming.items.map(i => (
-              <li key={i.role} className="small">
+              <li key={`${i.role}-${i.key}`} className="small">
                 <span>{i.food.name}</span> <span className="muted">{portion(i.food, i.grams)}</span>
               </li>
             ))}

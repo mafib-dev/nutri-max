@@ -264,3 +264,14 @@ export async function logPlanMeal(date: string, meal: PlanMeal) {
   const { error } = await supabase.from('food_logs').insert(rows)
   fail('Falha ao lançar a refeição do plano', error)
 }
+
+/** Pede à IA (função plan-ai no Supabase, que chama o DeepSeek) um ajuste do plano. */
+export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })
+  if (error) {
+    // A função devolve { error } com a explicação; sem ela, a mensagem genérica do cliente.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
+}
