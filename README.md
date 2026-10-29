@@ -24,6 +24,7 @@ npm install
 npx supabase start          # sobe o Supabase local e aplica as migrations
 cp .env.example .env        # preencha as chaves que o comando acima mostrou
 npm run import:exercises    # carrega os 876 exercícios e as fotos
+npm run import:foods        # carrega os 597 alimentos da TACO
 npm run dev
 ```
 
@@ -50,7 +51,8 @@ src/
     foods.ts                  macros por porção, totais e busca de alimentos
     data.ts                   leituras e gravações no Supabase
 supabase/migrations/          schema do banco (tabelas, RLS, views)
-scripts/import-exercises.ts   importação do catálogo
+scripts/import-exercises.ts   importação do catálogo de exercícios
+scripts/import-foods.ts       importação dos alimentos da TACO
 ```
 
 ## Banco de dados
