@@ -1659,3 +1659,105 @@ details.card summary::marker {
     bottom: 28px;
   }
 }
+
+/* Aba Treinos: a semana em 7 dias e as rotinas em cartões. */
+.week-plan {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.week-day {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.week-day.today {
+  border-color: var(--accent);
+}
+
+.week-day.rest {
+  background: transparent;
+}
+
+.week-routine {
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.week-day.rest .muted {
+  font-size: 0.78rem;
+}
+
+.routine-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.routine-card {
+  display: grid;
+  gap: 12px;
+}
+
+.routine-card.today {
+  border-color: var(--accent);
+}
+
+.routine-main {
+  display: grid;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.routine-main .title {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+@media (max-width: 520px) {
+  .week-day {
+    padding: 6px 4px;
+    min-height: 56px;
+  }
+
+  .week-routine {
+    font-size: 0.7rem;
+  }
+
+  .week-day.rest .muted {
+    font-size: 0.65rem;
+  }
+}
+
+@media (min-width: 720px) {
+  .routine-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .week-day {
+    min-height: 88px;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-list.wide-items {
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  }
+}

@@ -70,6 +70,23 @@ export async function listRoutines(): Promise<Routine[]> {
   return data as Routine[]
 }
 
+/** Resumo das rotinas para a aba Treinos: exercícios e séries de cada uma e quando foi feita pela última vez. */
+export async function listRoutineOverview() {
+  const [routines, items, workouts] = await Promise.all([
+    listRoutines(),
+    supabase.from('routine_exercises').select('routine_id, exercise_id, sets').order('position'),
+    supabase.from('workouts').select('routine_id, started_at').not('routine_id', 'is', null).order('started_at', { ascending: false }).limit(200),
+  ])
+  fail('Falha ao carregar rotinas', items.error ?? workouts.error)
+  const lastDone = new Map<string, string>()
+  for (const w of (workouts.data ?? []) as { routine_id: string; started_at: string }[]) if (!lastDone.has(w.routine_id)) lastDone.set(w.routine_id, w.started_at)
+  return {
+    routines,
+    items: (items.data ?? []) as Pick<RoutineExercise, 'routine_id' | 'exercise_id' | 'sets'>[],
+    lastDone,
+  }
+}
+
 export async function getRoutine(id: string) {
   const [routine, items] = await Promise.all([
     supabase.from('routines').select('id, name, weekday, position').eq('id', id).single(),

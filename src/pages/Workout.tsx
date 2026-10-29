@@ -139,7 +139,7 @@ export default function Workout() {
   }
 
   return (
-    <main className="page narrow stack" style={{ paddingBottom: restUntil ? 130 : 48 }}>
+    <main className="page stack" style={{ paddingBottom: restUntil ? 130 : 48 }}>
       <div className="page-head">
         <div style={{ minWidth: 0 }}>
           <span className="eyebrow">Treino em andamento</span>
@@ -170,97 +170,99 @@ export default function Workout() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {session.entries.map((entry, ei) => {
-        const why = explain(entry.suggestion.why)
-        return (
-          <section key={`${entry.exerciseId}-${ei}`} className="card stack" style={{ gap: 12 }}>
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
-                {byId.get(entry.exerciseId)?.images[0] ? (
-                  <img className="thumb" src={imageUrl(byId.get(entry.exerciseId)!.images[0])} alt="" />
-                ) : (
-                  <div className="thumb" />
-                )}
-                <div className="grow">
-                  <span className="eyebrow">
-                    {ei + 1} de {session.entries.length}
-                  </span>
-                  <div className="clamp-2" style={{ fontWeight: 700, fontSize: '1.05rem' }}>
-                    {entry.name}
+      <div className="grid-list wide-items">
+        {session.entries.map((entry, ei) => {
+          const why = explain(entry.suggestion.why)
+          return (
+            <section key={`${entry.exerciseId}-${ei}`} className="card stack" style={{ gap: 12 }}>
+              <div className="row" style={{ alignItems: 'flex-start' }}>
+                <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
+                  {byId.get(entry.exerciseId)?.images[0] ? (
+                    <img className="thumb" src={imageUrl(byId.get(entry.exerciseId)!.images[0])} alt="" />
+                  ) : (
+                    <div className="thumb" />
+                  )}
+                  <div className="grow">
+                    <span className="eyebrow">
+                      {ei + 1} de {session.entries.length}
+                    </span>
+                    <div className="clamp-2" style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                      {entry.name}
+                    </div>
+                    <div className="muted tiny row" style={{ gap: 4 }}>
+                      <Icon.info /> Como fazer
+                    </div>
                   </div>
-                  <div className="muted tiny row" style={{ gap: 4 }}>
-                    <Icon.info /> Como fazer
-                  </div>
-                </div>
-              </button>
-              <button type="button" className="btn ghost icon" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
-                <Icon.close />
-              </button>
-            </div>
-            <EntryMeta entry={entry} exercise={byId.get(entry.exerciseId)} />
-            {why && <p className="why">{why}</p>}
-            <div className="set-grid">
-              <span className="head">#</span>
-              <span className="head">kg</span>
-              <span className="head">reps</span>
-              <span className="head">feita</span>
-              {entry.sets.map((set, si) => {
-                const workIndex = entry.sets.slice(0, si + 1).filter(x => x.kind === 'work').length
-                return (
-                  <div key={si} className={set.done ? 'set-done' : ''} style={{ display: 'contents' }}>
-                    <button
-                      type="button"
-                      className="idx btn ghost small"
-                      style={{ padding: 0, minHeight: 44 }}
-                      title="Toque e segure para remover"
-                      onContextMenu={e => {
-                        e.preventDefault()
-                        removeSet(ei, si)
-                      }}
-                      onDoubleClick={() => removeSet(ei, si)}
-                    >
-                      {set.kind === 'warmup' ? 'A' : workIndex}
-                    </button>
-                    <input
-                      className="input"
-                      inputMode="decimal"
-                      aria-label={`Carga da série ${si + 1}`}
-                      value={set.weight ?? ''}
-                      placeholder="–"
-                      onChange={e => editSet(ei, si, { weight: parseNum(e.target.value) })}
-                    />
-                    <input
-                      className="input"
-                      inputMode="numeric"
-                      aria-label={`Repetições da série ${si + 1}`}
-                      value={set.reps ?? ''}
-                      placeholder="–"
-                      onChange={e => editSet(ei, si, { reps: parseNum(e.target.value) })}
-                    />
-                    <button
-                      type="button"
-                      className={`check ${set.done ? 'on' : ''}`}
-                      aria-pressed={set.done}
-                      aria-label={`Série ${si + 1} feita`}
-                      onClick={() => toggleDone(ei, si)}
-                    >
-                      <Icon.check />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="row">
-              <button type="button" className="btn small" onClick={() => addSet(ei, 'work')}>
-                + Série
-              </button>
-              <button type="button" className="btn small ghost" onClick={() => addSet(ei, 'warmup')}>
-                + Aquecimento
-              </button>
-            </div>
-          </section>
-        )
-      })}
+                </button>
+                <button type="button" className="btn ghost icon" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
+                  <Icon.close />
+                </button>
+              </div>
+              <EntryMeta entry={entry} exercise={byId.get(entry.exerciseId)} />
+              {why && <p className="why">{why}</p>}
+              <div className="set-grid">
+                <span className="head">#</span>
+                <span className="head">kg</span>
+                <span className="head">reps</span>
+                <span className="head">feita</span>
+                {entry.sets.map((set, si) => {
+                  const workIndex = entry.sets.slice(0, si + 1).filter(x => x.kind === 'work').length
+                  return (
+                    <div key={si} className={set.done ? 'set-done' : ''} style={{ display: 'contents' }}>
+                      <button
+                        type="button"
+                        className="idx btn ghost small"
+                        style={{ padding: 0, minHeight: 44 }}
+                        title="Toque e segure para remover"
+                        onContextMenu={e => {
+                          e.preventDefault()
+                          removeSet(ei, si)
+                        }}
+                        onDoubleClick={() => removeSet(ei, si)}
+                      >
+                        {set.kind === 'warmup' ? 'A' : workIndex}
+                      </button>
+                      <input
+                        className="input"
+                        inputMode="decimal"
+                        aria-label={`Carga da série ${si + 1}`}
+                        value={set.weight ?? ''}
+                        placeholder="–"
+                        onChange={e => editSet(ei, si, { weight: parseNum(e.target.value) })}
+                      />
+                      <input
+                        className="input"
+                        inputMode="numeric"
+                        aria-label={`Repetições da série ${si + 1}`}
+                        value={set.reps ?? ''}
+                        placeholder="–"
+                        onChange={e => editSet(ei, si, { reps: parseNum(e.target.value) })}
+                      />
+                      <button
+                        type="button"
+                        className={`check ${set.done ? 'on' : ''}`}
+                        aria-pressed={set.done}
+                        aria-label={`Série ${si + 1} feita`}
+                        onClick={() => toggleDone(ei, si)}
+                      >
+                        <Icon.check />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="row">
+                <button type="button" className="btn small" onClick={() => addSet(ei, 'work')}>
+                  + Série
+                </button>
+                <button type="button" className="btn small ghost" onClick={() => addSet(ei, 'warmup')}>
+                  + Aquecimento
+                </button>
+              </div>
+            </section>
+          )
+        })}
+      </div>
       <p className="muted small" style={{ margin: 0 }}>
         Toque duas vezes no número da série para removê-la. "A" é série de aquecimento.
       </p>
