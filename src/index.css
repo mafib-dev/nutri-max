@@ -1,6 +1,5 @@
-/* NutriMax: visual de academia à noite. Fundo grafite com granulado, verde-limão "volt"
-   como cor de ação e títulos condensados em caixa alta, como placar esportivo. */
-@import '@fontsource-variable/big-shoulders-display';
+/* NutriMax: tema escuro e limpo. Fundo grafite liso, uma só fonte (Figtree) e o verde-limão
+   reservado para a ação principal e para o que está ativo. */
 @import '@fontsource-variable/figtree';
 
 :root {
@@ -21,7 +20,7 @@
   --warn: #ffb224;
   --radius: 16px;
   --radius-sm: 10px;
-  --display: 'Big Shoulders Display Variable', 'Arial Narrow', sans-serif;
+  --display: 'Figtree Variable', system-ui, sans-serif;
   --body: 'Figtree Variable', system-ui, sans-serif;
   --tabbar-h: 72px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -43,22 +42,7 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    radial-gradient(120% 60% at 100% -10%, var(--bg-glow), transparent 60%),
-    radial-gradient(80% 40% at -20% 110%, rgb(200 240 49 / 0.04), transparent 70%),
-    var(--bg);
-  background-attachment: fixed;
-}
-
-/* Granulado sutil por cima de tudo, sem pegar cliques. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background: var(--bg);
 }
 
 button,
@@ -89,47 +73,32 @@ a {
 h1,
 h2,
 h3 {
-  font-family: var(--display);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  line-height: 0.95;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 h1 {
-  font-size: clamp(2.4rem, 9vw, 3.2rem);
-  font-weight: 800;
-  margin: 0 0 4px;
-}
-
-h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
-  margin: 28px 0 6px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Fio que completa a linha do título de seção. */
-h2::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border-strong), transparent);
-}
-
-h3 {
-  font-size: 1.15rem;
+  font-size: clamp(1.6rem, 5vw, 2rem);
   font-weight: 700;
   margin: 0;
 }
 
+h2 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 20px 0 2px;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 0;
+}
+
 .eyebrow {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .page {
@@ -181,18 +150,6 @@ h3 {
   gap: 10px;
 }
 
-/* Entrada da página: os blocos sobem em sequência. */
-.page > * {
-  animation: rise 0.5s var(--ease) both;
-}
-
-.page > :nth-child(2) { animation-delay: 40ms; }
-.page > :nth-child(3) { animation-delay: 80ms; }
-.page > :nth-child(4) { animation-delay: 120ms; }
-.page > :nth-child(5) { animation-delay: 160ms; }
-.page > :nth-child(6) { animation-delay: 200ms; }
-.page > :nth-child(n + 7) { animation-delay: 240ms; }
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -225,17 +182,13 @@ h3 {
 
 .card {
   position: relative;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%), var(--surface);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
 }
 
 .card.hero {
-  border-color: rgb(200 240 49 / 0.35);
-  background:
-    radial-gradient(120% 120% at 100% 0%, rgb(200 240 49 / 0.16), transparent 55%),
-    var(--surface);
   overflow: hidden;
 }
 
@@ -250,7 +203,6 @@ h3 {
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
   font-weight: 700;
-  letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
@@ -276,11 +228,10 @@ h3 {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 6px 24px -8px rgb(200 240 49 / 0.55);
 }
 
 .btn.primary:hover {
-  box-shadow: 0 8px 30px -6px rgb(200 240 49 / 0.7);
+  filter: brightness(1.05);
 }
 
 .btn.danger {
@@ -313,12 +264,8 @@ h3 {
 }
 
 .btn.big {
-  min-height: 56px;
-  font-family: var(--display);
-  font-size: 1.35rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  min-height: 52px;
+  font-size: 1rem;
 }
 
 .field {
@@ -327,10 +274,8 @@ h3 {
 }
 
 .field > span {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 550;
   color: var(--muted);
 }
 
@@ -662,8 +607,6 @@ select.input {
   color: var(--text);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .facts {
@@ -682,8 +625,6 @@ select.input {
   display: block;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -719,7 +660,7 @@ select.input {
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.05rem;
 }
 
@@ -734,8 +675,6 @@ select.input {
 .set-grid .head {
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
   text-align: center;
 }
@@ -743,7 +682,7 @@ select.input {
 .set-grid .idx {
   text-align: center;
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.15rem;
   color: var(--muted);
 }
@@ -805,7 +744,7 @@ select.input {
 .why::before {
   content: '↗ ';
   color: var(--accent);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ex-head {
@@ -854,14 +793,14 @@ select.input {
   border-radius: 22px;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 18px 40px -10px rgb(200 240 49 / 0.45);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.6);
   animation: pop 0.3s var(--ease) both;
 }
 
 .rest-bar .clock {
   font-family: var(--display);
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -881,15 +820,13 @@ select.input {
 .stat span {
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
 .stat strong {
   font-family: var(--display);
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -929,8 +866,6 @@ select.input {
   font-size: 3.6rem;
   font-weight: 900;
   line-height: 0.85;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
 }
 
 .brand em {
@@ -1046,9 +981,8 @@ select.input {
   border-radius: 14px;
   background: var(--surface-3);
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.15rem;
-  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -1075,9 +1009,7 @@ select.input {
 .day-nav strong {
   font-family: var(--display);
   font-size: 1.3rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .summary {
@@ -1130,7 +1062,7 @@ select.input {
 .ring-label strong {
   font-family: var(--display);
   font-size: 2.1rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1143,8 +1075,6 @@ select.input {
   max-width: 80px;
   font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -1343,36 +1273,40 @@ details.card summary::marker {
   gap: 14px 20px;
 }
 
-/* Tela Hoje */
-.body-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* Tela Hoje: linhas compactas com rótulo, valor e uma ação. */
+.today-row {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
-.body-stats .stat small,
-.week-stats .stat small {
-  font-size: 0.78rem;
+.today-row > .grow {
+  flex: 1;
+  min-width: 0;
 }
 
-.week-stats .stat {
-  gap: 4px;
+.label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
-.tip {
+.today-row .title,
+.next-meal .title {
+  font-size: 1.1rem;
+  font-weight: 650;
+  margin-top: 2px;
+}
+
+.water-row .meter {
+  margin-top: 8px;
+}
+
+.tip-line {
   margin: 0;
-  padding-left: 12px;
-  border-left: 3px solid var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
-.tip.warn {
-  border-color: var(--warn);
-}
-
-.tip.good {
-  border-color: var(--accent);
+  padding: 0 4px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* Plano alimentar */
@@ -1450,11 +1384,6 @@ details.card summary::marker {
   border-color: var(--accent);
 }
 
-.replan-note {
-  border-color: var(--warn);
-  line-height: 1.45;
-}
-
 /* Nutricionista */
 .chat {
   display: grid;
@@ -1507,10 +1436,6 @@ details.card summary::marker {
   font: inherit;
 }
 
-.coach-card .chips {
-  margin-top: 10px;
-}
-
 /* Nutricionista flutuante: botão no canto inferior direito, acima da barra de navegação. */
 .coach-fab {
   position: fixed;
@@ -1525,7 +1450,7 @@ details.card summary::marker {
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 14px 30px -8px rgb(200 240 49 / 0.5), 0 0 0 4px rgb(10 12 11 / 0.6);
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.7);
   cursor: pointer;
   transition: transform 0.2s var(--ease);
   animation: pop 0.35s var(--ease) both;
@@ -1723,9 +1648,7 @@ details.card summary::marker {
     padding: 4px 14px 22px;
     font-family: var(--display);
     font-size: 1.7rem;
-    font-weight: 800;
-    letter-spacing: 0.01em;
-    text-transform: uppercase;
+    font-weight: 700;
   }
 
   .nav-brand span {
