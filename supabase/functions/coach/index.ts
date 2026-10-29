@@ -50,7 +50,6 @@ Deno.serve(async req => {
   const { data } = await supabase.auth.getUser()
   if (!data.user) return json(401, { error: 'Faça login de novo.' })
 
-
   let body: { messages?: unknown; context?: unknown }
   try {
     body = await req.json()
@@ -61,6 +60,8 @@ Deno.serve(async req => {
     .filter((m): m is { role: string; content: string } => !!m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
     .slice(-12)
     .map(m => ({ role: m.role, content: m.content.slice(0, 2000) }))
+  // A conversa enviada ao Claude precisa começar com uma mensagem da pessoa.
+  while (history[0]?.role === 'assistant') history.shift()
   if (!history.length || history.at(-1)!.role !== 'user') return json(400, { error: 'Escreva sua mensagem.' })
   const context = JSON.stringify(body.context ?? {})
   if (context.length > 80000) return json(400, { error: 'Contexto grande demais.' })

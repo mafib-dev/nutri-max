@@ -45,7 +45,6 @@ Deno.serve(async req => {
   const { data } = await supabase.auth.getUser()
   if (!data.user) return json(401, { error: 'Faça login de novo.' })
 
-
   let body: { request?: unknown; context?: unknown }
   try {
     body = await req.json()
