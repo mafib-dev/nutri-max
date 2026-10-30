@@ -27,3 +27,6 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# FBX originais do Mixamo (convertidos com npm run avatar)
+assets/avatares/

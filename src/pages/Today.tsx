@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Link, useNavigate } from 'react-router-dom'
 import NutritionSummary from '../components/NutritionSummary'
-import { Avatar, type Pose } from '../components/Avatar'
+import type { Pose } from '../components/Avatar'
+import { Buddy3D } from '../components/Buddy3D'
 import { listBodyWeights, listRoutines, loadState, onDay, saveBodyWeight, WEEKDAYS } from '../modules/training/data'
 import { recoveryByMuscle } from '../modules/training/insights'
 import { MUSCLE_NAME_PT } from '../modules/training/muscles'
@@ -331,7 +332,7 @@ function Buddy({ sex, look, lines, pose }: { sex: Sex | null; look: AvatarLook; 
   return (
     <section className="card buddy" aria-label="Seu personagem">
       <button type="button" className="buddy-figure" onClick={tap} aria-label="Próxima mensagem">
-        <Avatar sex={sex} look={look} pose={waving ? 'wave' : pose} size={92} />
+        <Buddy3D sex={sex} look={look} pose={waving ? 'wave' : pose} size={120} />
       </button>
       <div className="buddy-bubble" aria-live="polite">
         <AnimatePresence mode="wait" initial={false}>
