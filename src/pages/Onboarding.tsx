@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Avatar, type Pose } from '../components/Avatar'
 import { ACTIVITY, dailyTargets, GOALS, type ActivityLevel, type Goal } from '../modules/nutrition/targets'
 import { EXPERIENCE, firstOpenStep, parseNumber, stepError, STEPS, toNutritionProfile, type Experience, type ProfileSetup, type Step } from '../modules/profile/setup'
-import { HAIR_COLORS, SKIN_TONES, type AvatarLook } from '../modules/profile/look'
+import type { AvatarLook } from '../modules/profile/look'
 import { saveSetup } from '../modules/profile/data'
 import { todayIso } from '../modules/nutrition/data'
 
@@ -12,7 +12,7 @@ const numText = (n: number | null) => (n == null ? '' : String(n).replace('.', '
 
 const TITLES: Record<Step, { title: string; hint?: string }> = {
   name: { title: 'Como podemos te chamar?', hint: 'É assim que vamos falar com você no app.' },
-  sex: { title: 'Monte seu personagem', hint: 'O sexo também entra no cálculo das calorias.' },
+  sex: { title: 'Qual é o seu sexo?', hint: 'Escolhe o seu personagem e entra no cálculo das calorias.' },
   birth: { title: 'Quando você nasceu?', hint: 'A idade muda quanto o corpo gasta por dia.' },
   body: { title: 'Sua altura e seu peso', hint: 'Use o peso de hoje. Você atualiza quando quiser.' },
   goal: { title: 'Qual é o seu objetivo?' },
@@ -22,7 +22,7 @@ const TITLES: Record<Step, { title: string; hint?: string }> = {
 
 export default function Onboarding({ initial, initialLook, mode = 'first', onDone, onCancel }: { initial: ProfileSetup; initialLook: AvatarLook; mode?: 'first' | 'edit'; onDone: () => void; onCancel?: () => void }) {
   const [p, setP] = useState(initial)
-  const [look, setLook] = useState(initialLook)
+  const [look] = useState(initialLook)
   const [index, setIndex] = useState(() => (mode === 'first' ? firstOpenStep(initial) : 0))
   const [dir, setDir] = useState(1)
   const [error, setError] = useState<string | null>(null)
@@ -125,8 +125,6 @@ export default function Onboarding({ initial, initialLook, mode = 'first', onDon
                     </Option>
                   ))}
                 </div>
-                <Swatches label="Tom de pele" colors={SKIN_TONES} value={look.skin} onChange={skin => setLook(l => ({ ...l, skin }))} />
-                <Swatches label="Cor do cabelo" colors={HAIR_COLORS} value={look.hair} onChange={hair => setLook(l => ({ ...l, hair }))} />
               </>
             )}
 
@@ -233,18 +231,5 @@ function Option({ on, onClick, children }: { on: boolean; onClick: () => void; c
     <button type="button" role="radio" aria-checked={on} className={`onb-option${on ? ' on' : ''}`} onClick={onClick}>
       {children}
     </button>
-  )
-}
-
-function Swatches({ label, colors, value, onChange }: { label: string; colors: string[]; value: number; onChange: (i: number) => void }) {
-  return (
-    <div className="field">
-      <span>{label}</span>
-      <div className="swatches" role="radiogroup" aria-label={label}>
-        {colors.map((c, i) => (
-          <button key={c} type="button" role="radio" aria-checked={value === i} aria-label={`${label} ${i + 1}`} className={`swatch${value === i ? ' on' : ''}`} style={{ background: c }} onClick={() => onChange(i)} />
-        ))}
-      </div>
-    </div>
   )
 }
