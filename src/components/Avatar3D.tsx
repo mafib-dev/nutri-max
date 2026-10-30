@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
-import { Box3, LoopRepeat, Vector3, type AnimationClip, type Group } from 'three'
+import { LoopRepeat, Vector3, type AnimationClip, type Group } from 'three'
 import type { Pose } from './Avatar'
 
 const BASE = '/avatar/'
@@ -28,12 +28,20 @@ function Model({ pose }: { pose: Pose }) {
     return list.filter((c): c is AnimationClip => !!c)
   }, [base, extra])
 
-  // Ajusta a escala para ~1,8 m e apoia os pés no chão, seja o modelo em cm ou em m.
+  // A caixa do modelo comprimido não é confiável; mede a altura pelos ossos (cabeça e pé).
   const fit = useMemo(() => {
-    const box = new Box3().setFromObject(base.scene)
-    const size = box.getSize(new Vector3())
-    const s = HEIGHT / (size.y || 1)
-    return { scale: s, y: -box.min.y * s }
+    base.scene.updateMatrixWorld(true)
+    let top = -Infinity
+    let bottom = Infinity
+    base.scene.traverse(o => {
+      if (!(o as { isBone?: boolean }).isBone) return
+      const y = o.getWorldPosition(new Vector3()).y
+      top = Math.max(top, y)
+      bottom = Math.min(bottom, y)
+    })
+    const h = Number.isFinite(top) && top > bottom ? top - bottom : HEIGHT
+    const s = HEIGHT / h
+    return { scale: s, y: -bottom * s }
   }, [base])
 
   const { actions } = useAnimations(clips, group)
