@@ -1302,12 +1302,6 @@ details.card summary::marker {
   margin-top: 8px;
 }
 
-.tip-line {
-  margin: 0;
-  padding: 0 4px;
-  color: var(--muted);
-  line-height: 1.5;
-}
 
 /* Plano alimentar */
 .chip.off {
@@ -1872,5 +1866,235 @@ details.card summary::marker {
   .day-detail {
     grid-template-columns: 1fr 1fr;
     gap: 32px;
+  }
+}
+
+/* Boneco da tela Hoje */
+.buddy {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px 12px 12px;
+}
+
+.buddy-figure {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.buddy-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-3);
+}
+
+/* Ponta do balão apontando para o boneco */
+.buddy-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 3px;
+}
+
+.buddy-bubble p {
+  position: relative;
+  margin: 0;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.buddy-next {
+  position: relative;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .buddy {
+    padding: 16px 28px 16px 20px;
+    gap: 24px;
+  }
+
+  .buddy-bubble {
+    max-width: 640px;
+  }
+}
+
+/* Cadastro do primeiro login */
+.onboarding {
+  min-height: 100dvh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+  padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+}
+
+.has-nav .onboarding {
+  min-height: 0;
+}
+
+.onb-stage {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.onb-stage svg {
+  width: 96px;
+  height: auto;
+}
+
+.onb-name {
+  font-weight: 700;
+}
+
+.onb-panel {
+  width: 100%;
+  max-width: 480px;
+  display: grid;
+  gap: 16px;
+}
+
+.onb-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 36px;
+}
+
+.onb-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.onb-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.onb-step h1 {
+  font-size: 1.6rem;
+}
+
+.big-input {
+  min-height: 56px;
+  font-size: 1.15rem;
+}
+
+.onb-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.onb-options {
+  display: grid;
+  gap: 8px;
+}
+
+.onb-options.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.onb-option {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.onb-options.two .onb-option {
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 8px 12px;
+}
+
+.onb-option:hover {
+  border-color: var(--muted);
+}
+
+.onb-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+.swatch.on {
+  outline: 2px solid var(--accent);
+}
+
+.onb-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+@media (min-width: 900px) {
+  .onboarding {
+    grid-template-columns: minmax(220px, 320px) minmax(0, 480px);
+    justify-content: center;
+    align-content: center;
+    column-gap: 64px;
+  }
+
+  .has-nav .onboarding {
+    align-content: start;
+    padding-top: 48px;
+  }
+
+  .onb-stage svg {
+    width: 220px;
+  }
+
+  .onb-name {
+    font-size: 1.2rem;
   }
 }

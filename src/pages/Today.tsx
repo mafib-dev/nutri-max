@@ -1,18 +1,24 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Link, useNavigate } from 'react-router-dom'
 import NutritionSummary from '../components/NutritionSummary'
+import { Avatar, type Pose } from '../components/Avatar'
 import { listBodyWeights, listRoutines, loadState, onDay, saveBodyWeight, WEEKDAYS } from '../modules/training/data'
 import { recoveryByMuscle } from '../modules/training/insights'
 import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
 import { sumMacros } from '../modules/nutrition/foods'
-import { dailyTargets, waterTarget, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
+import { dailyTargets, waterTarget, type Sex, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
 import { portion, replanDay } from '../modules/nutrition/plan'
 import { dayTips, daysBetween, greeting, weekNutrition } from '../modules/home/today'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
 import { useDataChanged } from '../lib/events'
+import { useAuth } from '../lib/auth'
+import { buddyLines, buddyPose } from '../modules/home/buddy'
+import { readLook } from '../modules/profile/setup'
+import { DEFAULT_LOOK, type AvatarLook } from '../modules/profile/look'
 import { supabase } from '../lib/supabase'
 import { formatKg } from '../lib/format'
 
@@ -27,6 +33,7 @@ const shift = (iso: string, days: number) => {
 
 export default function Today() {
   const navigate = useNavigate()
+  const { session } = useAuth()
   const [active, setActive] = useActiveSession()
   const [now] = useState(() => new Date())
   const today = todayIso(now)
@@ -98,6 +105,20 @@ export default function Today() {
       })
     : []
 
+  const buddy = {
+    hour: now.getHours() + now.getMinutes() / 60,
+    name,
+    inWorkout: !!active,
+    trainedToday,
+    pendingRoutine: !trainedToday && todays.length ? todays.map(r => r.name).join(' e ') : null,
+    waterMl: water,
+    waterGoal,
+    proteinLeft: targets ? targets.protein_g - eaten.protein_g : null,
+    kcalLeft: targets ? targets.kcal - eaten.kcal : null,
+    nextMeal: upcoming ? `${upcoming.label.toLowerCase()} às ${upcoming.time}` : null,
+    tip: tips[0]?.text ?? null,
+  }
+
   async function start(id: string) {
     if (active && !confirm('Já existe um treino em andamento. Descartar e começar outro?')) return
     setStarting(id)
@@ -135,10 +156,24 @@ export default function Today() {
             {name ? `, ${name}` : ''}
           </h1>
         </div>
-        <button type="button" className="btn ghost small" onClick={() => supabase.auth.signOut()}>
-          Sair
-        </button>
+        <div className="row" style={{ gap: 6 }}>
+          <Link to="/perfil" className="btn ghost small">
+            Perfil
+          </Link>
+          <button type="button" className="btn ghost small" onClick={() => supabase.auth.signOut()}>
+            Sair
+          </button>
+        </div>
       </div>
+
+      {ready && (
+        <Buddy
+          sex={profile?.sex ?? null}
+          look={readLook(session?.user.user_metadata) ?? DEFAULT_LOOK}
+          lines={buddyLines(buddy)}
+          pose={buddyPose(buddy)}
+        />
+      )}
 
       {error && <p className="error">{error}</p>}
       {loadError && <p className="error">{loadError}</p>}
@@ -270,10 +305,47 @@ export default function Today() {
             />
           )}
 
-          {tips[0] && <p className="tip-line small">{tips[0].text}</p>}
         </div>
       </div>
     </main>
+  )
+}
+
+/** O boneco com um balão de fala. Tocar nele faz acenar e passa para a próxima fala. */
+function Buddy({ sex, look, lines, pose }: { sex: Sex | null; look: AvatarLook; lines: string[]; pose: Pose }) {
+  const [index, setIndex] = useState(0)
+  // Acena ao abrir a tela e a cada toque, depois volta para a pose do momento.
+  const [waving, setWaving] = useState(pose !== 'sleep')
+  useEffect(() => {
+    if (!waving) return
+    const t = setTimeout(() => setWaving(false), 2400)
+    return () => clearTimeout(t)
+  }, [waving, index])
+  const line = lines[index % lines.length]
+
+  function tap() {
+    setIndex(i => i + 1)
+    if (pose !== 'sleep') setWaving(true)
+  }
+
+  return (
+    <section className="card buddy" aria-label="Seu personagem">
+      <button type="button" className="buddy-figure" onClick={tap} aria-label="Próxima mensagem">
+        <Avatar sex={sex} look={look} pose={waving ? 'wave' : pose} size={92} />
+      </button>
+      <div className="buddy-bubble" aria-live="polite">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.p key={index} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }}>
+            {line}
+          </motion.p>
+        </AnimatePresence>
+        {lines.length > 1 && (
+          <button type="button" className="buddy-next muted tiny" onClick={tap}>
+            {(index % lines.length) + 1} de {lines.length} · próxima
+          </button>
+        )}
+      </div>
+    </section>
   )
 }
 
