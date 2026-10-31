@@ -9,6 +9,7 @@ import { waterTarget } from '../modules/nutrition/targets'
 import type { OgWorkout } from '../modules/training/state'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import { useAsync } from '../lib/useAsync'
+import { FoodRow, Macros } from '../components/FoodRow'
 import { formatDuration, formatKg } from '../lib/format'
 
 const PAGE = 30
@@ -118,30 +119,31 @@ function DayCard(props: {
             <h3>Alimentação</h3>
             {!hasFood && <p className="muted small">Nada lançado neste dia.</p>}
             {hasFood && (
-              <p className="muted small" style={{ margin: '2px 0 8px' }}>
-                P {fmt(day.eaten.protein_g)} g · C {fmt(day.eaten.carbs_g)} g · G {fmt(day.eaten.fat_g)} g
-                {t ? ` (metas: ${fmt(t.protein_g)} · ${fmt(t.carbs_g)} · ${fmt(t.fat_g)} g)` : ''}
-              </p>
+              <div className="meal-sub" style={{ margin: '2px 0 8px' }}>
+                <Macros p={day.eaten.protein_g} c={day.eaten.carbs_g} f={day.eaten.fat_g} />
+                {t && (
+                  <span className="muted tiny">
+                    metas {fmt(t.protein_g)} · {fmt(t.carbs_g)} · {fmt(t.fat_g)} g
+                  </span>
+                )}
+              </div>
             )}
             {MEALS.map(m => {
               const items = day.logs.filter(l => l.meal === m.key)
               if (!items.length) return null
               return (
                 <div key={m.key} className="day-meal">
-                  <div className="spread small">
+                  <div className="spread">
                     <strong>{m.label}</strong>
-                    <span className="muted">{fmt(sumMacros(items).kcal)} kcal</span>
+                    <span className="meal-head-kcal">
+                      <b>{fmt(sumMacros(items).kcal)}</b> kcal
+                    </span>
                   </div>
-                  <ul>
+                  <div className="food-list" style={{ marginTop: 0 }}>
                     {items.map(l => (
-                      <li key={l.id} className="small">
-                        {l.name}
-                        <span className="muted">
-                          {l.grams ? ` · ${fmt(l.grams)} g` : ''} · {fmt(l.kcal)} kcal
-                        </span>
-                      </li>
+                      <FoodRow key={l.id} name={l.name} detail={l.grams ? `${fmt(l.grams)} g` : 'Lançamento rápido'} kcal={l.kcal} />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )
             })}
@@ -164,8 +166,13 @@ function DayCard(props: {
                   {og?.entries.map((e, i) => (
                     <div key={i} className="small">
                       <Link to={`/progresso/${e.id}`}>{exerciseName(props.byId.get(e.id))}</Link>
-                      <div className="muted">
-                        {e.sets.map(s => `${s.phase === 'warmup' ? 'A ' : ''}${s.w.toLocaleString('pt-BR')}×${s.r}${s.rir != null ? ` (RIR ${s.rir})` : ''}`).join(' · ')}
+                      <div className="set-pills">
+                        {e.sets.map((s, si) => (
+                          <span key={si} className={`set-pill${s.phase === 'warmup' ? ' warm' : ''}`} title={s.phase === 'warmup' ? 'Aquecimento' : undefined}>
+                            {s.w.toLocaleString('pt-BR')} kg × {s.r}
+                            {s.rir != null && <small> · RIR {s.rir}</small>}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   ))}

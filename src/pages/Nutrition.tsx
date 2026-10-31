@@ -4,6 +4,7 @@ import FoodPicker, { MacroInputs, parseMacroInputs } from '../components/FoodPic
 import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
 import { listItem } from '../lib/motion'
+import { Kcal, Macros } from '../components/FoodRow'
 import NutritionSummary from '../components/NutritionSummary'
 import { deleteLog, getWater, logPlanMeal, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
 import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
@@ -191,18 +192,19 @@ export default function Nutrition() {
             return (
               <section key={meal.key} className="card meal">
                 <div className="spread">
-                  <div>
-                    <h3>{meal.label}</h3>
-                    {mealItems.length > 0 && (
-                      <span className="muted tiny">
-                        {fmt(mealTotal.kcal)} kcal · P {fmt(mealTotal.protein_g)} · C {fmt(mealTotal.carbs_g)} · G {fmt(mealTotal.fat_g)}
-                      </span>
-                    )}
-                  </div>
+                  <h3>{meal.label}</h3>
                   <button type="button" className="btn small" onClick={() => setAdding(meal.key)} aria-label={`Adicionar ao ${meal.label}`}>
                     <Icon.plus /> Adicionar
                   </button>
                 </div>
+                {mealItems.length > 0 && (
+                  <div className="meal-sub">
+                    <span className="meal-head-kcal">
+                      <b>{fmt(mealTotal.kcal)}</b> kcal
+                    </span>
+                    <Macros p={mealTotal.protein_g} c={mealTotal.carbs_g} f={mealTotal.fat_g} />
+                  </div>
+                )}
                 {mealItems.length === 0 &&
                   (planCtx.data?.plan?.meals ?? [])
                     .filter(m => m.log === meal.key)
@@ -216,9 +218,11 @@ export default function Nutrition() {
                     <AnimatePresence initial={false}>
                       {mealItems.map(i => (
                         <motion.button key={i.id} {...listItem} type="button" className="meal-item" onClick={() => setEditing(i)}>
-                          <span className="grow ellipsis">{i.name}</span>
-                          <span className="muted small">{i.grams == null ? 'rápido' : formatGrams(i.grams)}</span>
-                          <strong className="small">{fmt(i.kcal)} kcal</strong>
+                          <span className="food-main grow">
+                            <span className="food-name">{i.name}</span>
+                            <span className="food-detail">{i.grams == null ? 'Lançamento rápido' : formatGrams(i.grams)}</span>
+                          </span>
+                          <Kcal value={i.kcal} />
                         </motion.button>
                       ))}
                     </AnimatePresence>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon, TabPill } from '../components/ui'
+import { GroupDot, GroupLegend, Kcal, MacroTiles, Macros } from '../components/FoodRow'
 import { askPlanAi, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
@@ -534,15 +535,21 @@ function PlanView(props: {
       <section className="panel plan-head">
         <div className="panel-row stack" style={{ gap: 8 }}>
           <span className="eyebrow">Seu dia</span>
-          <div className="stat">
-            <strong>{fmt(t.kcal)} kcal</strong>
+          <div className="spread" style={{ alignItems: 'baseline' }}>
+            <div className="stat">
+              <strong>{fmt(t.kcal)} kcal</strong>
+            </div>
+            <span className="muted small">meta {fmt(targets.kcal)} kcal</span>
           </div>
-          <div className="muted small">
-            Proteína {fmt(t.p)} g · Carboidrato {fmt(t.c)} g · Gordura {fmt(t.f)} g · Fibra {fmt(t.fiber)} g
-          </div>
-          <div className="muted tiny">
-            Meta: {fmt(targets.kcal)} kcal, P {targets.protein_g} · C {targets.carbs_g} · G {targets.fat_g}. Nos dias de treino, as calorias extras entram como um lanche a mais ou porções maiores.
-          </div>
+          <MacroTiles
+            items={[
+              { label: 'Proteína', value: t.p, target: targets.protein_g, color: 'var(--protein)' },
+              { label: 'Carboidrato', value: t.c, target: targets.carbs_g, color: 'var(--carbs)' },
+              { label: 'Gordura', value: t.f, target: targets.fat_g, color: 'var(--fat)' },
+              { label: 'Fibra', value: t.fiber, color: 'var(--accent)' },
+            ]}
+          />
+          <div className="muted tiny">Nos dias de treino, as calorias extras entram como um lanche a mais ou porções maiores.</div>
           {lowProtein && (
             <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
               Com as suas restrições, a proteína ficou abaixo da meta. Um scoop de whey ou proteína de soja num lanche resolve.
@@ -593,6 +600,7 @@ function PlanView(props: {
           <strong>Creatina:</strong> 3 a 5 g todo dia, junto com qualquer refeição.
         </p>
       )}
+      {tab === 'menu' && <GroupLegend />}
       {tab === 'menu' && (
         <div className="grid-list">
           {plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
@@ -677,17 +685,49 @@ function PlanView(props: {
           <p className="muted small" style={{ marginTop: 0 }}>
             Para 7 dias seguindo o cardápio como está.
           </p>
-          <div className="shop-list">
-            {shoppingList(plan).map(i => (
-              <div key={i.key} className="spread small">
-                <span>{i.food.name}</span>
-                <strong>{buyAmount(i.food, i.grams)}</strong>
-              </div>
-            ))}
-          </div>
+          <ShopList plan={plan} />
         </div>
       )}
     </>
+  )
+}
+
+const SHOP_GROUPS: { title: string; roles: Role[] }[] = [
+  { title: 'Proteínas', roles: ['protein'] },
+  { title: 'Carboidratos e leguminosas', roles: ['carb', 'legume'] },
+  { title: 'Frutas', roles: ['fruit'] },
+  { title: 'Legumes e verduras', roles: ['veg', 'salad'] },
+  { title: 'Gorduras', roles: ['fat'] },
+]
+
+function ShopList({ plan }: { plan: ReturnType<typeof buildPlan> }) {
+  const roleOf = new Map(plan.meals.flatMap(m => m.items).map(i => [i.key, i.role]))
+  const list = shoppingList(plan)
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      {SHOP_GROUPS.map(g => {
+        const items = list.filter(i => g.roles.includes(roleOf.get(i.key) ?? 'carb'))
+        if (!items.length) return null
+        return (
+          <div key={g.title}>
+            <span className="eyebrow">{g.title}</span>
+            <div className="food-list" style={{ marginTop: 4 }}>
+              {items.map(i => (
+                <div key={i.key} className="food-row">
+                  <GroupDot role={roleOf.get(i.key) ?? 'carb'} />
+                  <span className="food-main">
+                    <span className="food-name">{i.food.name}</span>
+                  </span>
+                  <span className="food-kcal">
+                    <b>{buyAmount(i.food, i.grams)}</b>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -721,9 +761,6 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
         <div>
           <span className="eyebrow">{meal.time}</span>
           <h3>{meal.label}</h3>
-          <span className="muted tiny">
-            {fmt(meal.total.kcal)} kcal · P {fmt(meal.total.p)} · C {fmt(meal.total.c)} · G {fmt(meal.total.f)}
-          </span>
         </div>
         <button type="button" className="btn small" onClick={log} disabled={state === 'busy' || state === 'done'}>
           {state === 'done' ? (
@@ -736,6 +773,12 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
             'Comi isso'
           )}
         </button>
+      </div>
+      <div className="meal-sub">
+        <span className="meal-head-kcal">
+          <b>{fmt(meal.total.kcal)}</b> kcal
+        </span>
+        <Macros p={meal.total.p} c={meal.total.c} f={meal.total.f} />
       </div>
       {meal.note && <p className="muted tiny" style={{ margin: '8px 0 0' }}>{meal.note}</p>}
       {state !== 'idle' && state !== 'busy' && state !== 'done' && <p className="error small">{state}</p>}
@@ -756,13 +799,12 @@ function PlanItemRow(props: { item: PlanItem; kind: PlanMeal['kind']; settings: 
   return (
     <div className="plan-item">
       <button type="button" className="meal-item" onClick={canSwap ? props.onToggle : undefined} aria-expanded={canSwap ? props.open : undefined} disabled={!canSwap}>
-        <span className="grow" style={{ minWidth: 0 }}>
-          <span className="ellipsis" style={{ display: 'block' }}>
-            {item.food.name}
-          </span>
-          <span className="muted tiny">{portion(item.food, item.grams)}</span>
+        <GroupDot role={item.role} />
+        <span className="food-main">
+          <span className="food-name">{item.food.name}</span>
+          <span className="food-detail">{portion(item.food, item.grams)}</span>
         </span>
-        <strong className="small">{fmt(itemMacros(item).kcal)} kcal</strong>
+        <Kcal value={itemMacros(item).kcal} />
         {canSwap && <span className="muted tiny">{props.open ? 'fechar' : 'trocar'}</span>}
       </button>
       {props.open && (

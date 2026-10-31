@@ -10,7 +10,9 @@ import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
 import { sumMacros } from '../modules/nutrition/foods'
 import { dailyTargets, waterTarget, type Sex, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
-import { portion, replanDay } from '../modules/nutrition/plan'
+import { itemMacros, portion, replanDay } from '../modules/nutrition/plan'
+import { FoodRow, Macros } from '../components/FoodRow'
+import { Icon } from '../components/ui'
 import { dayTips, daysBetween, greeting, weekNutrition } from '../modules/home/today'
 import { startRoutine } from '../modules/training/start'
 import { useActiveSession } from '../modules/training/activeSession'
@@ -266,19 +268,26 @@ export default function Today() {
           {upcoming ? (
             <Link to="/nutricao/plano" className="panel-row next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="spread">
-                <span className="label">Próxima refeição · {upcoming.time}</span>
-                <span className="muted small">{fmt(upcoming.total.kcal)} kcal</span>
+                <span className="label">Próxima refeição</span>
+                <span className="time-badge">{upcoming.time}</span>
               </div>
-              <div className="title">{upcoming.label}</div>
-              <ul>
+              <div className="spread" style={{ alignItems: 'baseline' }}>
+                <div className="title">{upcoming.label}</div>
+                <span className="meal-head-kcal">
+                  <b>{fmt(upcoming.total.kcal)}</b> kcal
+                </span>
+              </div>
+              <div className="meal-sub">
+                <Macros p={upcoming.total.p} c={upcoming.total.c} f={upcoming.total.f} />
+              </div>
+              <div className="food-list">
                 {upcoming.items.map(i => (
-                  <li key={`${i.role}-${i.key}`} className="small">
-                    <span>{i.food.name}</span> <span className="muted">{portion(i.food, i.grams)}</span>
-                  </li>
+                  <FoodRow key={`${i.role}-${i.key}`} role={i.role} name={i.food.name} detail={portion(i.food, i.grams)} kcal={itemMacros(i).kcal} />
                 ))}
-              </ul>
+              </div>
               {day?.adjusted && (
-                <p className="muted small" style={{ margin: '8px 0 0' }}>
+                <p className="note">
+                  <Icon.info />
                   {day.skipped.length ? `Ajustada porque você não registrou ${day.skipped.map(s => s.label.toLowerCase()).join(', ')}.` : 'Ajustada ao que você já comeu hoje.'}
                 </p>
               )}

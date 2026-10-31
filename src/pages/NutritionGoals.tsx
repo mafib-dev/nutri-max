@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
+import { MacroTiles } from '../components/FoodRow'
 import { loadNutritionProfile, saveNutritionProfile, todayIso } from '../modules/nutrition/data'
 import { ACTIVITY, calculatedKcal, GOALS, kcalFloor, missingForTargets, splitMacros, weeksToTarget, type ActivityLevel, type Goal, type NutritionProfile, type Sex } from '../modules/nutrition/targets'
 import { listBodyWeights, saveBodyWeight } from '../modules/training/data'
@@ -190,9 +191,13 @@ export default function NutritionGoals() {
                 <strong style={{ fontSize: '2.6rem' }}>{kcal.toLocaleString('pt-BR')} kcal</strong>
               </div>
               {split && (
-                <div className="muted small">
-                  Proteína {toNum(manual.protein) ?? split.protein_g} g · Carboidrato {toNum(manual.carbs) ?? split.carbs_g} g · Gordura {toNum(manual.fat) ?? split.fat_g} g
-                </div>
+                <MacroTiles
+                  items={[
+                    { label: 'Proteína', value: toNum(manual.protein) ?? split.protein_g, color: 'var(--protein)' },
+                    { label: 'Carboidrato', value: toNum(manual.carbs) ?? split.carbs_g, color: 'var(--carbs)' },
+                    { label: 'Gordura', value: toNum(manual.fat) ?? split.fat_g, color: 'var(--fat)' },
+                  ]}
+                />
               )}
               {lowKcal && (
                 <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>

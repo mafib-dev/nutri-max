@@ -2291,3 +2291,229 @@ a.panel-row:hover {
     border-left: 1px solid var(--border);
   }
 }
+
+/* Listas de alimentos: grupo pela cor, porção embaixo, kcal alinhada à direita. */
+.food-list {
+  display: grid;
+  margin-top: 10px;
+}
+
+.food-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.food-row + .food-row {
+  border-top: 1px solid var(--border);
+}
+
+.food-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+
+.food-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.food-name {
+  font-size: 0.9375rem;
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-detail {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.food-kcal {
+  flex: none;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.food-kcal b {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.macros {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.macro {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.macro i,
+.macro-tile-label i,
+.group-legend i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--dot);
+}
+
+.macro b {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.group-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.group-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.macro-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.macro-tiles.n3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 520px) {
+  .macro-tiles.n4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.macro-tile {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.macro-tile-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.macro-tile strong {
+  font-size: 1.125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.macro-tile small {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Aviso discreto, com ícone, no lugar de texto solto. */
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.note svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+.time-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.meal-head-kcal {
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meal-head-kcal b {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.meal-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+
+.set-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.set-pill {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.set-pill.warm {
+  background: none;
+  border: 1px dashed var(--border-strong);
+  color: var(--muted);
+}
+
+.set-pill small {
+  color: var(--muted);
+}
