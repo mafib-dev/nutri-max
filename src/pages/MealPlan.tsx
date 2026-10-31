@@ -25,6 +25,7 @@ import {
   type Role,
 } from '../modules/nutrition/plan'
 import { loadPlanContext } from '../modules/nutrition/planContext'
+import { MORE_FOODS, MORE_OPTIONS, RECIPES } from '../modules/nutrition/planFoodsMore'
 import { assessment, CONDITIONS, nextReturn, redFlags, supplementProtocol, type Anamnesis, type Condition, type HabitMeal } from '../modules/nutrition/anamnesis'
 import { ageOn, fiberTarget, waterTarget, type NutritionProfile } from '../modules/nutrition/targets'
 import { useAsync } from '../lib/useAsync'
@@ -136,6 +137,17 @@ const FOOD_GROUPS: [string, FoodKey[]][] = [
   ['Feijões, verduras e legumes', ['feijao', 'feijaoPreto', 'lentilha', 'ervilha', 'alface', 'repolho', 'brocolis', 'cenoura', 'abobrinha', 'couveFlor', 'abobora', 'beterraba', 'chuchu']],
   ['Frutas', ['banana', 'maca', 'mamao', 'laranja', 'mexerica', 'morango', 'manga', 'goiaba', 'melancia', 'abacaxi', 'uva']],
   ['Gorduras boas', ['castanha', 'caju', 'amendoim', 'abacate', 'linhaca']],
+  ['Preparações', Object.keys(RECIPES) as FoodKey[]],
+]
+
+// Os alimentos extras da TACO, agrupados pelo papel em que entram no plano.
+const moreOf = (...roles: Role[]) => [...new Set(Object.values(MORE_OPTIONS).flatMap(g => roles.flatMap(r => g[r] ?? [])))].filter(k => k in MORE_FOODS) as FoodKey[]
+const MORE_GROUPS: [string, FoodKey[]][] = [
+  ['Mais proteínas', moreOf('protein')],
+  ['Mais carboidratos', moreOf('carb')],
+  ['Mais feijões, verduras e legumes', moreOf('legume', 'salad', 'veg')],
+  ['Mais frutas', moreOf('fruit')],
+  ['Mais gorduras', moreOf('fat')],
 ]
 
 function Choice<T extends string | number>({ value, options, onChange }: { value: T; options: readonly (readonly [T, string])[]; onChange: (v: T) => void }) {
@@ -172,6 +184,7 @@ const HABITS: [HabitMeal, string, string][] = [
 function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSettings; powders: WheyFood[]; onSave: (s: PlanSettings) => Promise<void>; onCancel?: () => void }) {
   const [s, setS] = useState<PlanSettings>(initial)
   const [step, setStep] = useState(0)
+  const [moreFoods, setMoreFoods] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof PlanSettings>(k: K, v: PlanSettings[K]) => setS(prev => ({ ...prev, [k]: v }))
@@ -378,7 +391,7 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
             <small className="muted tiny">
               Toque uma vez: <strong style={{ color: 'var(--accent)' }}>costumo ter</strong> (entra primeiro no plano). Duas vezes: <s>não como</s>. Três vezes: volta ao normal.
             </small>
-            {FOOD_GROUPS.map(([title, keys]) => (
+            {[...FOOD_GROUPS, ...(moreFoods ? MORE_GROUPS : [])].map(([title, keys]) => (
               <div key={title} className="stack" style={{ gap: 6, marginTop: 6 }}>
                 <span className="muted tiny">{title}</span>
                 <div className="chips wrap">
@@ -393,6 +406,9 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
                 </div>
               </div>
             ))}
+            <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginTop: 4 }} onClick={() => setMoreFoods(m => !m)} aria-expanded={moreFoods}>
+              {moreFoods ? 'Mostrar menos alimentos' : `Ver mais ${MORE_GROUPS.reduce((a, [, k]) => a + k.length, 0)} alimentos`}
+            </button>
           </div>
         </>
       )}
@@ -720,12 +736,11 @@ const SHOP_GROUPS: { title: string; roles: Role[] }[] = [
 ]
 
 function ShopList({ plan }: { plan: ReturnType<typeof buildPlan> }) {
-  const roleOf = new Map(plan.meals.flatMap(m => m.items).map(i => [i.key, i.role]))
   const list = shoppingList(plan)
   return (
     <div className="stack" style={{ gap: 16 }}>
       {SHOP_GROUPS.map(g => {
-        const items = list.filter(i => g.roles.includes(roleOf.get(i.key) ?? 'carb'))
+        const items = list.filter(i => g.roles.includes(i.role))
         if (!items.length) return null
         return (
           <div key={g.title}>
@@ -733,7 +748,7 @@ function ShopList({ plan }: { plan: ReturnType<typeof buildPlan> }) {
             <div className="food-list" style={{ marginTop: 4 }}>
               {items.map(i => (
                 <div key={i.key} className="food-row">
-                  <GroupDot role={roleOf.get(i.key) ?? 'carb'} />
+                  <GroupDot role={i.role} />
                   <span className="food-main">
                     <span className="food-name">{i.food.name}</span>
                   </span>

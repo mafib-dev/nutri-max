@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
 import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
 import { DEFAULT_ANAMNESIS } from './anamnesis'
+import { RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
 const targets = { kcal: 2400, protein_g: 160, carbs_g: 290, fat_g: 67 }
 const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { settings: { ...DEFAULT_SETTINGS, ...s }, picks: {} })
@@ -9,10 +10,53 @@ const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { sett
 describe('alimentos do plano', () => {
   it('existem na TACO com os mesmos valores', () => {
     const byId = new Map((taco as { id: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }[]).map(f => [f.id, f]))
-    for (const f of Object.values(PLAN_FOODS).filter(f => f.id !== 'whey')) {
+    for (const f of Object.values(PLAN_FOODS).filter(f => f.id !== 'whey' && !f.id.startsWith('recipe-'))) {
       const t = byId.get(f.id)
       expect(t, f.name).toBeDefined()
       expect([t!.kcal, t!.protein_g, t!.carbs_g, t!.fat_g], f.name).toEqual([f.kcal, f.p, f.c, f.f])
+    }
+  })
+})
+
+describe('preparações', () => {
+  const byId = new Map((taco as { id: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }[]).map(f => [f.id, f]))
+  it('somam os macros dos ingredientes da TACO', () => {
+    for (const [key, r] of Object.entries(RECIPES)) {
+      const { water, items } = RECIPE_INGREDIENTS[key]
+      const total = items.reduce((a, [, g]) => a + g, 0) + water
+      const sum = (k: 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g') => items.reduce((a, [id, g]) => a + (byId.get(id)![k] * g) / 100, 0) * (100 / total)
+      expect(r.kcal, r.name).toBeCloseTo(sum('kcal'), 0)
+      expect(r.p, r.name).toBeCloseTo(sum('protein_g'), 0)
+      expect(r.c, r.name).toBeCloseTo(sum('carbs_g'), 0)
+      expect(r.f, r.name).toBeCloseTo(sum('fat_g'), 0)
+    }
+  })
+  it('entram na lista de compras como ingredientes', () => {
+    const list = shoppingList(plan({ likes: ['crepioca'] }))
+    expect(list.some(i => i.key === 'crepioca')).toBe(false)
+    expect(list.find(i => i.key === 'taco-146')?.food.name).toBe('Goma de tapioca')
+    expect(list.find(i => i.key === 'ovo')!.grams).toBeGreaterThan(0)
+  })
+  it('crepioca entra no café de quem gosta', () => {
+    const p = plan({ likes: ['crepioca'] })
+    const breakfast = p.meals.find(m => m.kind === 'breakfast')!
+    expect(breakfast.items.some(i => i.key === 'crepioca')).toBe(true)
+  })
+})
+
+describe('qualquer opção escolhida', () => {
+  it('fecha o dia perto da meta', () => {
+    const base = withDefaults(DEFAULT_SETTINGS)
+    const slots = buildSlots(base)
+    for (const slot of slots) {
+      for (const role of ['protein', 'carb', 'legume', 'veg', 'salad', 'fruit', 'fat'] as const) {
+        for (const key of optionsFor(slot.kind, role, base)) {
+          const p = buildPlan(targets, { settings: base, picks: { [slot.key]: { [role]: key } } })
+          const meal = p.meals.find(m => m.key === slot.key)!
+          for (const i of meal.items) expect(i.grams, `${slot.key} ${key}`).toBeGreaterThan(0)
+          expect(Math.abs(p.total.kcal - targets.kcal) / targets.kcal, `${slot.key} ${role} ${key}: ${Math.round(p.total.kcal)} kcal`).toBeLessThan(0.12)
+        }
+      }
     }
   })
 })

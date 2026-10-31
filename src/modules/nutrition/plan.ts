@@ -8,47 +8,10 @@ import { clinicalGuidance, DEFAULT_ANAMNESIS, withAnamnesisDefaults, type Anamne
 
 // ---------- Alimentos do plano ----------
 
-export type Role = 'protein' | 'carb' | 'legume' | 'veg' | 'salad' | 'fruit' | 'fat'
-/** processed = embutido (muito sódio); highGI = sobe a glicose rápido; acid = fruta ácida (refluxo). */
-type Tag = 'meat' | 'fish' | 'pork' | 'egg' | 'lactose' | 'gluten' | 'processed' | 'highGI' | 'acid'
-
-export interface PlanFood {
-  /** id na tabela foods (TACO). */
-  id: string
-  name: string
-  /** Por 100 g, copiados da TACO. */
-  kcal: number
-  p: number
-  c: number
-  f: number
-  fiber: number
-  tags: Tag[]
-  /** Medida caseira: nome no singular e no plural e gramas de uma unidade. */
-  unit: [string, string, number]
-  /** Conta em unidades inteiras (ovo, pão) em vez de gramas. */
-  whole?: boolean
-  /** Teto por refeição (ninguém come 5 bananas de uma vez). */
-  max?: number
-  /** 1 = barato, 2 = médio, 3 = caro. */
-  price?: 1 | 2 | 3
-  /** Pronto ou quase: abrir, esquentar, cozinhar rápido. */
-  quick?: boolean
-}
-
-const food = (id: string, name: string, kcal: number, p: number, c: number, f: number, fiber: number, tags: Tag[], unit: [string, string, number], whole = false, max?: number, extra: Pick<PlanFood, 'price' | 'quick'> = {}): PlanFood => ({
-  id,
-  name,
-  kcal,
-  p,
-  c,
-  f,
-  fiber,
-  tags,
-  unit,
-  whole,
-  max,
-  ...extra,
-})
+// Tipos e o construtor ficam em planFood.ts para os alimentos extras poderem usar sem import circular.
+export type { PlanFood, Role } from './planFood'
+import { food, type PlanFood, type Role } from './planFood'
+import { MORE_FOODS, MORE_OPTIONS, RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
 export const PLAN_FOODS = {
   // Proteínas do almoço e do jantar
@@ -120,6 +83,9 @@ export const PLAN_FOODS = {
   linhaca: food('taco-594', 'Linhaça', 495, 14.1, 43.3, 32.3, 33.5, [], ['col. de sopa', 'col. de sopa', 10], false, undefined, { price: 1, quick: true }),
   // Suplemento: valores de um whey concentrado comum; trocados pelos do rótulo quando a pessoa escolhe o dela.
   whey: food('whey', 'Whey protein', 400, 80, 10, 5, 0, ['lactose'], ['scoop', 'scoops', 30], false, undefined, { price: 2, quick: true }),
+  // Mais alimentos da TACO e preparações (crepioca, tapioca...), gerados por scripts/plan-foods.py.
+  ...MORE_FOODS,
+  ...RECIPES,
 } satisfies Record<string, PlanFood>
 
 export type FoodKey = keyof typeof PLAN_FOODS
@@ -228,7 +194,7 @@ const KIND: Record<SlotKind, { label: string; log: Meal }> = {
 }
 
 /** Opções de cada papel em cada tipo de refeição, na ordem de preferência. */
-const OPTIONS: Record<'main' | 'morning' | 'snack' | 'pre' | 'supper', Partial<Record<Role, FoodKey[]>>> = {
+const BASE_OPTIONS: Record<'main' | 'morning' | 'snack' | 'pre' | 'supper', Partial<Record<Role, FoodKey[]>>> = {
   main: {
     protein: ['frango', 'patinho', 'merluza', 'carneMoida', 'coxa', 'maminha', 'atum', 'peru', 'lombo', 'sardinha', 'ovo', 'tofu'],
     carb: ['arroz', 'integral', 'batataDoce', 'mandioca', 'batata', 'macarrao', 'polenta', 'milho'],
@@ -257,6 +223,14 @@ const OPTIONS: Record<'main' | 'morning' | 'snack' | 'pre' | 'supper', Partial<R
     fat: ['castanha', 'amendoim', 'caju', 'abacate', 'linhaca'],
   },
 }
+
+/** As opções escolhidas à mão vêm primeiro; os alimentos extras e as preparações entram depois. */
+const OPTIONS = Object.fromEntries(
+  (Object.keys(BASE_OPTIONS) as (keyof typeof BASE_OPTIONS)[]).map(g => {
+    const roles = new Set([...Object.keys(BASE_OPTIONS[g]), ...Object.keys(MORE_OPTIONS[g])]) as Set<Role>
+    return [g, Object.fromEntries([...roles].map(r => [r, [...(BASE_OPTIONS[g][r] ?? []), ...(MORE_OPTIONS[g][r] ?? [])]]))]
+  }),
+) as typeof BASE_OPTIONS
 
 const GROUP: Record<SlotKind, keyof typeof OPTIONS> = {
   breakfast: 'morning',
@@ -653,13 +627,45 @@ export function substitutes(kind: SlotKind, item: PlanItem, s: PlanSettings, lim
 }
 
 /** Lista de compras para 7 dias, somando as gramas de cada alimento. */
-export function shoppingList(plan: MealPlan, days = 7) {
-  const totals = new Map<FoodKey, number>()
-  for (const i of plan.meals.flatMap(m => m.items)) totals.set(i.key, (totals.get(i.key) ?? 0) + i.grams * days)
-  return [...totals.entries()]
-    .map(([key, grams]) => ({ key, food: F[key], grams }))
-    .sort((a, b) => b.grams - a.grams)
+// Ingredientes das preparações na lista de compras: os que já são alimentos do plano somam com
+// eles (os ovos da crepioca com os ovos cozidos); os outros entram com o nome de mercado.
+const INGREDIENT_KEY: Record<string, FoodKey> = { 'taco-489': 'ovo', 'taco-182': 'banana', 'taco-7': 'aveia', 'taco-449': 'iogurte', 'taco-52': 'paoIntegral', 'taco-408': 'frangoCozido', 'taco-469': 'ricota', 'taco-78': 'alface', 'taco-110': 'cenouraRalada' }
+const INGREDIENT_ROLE: Record<string, Role> = { 'taco-146': 'carb', 'taco-456': 'protein', 'taco-575': 'legume' }
+
+export interface ShoppingItem {
+  key: string
+  food: PlanFood
+  grams: number
+  role: Role
 }
+
+/** Lista de compras para 7 dias, somando as gramas de cada alimento e abrindo as preparações em ingredientes. */
+export function shoppingList(plan: MealPlan, days = 7): ShoppingItem[] {
+  const totals = new Map<string, ShoppingItem>()
+  const add = (key: string, food: PlanFood, grams: number, role: Role) => {
+    const cur = totals.get(key)
+    totals.set(key, { key, food, role: cur?.role ?? role, grams: (cur?.grams ?? 0) + grams })
+  }
+  for (const i of plan.meals.flatMap(m => m.items)) {
+    const recipe = RECIPE_INGREDIENTS[i.key]
+    if (!recipe) {
+      add(i.key, i.food, i.grams * days, i.role)
+      continue
+    }
+    const total = recipe.items.reduce((a, [, g]) => a + g, 0) + recipe.water
+    for (const [id, g, name] of recipe.items) {
+      const grams = (i.grams * days * g) / total
+      const known = INGREDIENT_KEY[id]
+      if (known) add(known, F[known], grams, OPTION_ROLE.get(known) ?? i.role)
+      else add(id, food(id, name[0].toUpperCase() + name.slice(1), 0, 0, 0, 0, 0, [], ['g', 'g', 1]), grams, INGREDIENT_ROLE[id] ?? i.role)
+    }
+  }
+  return [...totals.values()].sort((a, b) => b.grams - a.grams)
+}
+
+/** Papel principal de cada alimento (o primeiro em que aparece nas opções), para agrupar a lista de compras. */
+const OPTION_ROLE = new Map<FoodKey, Role>()
+for (const g of Object.values(OPTIONS)) for (const [r, keys] of Object.entries(g) as [Role, FoodKey[]][]) for (const k of keys) if (!OPTION_ROLE.has(k)) OPTION_ROLE.set(k, r)
 
 /** Como se compra: kg, dúzias, unidades. */
 export function buyAmount(f: PlanFood, grams: number) {

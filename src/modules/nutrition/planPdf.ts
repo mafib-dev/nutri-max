@@ -185,11 +185,10 @@ export async function downloadPlanPdf(input: PlanPdfInput) {
   }
 
   // Lista de compras
-  const roleOf = new Map(input.plan.meals.flatMap(m => m.items).map(i => [i.key, i.role]))
   const list = shoppingList(input.plan)
   const body: string[][] = []
   for (const g of SHOP_GROUPS) {
-    const items = list.filter(i => g.roles.includes(roleOf.get(i.key) ?? 'carb'))
+    const items = list.filter(i => g.roles.includes(i.role))
     if (!items.length) continue
     body.push([T(g.title), ''])
     for (const i of items) body.push([T(i.food.name), T(buyAmount(i.food, i.grams))])
