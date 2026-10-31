@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import { Icon, TabPill } from '../components/ui'
 import { GroupDot, GroupLegend, Kcal, MacroTiles, Macros } from '../components/FoodRow'
-import { askPlanAi, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
+import { askPlanAi, loadFirstName, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
   buildPlan,
@@ -529,6 +530,18 @@ function PlanView(props: {
   const t = plan.total
   const lowProtein = t.p < targets.protein_g * 0.9
   const tips = guidance({ goal: props.goal, targets, weightKg: props.weight, waterMl: waterTarget(props.weight), fiberG: props.fiberGoal, settings: saved.settings, meals: plan.meals.length })
+  const [pdf, setPdf] = useState<'idle' | 'busy' | string>('idle')
+
+  async function downloadPdf() {
+    setPdf('busy')
+    try {
+      const [{ downloadPlanPdf }, name] = await Promise.all([import('../modules/nutrition/planPdf'), loadFirstName().catch(() => null)])
+      await downloadPlanPdf({ name, plan, settings: saved.settings, targets, fiberGoal: props.fiberGoal, tips: [...(saved.ai?.tips ?? []), ...tips], supplements, nextReturn: back })
+      setPdf('idle')
+    } catch (err) {
+      setPdf(`Não deu para gerar o PDF: ${(err as Error).message}`)
+    }
+  }
 
   return (
     <>
@@ -560,9 +573,15 @@ function PlanView(props: {
               {due ? 'Está na hora do retorno: refaça a consulta com o peso de hoje.' : `Retorno em ${back.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}.`}
             </div>
           )}
-          <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={props.onRedo}>
-            {due ? 'Fazer o retorno' : 'Refazer a consulta'}
-          </button>
+          <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+            <button type="button" className="btn small" onClick={downloadPdf} disabled={pdf === 'busy'}>
+              <Download size="1.1em" strokeWidth={1.75} aria-hidden="true" /> {pdf === 'busy' ? 'Gerando PDF…' : 'Baixar PDF'}
+            </button>
+            <button type="button" className="btn ghost small" onClick={props.onRedo}>
+              {due ? 'Fazer o retorno' : 'Refazer a consulta'}
+            </button>
+          </div>
+          {pdf !== 'idle' && pdf !== 'busy' && <p className="error small" style={{ margin: 0 }}>{pdf}</p>}
         </div>
 
         <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />

@@ -21,6 +21,8 @@
     "@react-three/fiber": "^9.8.2",
     "@supabase/supabase-js": "^2.118.0",
     "barcode-detector": "^3.2.3",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "lucide-react": "^1.66.0",
     "motion": "^12.43.0",
     "react": "^19.3.1",
