@@ -1763,16 +1763,23 @@ details.card summary::marker {
   font-weight: 650;
 }
 
+/* No celular os 7 dias não cabem lado a lado com o nome do treino: a semana rola de lado. */
 @media (max-width: 520px) {
+  .week-plan {
+    grid-template-columns: repeat(7, 104px);
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
+
   .week-day {
-    padding: 6px 4px;
-    min-height: 56px;
+    scroll-snap-align: start;
   }
 
-  .week-routine {
-    font-size: 0.75rem;
-  }
-
+  .week-routine,
   .week-day.rest .muted {
     font-size: 0.75rem;
   }

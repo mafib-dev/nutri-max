@@ -152,7 +152,7 @@ export default function Today() {
           <span className="eyebrow">
             {WEEKDAYS[weekday]}, {now.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}
           </span>
-          <h1 className="ellipsis">
+          <h1>
             {greeting(now.getHours())}
             {name ? `, ${name}` : ''}
           </h1>
