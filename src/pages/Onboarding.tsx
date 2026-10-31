@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Avatar, type Pose } from '../components/Avatar'
+import type { Pose } from '../components/Avatar'
+import { Buddy3D } from '../components/Buddy3D'
 import { ACTIVITY, dailyTargets, GOALS, type ActivityLevel, type Goal } from '../modules/nutrition/targets'
 import { EXPERIENCE, firstOpenStep, parseNumber, stepError, STEPS, toNutritionProfile, type Experience, type ProfileSetup, type Step } from '../modules/profile/setup'
 import type { AvatarLook } from '../modules/profile/look'
@@ -20,10 +21,11 @@ const TITLES: Record<Step, { title: string; hint?: string }> = {
   done: { title: 'Tudo pronto!', hint: 'Estas são suas metas diárias. Dá para ajustar depois em Nutrição.' },
 }
 
-export default function Onboarding({ initial, initialLook, mode = 'first', onDone, onCancel }: { initial: ProfileSetup; initialLook: AvatarLook; mode?: 'first' | 'edit'; onDone: () => void; onCancel?: () => void }) {
+/** Cadastro em passos: só no primeiro login. Depois, os dados se editam um a um na tela de perfil. */
+export default function Onboarding({ initial, initialLook, onDone }: { initial: ProfileSetup; initialLook: AvatarLook; onDone: () => void }) {
   const [p, setP] = useState(initial)
   const [look] = useState(initialLook)
-  const [index, setIndex] = useState(() => (mode === 'first' ? firstOpenStep(initial) : 0))
+  const [index, setIndex] = useState(() => firstOpenStep(initial))
   const [dir, setDir] = useState(1)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -64,7 +66,7 @@ export default function Onboarding({ initial, initialLook, mode = 'first', onDon
 
   function back() {
     setError(null)
-    if (index === 0) return onCancel?.()
+    if (index === 0) return
     setDir(-1)
     setIndex(i => i - 1)
   }
@@ -75,13 +77,13 @@ export default function Onboarding({ initial, initialLook, mode = 'first', onDon
   return (
     <div className="onboarding">
       <div className="onb-stage" aria-hidden={step === 'sex' ? undefined : true}>
-        <Avatar sex={p.sex ?? 'male'} look={look} pose={pose} size={150} />
+        <Buddy3D sex={p.sex ?? 'male'} look={look} pose={pose} size={150} />
         {p.display_name?.trim() && step !== 'name' && <div className="onb-name">{p.display_name.trim()}</div>}
       </div>
 
       <form className="onb-panel" onSubmit={next} noValidate>
         <div className="onb-top">
-          {index > 0 || onCancel ? (
+          {index > 0 ? (
             <button type="button" className="btn ghost small" onClick={back}>
               Voltar
             </button>
@@ -120,7 +122,6 @@ export default function Onboarding({ initial, initialLook, mode = 'first', onDon
                 <div className="onb-options two" role="radiogroup" aria-label="Sexo">
                   {(['male', 'female'] as const).map(s => (
                     <Option key={s} on={p.sex === s} onClick={() => set({ sex: s })}>
-                      <Avatar sex={s} look={look} size={64} pose="idle" />
                       <strong>{s === 'male' ? 'Masculino' : 'Feminino'}</strong>
                     </Option>
                   ))}
@@ -219,7 +220,7 @@ export default function Onboarding({ initial, initialLook, mode = 'first', onDon
           </p>
         )}
         <button className="btn primary big block" disabled={saving}>
-          {step === 'done' ? (saving ? 'Salvando…' : mode === 'first' ? 'Começar' : 'Salvar') : 'Continuar'}
+          {step === 'done' ? (saving ? 'Salvando…' : 'Começar') : 'Continuar'}
         </button>
       </form>
     </div>

@@ -31,7 +31,7 @@ export function Buddy3D({ pose, size, sex, look }: { pose: Pose; size: number; s
   return (
     <Fallback fallback={flat}>
       <Suspense fallback={<div style={{ width: size, height: size * 1.4 }} />}>
-        <Avatar3D pose={pose} female={sex === 'female'} size={size} />
+        <Avatar3D key={sex ?? 'male'} pose={pose} female={sex === 'female'} size={size} />
       </Suspense>
     </Fallback>
   )
