@@ -8,7 +8,7 @@ import { DEFAULT_LOOK, HAIR_COLORS, SKIN_TONES, type AvatarLook } from '../modul
 
 export type Pose = 'idle' | 'wave' | 'train' | 'celebrate' | 'sleep'
 
-const SHIRT = { male: '#c8f031', female: '#c8f031' }
+const SHIRT = { male: 'var(--accent)', female: 'var(--accent)' }
 const SHORTS = { male: '#2a3140', female: '#2a3140' }
 const SHOE = '#eef2ea'
 const LOOP: Transition = { repeat: Infinity, ease: 'easeInOut' }

@@ -1,5 +1,7 @@
+import { motion } from 'motion/react'
 import type { Macros } from '../modules/nutrition/foods'
 import type { Targets } from '../modules/nutrition/targets'
+import { CountUp } from './ui'
 
 const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
 
@@ -11,7 +13,17 @@ function Ring({ value, max }: { value: number; max: number }) {
   return (
     <svg className="ring" viewBox="0 0 120 120" aria-hidden="true">
       <circle cx="60" cy="60" r={r} className="ring-track" />
-      <circle cx="60" cy="60" r={r} className={`ring-fill ${over ? 'over' : ''}`} strokeDasharray={c} strokeDashoffset={c * (1 - pct)} />
+      {/* Enche uma vez ao aparecer; depois a transição do CSS acompanha as mudanças. */}
+      <motion.circle
+        cx="60"
+        cy="60"
+        r={r}
+        className={`ring-fill ${over ? 'over' : ''}`}
+        strokeDasharray={c}
+        initial={{ strokeDashoffset: c }}
+        animate={{ strokeDashoffset: c * (1 - pct) }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      />
     </svg>
   )
 }
@@ -30,17 +42,23 @@ export default function NutritionSummary({ total, targets, trainingKcal }: { tot
         <div className="ring-label">
           {left == null ? (
             <>
-              <strong>{fmt(total.kcal)}</strong>
+              <strong>
+                <CountUp value={total.kcal} format={fmt} />
+              </strong>
               <span>kcal</span>
             </>
           ) : left >= 0 ? (
             <>
-              <strong>{fmt(left)}</strong>
+              <strong>
+                <CountUp value={left} format={fmt} />
+              </strong>
               <span>kcal restantes</span>
             </>
           ) : (
             <>
-              <strong className="over">{fmt(-left)}</strong>
+              <strong className="over">
+                <CountUp value={-left} format={fmt} />
+              </strong>
               <span>kcal acima</span>
             </>
           )}

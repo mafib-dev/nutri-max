@@ -1,23 +1,47 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { animate, useReducedMotion } from 'motion/react'
+import { Barcode, Check, ChevronDown, ChevronLeft, ChevronUp, Info, Plus, Search, X, Zap, type LucideIcon } from 'lucide-react'
 
-const svg = (children: ReactNode, size = 24) => (
-  <svg viewBox={`0 0 ${size} ${size}`} width="1.15em" height="1.15em" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {children}
-  </svg>
-)
+// Um conjunto só de ícones (Lucide), com o mesmo traço em todo o app.
+const lucide = (Glyph: LucideIcon) => () => <Glyph size="1.15em" strokeWidth={1.75} aria-hidden="true" />
 
 export const Icon = {
-  close: () => svg(<path d="M6 6l12 12M18 6L6 18" />),
-  check: () => svg(<path d="M5 12.5l4.5 4.5L19 7.5" />),
-  search: () => svg(<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>),
-  plus: () => svg(<path d="M12 5v14M5 12h14" />),
-  info: () => svg(<><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>),
-  up: () => svg(<path d="M6 15l6-6 6 6" />),
-  down: () => svg(<path d="M6 9l6 6 6-6" />),
-  back: () => svg(<path d="M15 6l-6 6 6 6" />),
-  barcode: () => svg(<path d="M3 5v14M7 5v14M10 5v14M14 5v14M17 5v14M21 5v14" />),
-  bolt: () => svg(<path d="M13 2L4 14h7l-1 8 9-12h-7z" />),
+  close: lucide(X),
+  check: lucide(Check),
+  search: lucide(Search),
+  plus: lucide(Plus),
+  info: lucide(Info),
+  up: lucide(ChevronUp),
+  down: lucide(ChevronDown),
+  back: lucide(ChevronLeft),
+  barcode: lucide(Barcode),
+  bolt: lucide(Zap),
+}
+
+/**
+ * Número que conta até o valor quando ele muda. O texto final já está no DOM (leitores de tela
+ * e quem prefere menos movimento veem o valor certo direto).
+ */
+export function CountUp({ value, format }: { value: number; format: (n: number) => string }) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const from = useRef(0)
+  const reduce = useReducedMotion()
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const start = from.current
+    from.current = value
+    if (reduce || start === value) {
+      el.textContent = format(value)
+      return
+    }
+    const controls = animate(start, value, { duration: 0.5, ease: [0.16, 1, 0.3, 1], onUpdate: v => (el.textContent = format(v)) })
+    return () => controls.stop()
+  }, [value, format, reduce])
+
+  return <span ref={ref}>{format(value)}</span>
 }
 
 let openModals = 0

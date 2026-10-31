@@ -365,7 +365,15 @@ function SaveMeal({ meal, items, onClose }: { meal: string; items: FoodLog[]; on
         </label>
         {error && <p className="error small">{error}</p>}
         <button className="btn primary big block" disabled={busy || done || !name.trim()}>
-          {done ? 'Salva ✓' : busy ? 'Salvando…' : 'Salvar'}
+          {done ? (
+            <>
+              <Icon.check /> Salva
+            </>
+          ) : busy ? (
+            'Salvando…'
+          ) : (
+            'Salvar'
+          )}
         </button>
       </form>
     </Modal>

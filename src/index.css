@@ -1,32 +1,44 @@
-/* NutriMax: tema escuro e limpo. Fundo grafite liso, uma só fonte (Figtree) e o verde-limão
-   reservado para a ação principal e para o que está ativo. */
-@import '@fontsource-variable/figtree';
+/* NutriMax, tema "Grafite & Menta": fundo grafite neutro, uma família (Plus Jakarta Sans) e o
+   verde-menta reservado para a ação principal, o que está ativo e o progresso.
+   As cores ficam nos tokens abaixo; os componentes não usam hex solto. */
+@import '@fontsource-variable/plus-jakarta-sans';
 
 :root {
-  --bg: #0a0c0b;
-  --bg-glow: rgb(200 240 49 / 0.07);
-  --surface: #131715;
-  --surface-2: #1b201d;
-  --surface-3: #242a26;
-  --text: #eef2ea;
-  --muted: #8a958d;
-  --border: #252b27;
-  --border-strong: #343c37;
-  --accent: #c8f031;
-  --accent-ink: #0a0c0b;
-  --accent-soft: rgb(200 240 49 / 0.12);
-  --danger: #ff5f4f;
-  --danger-soft: rgb(255 95 79 / 0.12);
-  --warn: #ffb224;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --display: 'Figtree Variable', system-ui, sans-serif;
-  --body: 'Figtree Variable', system-ui, sans-serif;
+  --bg: #0e1111;
+  --surface: #161a1a;
+  --surface-2: #1d2222;
+  --surface-3: #252b2a;
+  --text: #eceeee;
+  --muted: #9aa3a1;
+  --border: #262c2b;
+  --border-strong: #333b39;
+  --accent: #3dd68c;
+  --accent-ink: #05261a;
+  --accent-soft: rgb(61 214 140 / 0.12);
+  --success: #3dd68c;
+  --danger: #f87171;
+  --danger-soft: rgb(248 113 113 / 0.12);
+  --warn: #f5b544;
+  --protein: #60a5fa;
+  --carbs: #fb923c;
+  --fat: #facc15;
+  --water: #22d3ee;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --display: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
+  --body: 'Plus Jakarta Sans Variable', system-ui, sans-serif;
   --tabbar-h: 72px;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Movimento: tempo pela distância/complexidade; entra desacelerando, sai acelerando. */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   font-family: var(--body);
   font-size: 16px;
-  line-height: 1.45;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
   color-scheme: dark;
   color: var(--text);
   background: var(--bg);
@@ -53,7 +65,9 @@ select {
 }
 
 a {
-  color: var(--accent);
+  color: var(--text);
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
 }
 
 ::selection {
@@ -84,7 +98,7 @@ h1 {
 }
 
 h2 {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 650;
   margin: 20px 0 2px;
 }
@@ -96,7 +110,7 @@ h3 {
 }
 
 .eyebrow {
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   font-weight: 500;
   color: var(--muted);
 }
@@ -121,7 +135,7 @@ h3 {
 }
 
 .small {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
 }
 
 .tiny {
@@ -153,7 +167,38 @@ h3 {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
+  }
+}
+
+/* Ao abrir uma tela, os blocos entram em cascata (40 ms entre eles, no máximo 6 escalonados). */
+.page > * {
+  animation: rise var(--dur-slow) var(--ease) both;
+}
+
+.page > :nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.page > :nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.page > :nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.page > :nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.page > :nth-child(n + 6) {
+  animation-delay: 200ms;
+}
+
+@keyframes fill-x {
+  from {
+    transform: scaleX(0);
   }
 }
 
@@ -177,6 +222,7 @@ h3 {
     animation-duration: 1ms !important;
     animation-delay: 0ms !important;
     transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -199,14 +245,14 @@ h3 {
   gap: 8px;
   min-height: 46px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
   font-weight: 700;
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
-  transition: transform 0.15s var(--ease), background 0.15s, border-color 0.15s, box-shadow 0.2s;
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast), border-color var(--dur-fast), box-shadow var(--dur-base);
   user-select: none;
 }
 
@@ -231,7 +277,7 @@ h3 {
 }
 
 .btn.primary:hover {
-  filter: brightness(1.05);
+  filter: brightness(1.08);
 }
 
 .btn.danger {
@@ -250,7 +296,7 @@ h3 {
 .btn.small {
   min-height: 36px;
   padding: 0 14px;
-  font-size: 0.88rem;
+  font-size: 0.875rem;
 }
 
 .btn.icon {
@@ -274,7 +320,7 @@ h3 {
 }
 
 .field > span {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 550;
   color: var(--muted);
 }
@@ -286,7 +332,7 @@ h3 {
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--bg);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
 
 .input:focus {
@@ -298,7 +344,7 @@ h3 {
 select.input {
   appearance: none;
   padding-right: 34px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%238a958d' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%239AA3A1' stroke-width='2'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
 }
@@ -320,7 +366,7 @@ select.input {
 
 .search .input {
   padding-left: 42px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
 }
 
 .chips {
@@ -343,12 +389,12 @@ select.input {
   border-radius: 999px;
   border: 1px solid var(--border-strong);
   background: transparent;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   color: var(--text);
   text-decoration: none;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast);
 }
 
 .chip:hover {
@@ -356,9 +402,9 @@ select.input {
 }
 
 .chip.on {
-  background: var(--accent);
+  background: var(--accent-soft);
   border-color: var(--accent);
-  color: var(--accent-ink);
+  color: var(--accent);
 }
 
 .badge {
@@ -382,9 +428,9 @@ select.input {
   width: 60px;
   height: 60px;
   flex: none;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   object-fit: cover;
-  background: #e8ebe6;
+  background: var(--surface-2);
 }
 
 .list {
@@ -405,7 +451,7 @@ select.input {
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
-  transition: border-color 0.15s, background 0.15s, transform 0.15s var(--ease);
+  transition: border-color var(--dur-fast), background var(--dur-fast), transform var(--dur-fast) var(--ease);
 }
 
 .list-item:hover {
@@ -441,7 +487,7 @@ select.input {
 
 .chev {
   color: var(--muted);
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   line-height: 1;
 }
 
@@ -456,12 +502,10 @@ select.input {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   padding: 6px;
-  background: rgb(19 23 21 / 0.82);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 22px;
-  box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.7);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   z-index: 10;
 }
 
@@ -470,17 +514,17 @@ select.input {
   place-items: center;
   align-content: center;
   gap: 3px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
-  transition: color 0.2s, background 0.2s;
+  transition: color var(--dur-base), background var(--dur-base);
 }
 
 .tabbar a.active {
-  color: var(--accent-ink);
-  background: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .tabbar svg {
@@ -497,9 +541,7 @@ select.input {
   place-items: center;
   padding: calc(12px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
   background: rgb(4 6 5 / 0.72);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: fade 0.2s ease both;
+  animation: fade var(--dur-base) var(--ease) both;
 }
 
 .modal-backdrop.top {
@@ -515,10 +557,10 @@ select.input {
   flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 24px;
-  box-shadow: 0 40px 80px -20px rgb(0 0 0 / 0.8);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow: hidden;
-  animation: pop 0.32s var(--ease) both;
+  animation: pop var(--dur-slow) var(--ease) both;
 }
 
 .modal.tall {
@@ -570,9 +612,9 @@ select.input {
 .demo {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: 18px;
+  border-radius: var(--radius);
   overflow: hidden;
-  background: #e8ebe6;
+  background: var(--surface-2);
   cursor: pointer;
 }
 
@@ -605,7 +647,7 @@ select.input {
   border-radius: 999px;
   background: rgb(10 12 11 / 0.8);
   color: var(--text);
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
 }
 
@@ -617,19 +659,19 @@ select.input {
 
 .fact {
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   background: var(--surface-2);
 }
 
 .fact span {
   display: block;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
 }
 
 .fact strong {
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .steps {
@@ -646,7 +688,7 @@ select.input {
   display: grid;
   grid-template-columns: 30px 1fr;
   gap: 10px;
-  font-size: 0.93rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -661,7 +703,7 @@ select.input {
   color: var(--accent);
   font-family: var(--display);
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1rem;
 }
 
 /* Treino */
@@ -673,7 +715,7 @@ select.input {
 }
 
 .set-grid .head {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
   text-align: center;
@@ -683,7 +725,7 @@ select.input {
   text-align: center;
   font-family: var(--display);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   color: var(--muted);
 }
 
@@ -691,7 +733,7 @@ select.input {
   text-align: center;
   padding: 0 6px;
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -700,12 +742,12 @@ select.input {
   height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
   color: var(--muted);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s var(--ease);
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease);
 }
 
 .check svg {
@@ -733,10 +775,10 @@ select.input {
 }
 
 .why {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--text);
   background: var(--accent-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 8px 12px;
   margin: 0;
 }
@@ -769,7 +811,7 @@ select.input {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 
@@ -790,10 +832,10 @@ select.input {
   justify-content: space-between;
   gap: 10px;
   padding: 10px 10px 10px 18px;
-  border-radius: 22px;
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.6);
+  box-shadow: var(--shadow);
   animation: pop 0.3s var(--ease) both;
 }
 
@@ -818,7 +860,7 @@ select.input {
 }
 
 .stat span {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
 }
@@ -910,6 +952,8 @@ select.input {
 }
 
 .meter > span {
+  transform-origin: left center;
+  animation: fill-x 600ms var(--ease) both;
   display: block;
   height: 100%;
   border-radius: inherit;
@@ -978,11 +1022,11 @@ select.input {
   flex: none;
   display: grid;
   place-items: center;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: var(--surface-3);
   font-family: var(--display);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   color: var(--accent);
 }
 
@@ -1008,7 +1052,7 @@ select.input {
 
 .day-nav strong {
   font-family: var(--display);
-  font-size: 1.3rem;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
@@ -1044,7 +1088,7 @@ select.input {
 .ring-fill {
   stroke: var(--accent);
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.8s var(--ease);
+  transition: stroke-dashoffset 600ms var(--ease);
 }
 
 .ring-fill.over {
@@ -1061,7 +1105,7 @@ select.input {
 
 .ring-label strong {
   font-family: var(--display);
-  font-size: 2.1rem;
+  font-size: 2rem;
   font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -1073,21 +1117,21 @@ select.input {
 
 .ring-label span {
   max-width: 80px;
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--muted);
 }
 
 .meter .macro.p {
-  background: var(--accent);
+  background: var(--protein);
 }
 
 .meter .macro.c {
-  background: #5ec8f2;
+  background: var(--carbs);
 }
 
 .meter .macro.f {
-  background: var(--warn);
+  background: var(--fat);
 }
 
 .macro-grid {
@@ -1097,7 +1141,7 @@ select.input {
 }
 
 .macro-grid .stat strong {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
 }
 
 .meal {
@@ -1106,7 +1150,7 @@ select.input {
 }
 
 .meal h3 {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
 }
 
 .meal-items {
@@ -1189,7 +1233,7 @@ details.card summary::marker {
   position: absolute;
   inset: 28% 12%;
   border: 2px solid var(--accent);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   box-shadow: 0 0 0 999px rgb(0 0 0 / 0.45);
 }
 
@@ -1220,7 +1264,7 @@ details.card summary::marker {
   right: 0;
   bottom: 12px;
   text-align: center;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
 }
 
@@ -1240,7 +1284,7 @@ details.card summary::marker {
 }
 
 .meter .macro.w {
-  background: #5ec8f2;
+  background: var(--water);
 }
 
 .day-extras {
@@ -1287,13 +1331,13 @@ details.card summary::marker {
 
 .label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.875rem;
   color: var(--muted);
 }
 
 .today-row .title,
 .next-meal .title {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 650;
   margin-top: 2px;
 }
@@ -1328,7 +1372,7 @@ details.card summary::marker {
   align-items: center;
   text-align: left;
   padding: 8px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: transparent;
   color: inherit;
@@ -1368,8 +1412,8 @@ details.card summary::marker {
 .chip.small-chip {
   flex: 1 1 auto;
   max-width: 100%;
-  border-radius: 14px;
-  font-size: 0.78rem;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
   text-align: left;
   white-space: normal;
 }
@@ -1387,9 +1431,9 @@ details.card summary::marker {
 .bubble {
   max-width: 88%;
   padding: 10px 14px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   line-height: 1.5;
-  font-size: 0.93rem;
+  font-size: 1rem;
 }
 
 .bubble p {
@@ -1444,9 +1488,9 @@ details.card summary::marker {
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.7);
+  box-shadow: var(--shadow);
   cursor: pointer;
-  transition: transform 0.2s var(--ease);
+  transition: transform var(--dur-base) var(--ease);
   animation: pop 0.35s var(--ease) both;
 }
 
@@ -1462,7 +1506,7 @@ details.card summary::marker {
 .coach-fab.open {
   background: var(--surface-3);
   color: var(--text);
-  box-shadow: 0 14px 30px -8px rgb(0 0 0 / 0.7);
+  box-shadow: var(--shadow);
 }
 
 .coach-panel {
@@ -1476,12 +1520,10 @@ details.card summary::marker {
   flex-direction: column;
   gap: 10px;
   padding: 14px;
-  background: rgb(19 23 21 / 0.96);
-  backdrop-filter: blur(18px) saturate(1.4);
-  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 22px;
-  box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.8);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
   animation: pop 0.25s var(--ease) both;
   transform-origin: bottom right;
 }
@@ -1523,7 +1565,7 @@ details.card summary::marker {
 }
 
 .coach-chat.compact .bubble {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 
 .coach-clear {
@@ -1629,7 +1671,7 @@ details.card summary::marker {
     justify-content: flex-start;
     gap: 12px;
     padding: 12px 14px;
-    font-size: 0.92rem;
+    font-size: 1rem;
   }
 
   .tabbar a:not(.active):hover {
@@ -1641,7 +1683,7 @@ details.card summary::marker {
     display: block;
     padding: 4px 14px 22px;
     font-family: var(--display);
-    font-size: 1.7rem;
+    font-size: 1.5rem;
     font-weight: 700;
   }
 
@@ -1683,7 +1725,7 @@ details.card summary::marker {
 
 .week-routine {
   color: var(--text);
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
   overflow-wrap: anywhere;
@@ -1691,7 +1733,7 @@ details.card summary::marker {
 }
 
 .week-day.rest .muted {
-  font-size: 0.78rem;
+  font-size: 0.875rem;
 }
 
 .routine-grid {
@@ -1717,7 +1759,7 @@ details.card summary::marker {
 }
 
 .routine-main .title {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
   font-weight: 650;
 }
 
@@ -1728,11 +1770,11 @@ details.card summary::marker {
   }
 
   .week-routine {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
   }
 
   .week-day.rest .muted {
-    font-size: 0.65rem;
+    font-size: 0.75rem;
   }
 }
 
@@ -1893,7 +1935,7 @@ details.card summary::marker {
   display: grid;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius);
   background: var(--surface-3);
 }
 
@@ -1998,12 +2040,12 @@ details.card summary::marker {
 }
 
 .onb-step h1 {
-  font-size: 1.6rem;
+  font-size: 1.5rem;
 }
 
 .big-input {
   min-height: 56px;
-  font-size: 1.15rem;
+  font-size: 1.25rem;
 }
 
 .onb-pair {
@@ -2032,7 +2074,7 @@ details.card summary::marker {
   background: var(--surface);
   color: var(--text);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color var(--dur-fast), background var(--dur-fast);
 }
 
 .onb-options.two .onb-option {
@@ -2097,13 +2139,13 @@ details.card summary::marker {
   }
 
   .onb-name {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
   }
 }
 
 /* Consulta e avaliação do plano alimentar */
 .consult h2 {
-  font-size: 1.35rem;
+  font-size: 1.5rem;
 }
 
 .consult textarea.input {
