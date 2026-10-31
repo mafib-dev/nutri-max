@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Icon } from '../components/ui'
+import { Icon, TabPill } from '../components/ui'
 import { askPlanAi, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
@@ -531,8 +531,8 @@ function PlanView(props: {
 
   return (
     <>
-      <div className="cols">
-        <div className="card hero stack" style={{ gap: 8 }}>
+      <section className="panel plan-head">
+        <div className="panel-row stack" style={{ gap: 8 }}>
           <span className="eyebrow">Seu dia</span>
           <div className="stat">
             <strong>{fmt(t.kcal)} kcal</strong>
@@ -559,7 +559,7 @@ function PlanView(props: {
         </div>
 
         <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />
-      </div>
+      </section>
 
       {flags.map(f => (
         <div key={f.title} className="card alert-card">
@@ -572,7 +572,7 @@ function PlanView(props: {
       {props.reading === 'busy' && <p className="card small reading">Lendo a sua anamnese e personalizando o cardápio…</p>}
       {props.reading !== 'busy' && props.reading !== 'idle' && <p className="error small">{props.reading}</p>}
 
-      <div className="chips" role="tablist">
+      <div className="chips tabs" role="tablist">
         {(
           [
             ['menu', 'Cardápio'],
@@ -582,6 +582,7 @@ function PlanView(props: {
           ] as const
         ).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={`chip ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
+            {tab === k && <TabPill id="plan-tab" />}
             {label}
           </button>
         ))}
@@ -648,8 +649,9 @@ function PlanView(props: {
 
       {tab === 'tips' && (
         <div className="stack">
-          {(saved.ai?.tips ?? []).map(g => (
-            <div key={`ai-${g.title}`} className="card ai-tip">
+          <section className="panel">
+            {(saved.ai?.tips ?? []).map(g => (
+              <div key={`ai-${g.title}`} className="panel-row ai-tip">
               <span className="eyebrow">Para você</span>
               <h3 style={{ fontSize: '1.05rem', marginTop: 4 }}>{g.title}</h3>
               <p className="small" style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
@@ -657,14 +659,15 @@ function PlanView(props: {
               </p>
             </div>
           ))}
-          {tips.map(g => (
-            <div key={g.title} className="card">
+            {tips.map(g => (
+              <div key={g.title} className="panel-row">
               <h3 style={{ fontSize: '1.05rem' }}>{g.title}</h3>
               <p className="small" style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
                 {g.text}
               </p>
             </div>
-          ))}
+            ))}
+          </section>
           <p className="muted tiny">Este plano é uma orientação geral calculada pelo app. Ele não substitui a consulta com um nutricionista, principalmente se você tiver alguma condição de saúde.</p>
         </div>
       )}
@@ -790,6 +793,7 @@ function AiAdjust(props: { plan: ReturnType<typeof buildPlan>; saved: SavedPlanW
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const last = props.saved.ai?.history?.[0]
+  const [open, setOpen] = useState(false)
 
   async function submit() {
     setBusy(true)
@@ -810,13 +814,22 @@ function AiAdjust(props: { plan: ReturnType<typeof buildPlan>; saved: SavedPlanW
   }
 
   return (
-    <section className="card stack ai-card" style={{ gap: 10 }} aria-label="Ajustar com IA">
-      <div>
-        <span className="eyebrow">Ajustar com IA</span>
-        <p className="muted small" style={{ margin: '4px 0 0' }}>
-          Conte sua realidade: onde mora, o que encontra, rotina, gostos. A IA troca alimentos e escreve dicas; as quantidades continuam calculadas pelo app.
-        </p>
+    <section className="panel-row stack ai-card" style={{ gap: 10 }} aria-label="Ajustar com IA">
+      <div className="spread" style={{ alignItems: 'start', gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <span className="eyebrow">Ajustar com IA</span>
+          <p className="muted small" style={{ margin: '4px 0 0' }}>
+            {open
+              ? 'Conte sua realidade: onde mora, o que encontra, rotina, gostos. A IA troca alimentos e escreve dicas; as quantidades continuam calculadas pelo app.'
+              : 'Peça uma troca ou conte algo da sua rotina.'}
+          </p>
+        </div>
+        <button type="button" className="btn ghost small" onClick={() => setOpen(o => !o)} aria-expanded={open}>
+          {open ? 'Fechar' : 'Ajustar'}
+        </button>
       </div>
+      {open && (
+        <>
       <textarea
         className="input"
         rows={3}
@@ -838,6 +851,8 @@ function AiAdjust(props: { plan: ReturnType<typeof buildPlan>; saved: SavedPlanW
       <button type="button" className="btn primary" onClick={submit} disabled={busy || request.trim().length < 5}>
         {busy ? 'Pensando…' : 'Ajustar meu plano'}
       </button>
+        </>
+      )}
       {error && <p className="error small" style={{ margin: 0 }}>{error}</p>}
       {(done ?? last?.summary) && (
         <p className="small" style={{ margin: 0 }}>

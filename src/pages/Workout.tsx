@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser'
 import { ExerciseDetail, equipmentName, muscleName } from '../components/ExerciseDetail'
+import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
+import { listItem, stableKeys } from '../lib/motion'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import { useActiveSession } from '../modules/training/activeSession'
 import { exerciseName, imageUrl, loadCatalogue, loadState, saveWorkout } from '../modules/training/data'
@@ -34,6 +36,7 @@ export default function Workout() {
   const [viewing, setViewing] = useState<number | null>(null)
   const catalogue = useAsync(loadCatalogue)
   const byId = new Map((catalogue.data ?? []).map(e => [e.id, e]))
+  const entryKeys = stableKeys(session?.entries ?? [], e => e.exerciseId)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{ volume: number; sets: number; records: NewRecord[]; minutes: number } | null>(null)
@@ -171,10 +174,11 @@ export default function Workout() {
       {error && <p className="error">{error}</p>}
 
       <div className="grid-list wide-items">
+        <AnimatePresence initial={false}>
         {session.entries.map((entry, ei) => {
           const why = explain(entry.suggestion.why)
           return (
-            <section key={`${entry.exerciseId}-${ei}`} className="card stack" style={{ gap: 12 }}>
+            <motion.section key={entryKeys[ei]} {...listItem} className="card stack" style={{ gap: 12 }}>
               <div className="row" style={{ alignItems: 'flex-start' }}>
                 <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
                   {byId.get(entry.exerciseId)?.images[0] ? (
@@ -259,9 +263,10 @@ export default function Workout() {
                   + Aquecimento
                 </button>
               </div>
-            </section>
+            </motion.section>
           )
         })}
+        </AnimatePresence>
       </div>
       <p className="muted small" style={{ margin: 0 }}>
         Toque duas vezes no número da série para removê-la. "A" é série de aquecimento.

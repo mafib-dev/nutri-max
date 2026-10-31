@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser'
 import { ExerciseDetail, muscleName } from '../components/ExerciseDetail'
+import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
+import { listItem, stableKeys } from '../lib/motion'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import {
   deleteRoutine,
@@ -56,6 +58,7 @@ export default function RoutineEdit() {
   const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null)
 
   const byId = useMemo(() => new Map((loaded.data?.[1] ?? []).map(e => [e.id, e])), [loaded.data])
+  const keys = stableKeys(items, it => it.exercise_id)
 
   useEffect(() => {
     if (!loaded.data) return
@@ -141,11 +144,12 @@ export default function RoutineEdit() {
         </div>
       )}
       <div className="grid-list">
+        <AnimatePresence initial={false}>
         {items.map((it, i) => {
           const ex = byId.get(it.exercise_id)
           const policy = it.progression.policy ?? 'double'
           return (
-            <div key={`${it.exercise_id}-${i}`} className="card stack" style={{ gap: 14 }}>
+            <motion.div key={keys[i]} {...listItem} className="card stack" style={{ gap: 14 }}>
               <div className="row">
                 <button type="button" className="ex-head" onClick={() => ex && setViewing(ex)} aria-label={`Ver detalhes de ${exerciseName(ex)}`}>
                   {ex?.images[0] ? <img className="thumb" src={imageUrl(ex.images[0])} alt="" /> : <div className="thumb" />}
@@ -215,9 +219,10 @@ export default function RoutineEdit() {
                   Remover
                 </button>
               </div>
-            </div>
+            </motion.div>
           )
         })}
+        </AnimatePresence>
       </div>
       <button type="button" className="btn block" style={{ borderStyle: 'dashed' }} onClick={() => setPicking(true)}>
         <Icon.plus /> Adicionar exercício

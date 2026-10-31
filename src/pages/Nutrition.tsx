@@ -1,7 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import FoodPicker, { MacroInputs, parseMacroInputs } from '../components/FoodPicker'
+import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
+import { listItem } from '../lib/motion'
 import NutritionSummary from '../components/NutritionSummary'
 import { deleteLog, getWater, logPlanMeal, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
 import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
@@ -211,16 +213,18 @@ export default function Nutrition() {
                     ))}
                 {mealItems.length > 0 && (
                   <div className="meal-items">
-                    {mealItems.map(i => (
-                      <button key={i.id} type="button" className="meal-item" onClick={() => setEditing(i)}>
-                        <span className="grow ellipsis">{i.name}</span>
-                        <span className="muted small">{i.grams == null ? 'rápido' : formatGrams(i.grams)}</span>
-                        <strong className="small">{fmt(i.kcal)} kcal</strong>
-                      </button>
-                    ))}
-                    <button type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: meal.label, items: mealItems })}>
+                    <AnimatePresence initial={false}>
+                      {mealItems.map(i => (
+                        <motion.button key={i.id} {...listItem} type="button" className="meal-item" onClick={() => setEditing(i)}>
+                          <span className="grow ellipsis">{i.name}</span>
+                          <span className="muted small">{i.grams == null ? 'rápido' : formatGrams(i.grams)}</span>
+                          <strong className="small">{fmt(i.kcal)} kcal</strong>
+                        </motion.button>
+                      ))}
+                    </AnimatePresence>
+                    <motion.button layout="position" type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: meal.label, items: mealItems })}>
                       Salvar como refeição
-                    </button>
+                    </motion.button>
                   </div>
                 )}
               </section>

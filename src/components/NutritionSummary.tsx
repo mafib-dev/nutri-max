@@ -28,7 +28,7 @@ function Ring({ value, max }: { value: number; max: number }) {
   )
 }
 
-export default function NutritionSummary({ total, targets, trainingKcal }: { total: Macros; targets: Targets | null; trainingKcal: number }) {
+export default function NutritionSummary({ total, targets, trainingKcal, bare = false }: { total: Macros; targets: Targets | null; trainingKcal: number; bare?: boolean }) {
   const left = targets ? targets.kcal - total.kcal : null
   const macros: { label: string; key: keyof Omit<Macros, 'kcal'>; cls: string }[] = [
     { label: 'Proteína', key: 'protein_g', cls: 'p' },
@@ -36,7 +36,7 @@ export default function NutritionSummary({ total, targets, trainingKcal }: { tot
     { label: 'Gordura', key: 'fat_g', cls: 'f' },
   ]
   return (
-    <div className="card hero summary">
+    <div className={bare ? 'summary' : 'card hero summary'}>
       <div className="ring-wrap">
         <Ring value={total.kcal} max={targets?.kcal ?? 0} />
         <div className="ring-label">

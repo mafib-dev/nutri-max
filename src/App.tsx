@@ -16,6 +16,7 @@ import Coach from './pages/Coach'
 import Onboarding from './pages/Onboarding'
 import ProfileEdit from './pages/ProfileEdit'
 import { CoachDock } from './components/CoachDock'
+import { TabPill } from './components/ui'
 import { loadSetup } from './modules/profile/data'
 import { isComplete, readLook } from './modules/profile/setup'
 import { DEFAULT_LOOK } from './modules/profile/look'
@@ -40,8 +41,13 @@ function TabBar() {
       </div>
       {TABS.map(t => (
         <NavLink key={t.to} to={t.to} end={t.to === '/'}>
-          {t.icon}
-          {t.label}
+          {({ isActive }) => (
+            <>
+              {isActive && <TabPill id="nav-pill" />}
+              {t.icon}
+              <span>{t.label}</span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

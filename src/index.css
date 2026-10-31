@@ -522,9 +522,37 @@ select.input {
   transition: color var(--dur-base), background var(--dur-base);
 }
 
+.tabbar a {
+  position: relative;
+  isolation: isolate;
+}
+
 .tabbar a.active {
   color: var(--accent);
+}
+
+/* Fundo da aba ativa: um elemento só, que desliza entre as abas. */
+.tab-pill {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
   background: var(--accent-soft);
+}
+
+.chips.tabs .chip {
+  position: relative;
+  isolation: isolate;
+}
+
+.chips.tabs .chip.on {
+  background: transparent;
+  border-color: transparent;
+}
+
+.chips.tabs .tab-pill {
+  inset: -1px;
+  border: 1px solid var(--accent);
 }
 
 .tabbar svg {
@@ -2213,5 +2241,53 @@ details.card summary::marker {
 @media (min-width: 1024px) {
   .eval-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* Painel: um bloco com linhas separadas por divisória, no lugar de várias caixas soltas. */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.panel-row {
+  display: block;
+  padding: 16px;
+}
+
+.panel-row.today-row {
+  display: flex;
+}
+
+.panel-row + .panel-row {
+  border-top: 1px solid var(--border);
+}
+
+a.panel-row {
+  transition: background var(--dur-fast) var(--ease);
+}
+
+a.panel-row:hover {
+  background: var(--surface-2);
+}
+
+.buddy {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+/* No computador, o resumo do dia e o ajuste com IA ficam lado a lado. */
+@media (min-width: 1024px) {
+  .plan-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+
+  .plan-head > .panel-row + .panel-row {
+    border-top: 0;
+    border-left: 1px solid var(--border);
   }
 }

@@ -182,8 +182,9 @@ export default function Today() {
 
       <div className="cols">
         <div className="col">
+          <section className="panel" aria-label="Seu dia">
           {active ? (
-            <Link to="/treino" className="card today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link to="/treino" className="panel-row today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="grow">
                 <span className="label">Treino em andamento</span>
                 <div className="title ellipsis">{active.name}</div>
@@ -194,7 +195,7 @@ export default function Today() {
               <span className="btn primary small">Continuar</span>
             </Link>
           ) : trainedToday ? (
-            <div className="card today-row">
+            <div className="panel-row today-row">
               <div className="grow">
                 <span className="label">Treino de hoje</span>
                 <div className="title">Feito</div>
@@ -205,7 +206,7 @@ export default function Today() {
             </div>
           ) : todays.length > 0 ? (
             todays.map(r => (
-              <div key={r.id} className="card today-row">
+              <div key={r.id} className="panel-row today-row">
                 <div className="grow">
                   <span className="label">Treino de hoje</span>
                   <div className="title ellipsis">{r.name}</div>
@@ -217,7 +218,7 @@ export default function Today() {
               </div>
             ))
           ) : training.data && routines.length === 0 ? (
-            <Link to="/rotinas" className="card today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link to="/rotinas" className="panel-row today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="grow">
                 <span className="label">Treino</span>
                 <div className="title">Crie sua primeira rotina</div>
@@ -226,7 +227,7 @@ export default function Today() {
             </Link>
           ) : (
             training.data && (
-              <Link to="/rotinas" className="card today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link to="/rotinas" className="panel-row today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="grow">
                   <span className="label">Treino de hoje</span>
                   <div className="title">Descanso</div>
@@ -238,11 +239,11 @@ export default function Today() {
 
           {food.data && body.data && (
             <>
-              <Link to="/nutricao" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="Abrir o diário alimentar">
-                <NutritionSummary total={eaten} targets={targets} trainingKcal={trainingKcal} />
+              <Link to="/nutricao" className="panel-row" style={{ textDecoration: 'none', color: 'inherit' }} aria-label="Abrir o diário alimentar">
+                <NutritionSummary bare total={eaten} targets={targets} trainingKcal={trainingKcal} />
               </Link>
 
-              <div className="card today-row water-row">
+              <div className="panel-row today-row water-row">
                 <div className="grow">
                   <span className="label">Água</span>
                   <div className="title">
@@ -258,10 +259,12 @@ export default function Today() {
               </div>
             </>
           )}
+          </section>
         </div>
         <div className="col">
+          <section className="panel" aria-label="Refeição e peso">
           {upcoming ? (
-            <Link to="/nutricao/plano" className="card next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
+            <Link to="/nutricao/plano" className="panel-row next-meal" style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="spread">
                 <span className="label">Próxima refeição · {upcoming.time}</span>
                 <span className="muted small">{fmt(upcoming.total.kcal)} kcal</span>
@@ -284,7 +287,7 @@ export default function Today() {
             mealPlan.data === null &&
             !mealPlan.loading &&
             baseTargets && (
-              <Link to="/nutricao/plano" className="card today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <Link to="/nutricao/plano" className="panel-row today-row" style={{ textDecoration: 'none', color: 'inherit' }}>
                 <div className="grow">
                   <span className="label">Plano alimentar</span>
                   <div className="title">Monte o que comer em cada refeição</div>
@@ -305,7 +308,7 @@ export default function Today() {
               today={today}
             />
           )}
-
+          </section>
         </div>
       </div>
     </main>
@@ -330,7 +333,7 @@ function Buddy({ sex, look, lines, pose }: { sex: Sex | null; look: AvatarLook; 
   }
 
   return (
-    <section className="card buddy" aria-label="Seu personagem">
+    <section className="buddy" aria-label="Seu personagem">
       <button type="button" className="buddy-figure" onClick={tap} aria-label="Próxima mensagem">
         <Buddy3D sex={sex} look={look} pose={waving ? 'wave' : pose} size={120} />
       </button>
@@ -377,7 +380,7 @@ function BodyCard(props: { weight: number | null; trend: number | null; targetKg
   }
 
   return (
-    <div className="card">
+    <div className="panel-row">
       <div className="today-row">
         <div className="grow">
           <span className="label">Peso</span>

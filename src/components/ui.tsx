@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { animate, useReducedMotion } from 'motion/react'
+import { animate, motion, useReducedMotion } from 'motion/react'
 import { Barcode, Check, ChevronDown, ChevronLeft, ChevronUp, Info, Plus, Search, X, Zap, type LucideIcon } from 'lucide-react'
 
 // Um conjunto só de ícones (Lucide), com o mesmo traço em todo o app.
@@ -42,6 +42,11 @@ export function CountUp({ value, format }: { value: number; format: (n: number) 
   }, [value, format, reduce])
 
   return <span ref={ref}>{format(value)}</span>
+}
+
+/** Fundo da aba ativa. Com o mesmo id em todas as abas, ele desliza de uma para a outra. */
+export function TabPill({ id }: { id: string }) {
+  return <motion.span layoutId={id} className="tab-pill" aria-hidden="true" transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }} />
 }
 
 let openModals = 0
