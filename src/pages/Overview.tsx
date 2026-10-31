@@ -50,76 +50,82 @@ export default function Overview() {
       {data.error && <p className="error">{data.error}</p>}
       {empty && <p className="muted">Assim que você salvar um treino, a recuperação dos músculos e o volume aparecem aqui.</p>}
 
-      {state && !empty && (
-        <>
-          <h2>Recuperação</h2>
-          {tired.length === 0 ? (
-            <p className="card" style={{ margin: 0 }}>
-              Todos os músculos estão recuperados. Pode treinar o que quiser.
-            </p>
-          ) : (
-            <div className="card stack">
-              {(showAll ? recovery : tired).map(m => (
-                <RecoveryRow key={m.muscle} item={m} />
-              ))}
-              <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setShowAll(!showAll)}>
-                {showAll ? 'Mostrar só os cansados' : 'Ver todos os músculos'}
-              </button>
-            </div>
-          )}
-          <p className="muted small" style={{ margin: 0 }}>
-            Estimativa a partir das séries feitas, de quão perto da falha você foi e do tempo que cada músculo leva para se recuperar.
-          </p>
-
-          <h2>Esta semana</h2>
-          <div className="grid-3">
-            <div className="card stat">
-              <span className="muted small">Treinos</span>
-              <strong>{thisWeek?.workouts ?? 0}</strong>
-            </div>
-            <div className="card stat">
-              <span className="muted small">Séries</span>
-              <strong>{thisWeek?.sets ?? 0}</strong>
-            </div>
-            <div className="card stat">
-              <span className="muted small">Volume</span>
-              <strong>{formatTons(thisWeek?.volume ?? 0)}</strong>
-            </div>
-          </div>
-
-          <h2>Volume por semana</h2>
-          <BarChart label="Volume por semana" bars={weeks.map(w => ({ label: weekLabel(w.start), value: w.volume }))} format={formatTons} />
-
-          {muscles.length > 0 && (
+      <div className="cols">
+        <div className="col">
+          {state && !empty && (
             <>
-              <h2>Séries por músculo</h2>
-              <div className="card stack">
-                {muscles.map(m => (
-                  <SetsRow key={m.muscle} name={MUSCLE_NAME_PT[m.muscle]} thisWeek={m.thisWeek} average={m.average} />
-                ))}
-              </div>
+              <h2>Recuperação</h2>
+              {tired.length === 0 ? (
+                <p className="card" style={{ margin: 0 }}>
+                  Todos os músculos estão recuperados. Pode treinar o que quiser.
+                </p>
+              ) : (
+                <div className="card stack">
+                  {(showAll ? recovery : tired).map(m => (
+                    <RecoveryRow key={m.muscle} item={m} />
+                  ))}
+                  <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setShowAll(!showAll)}>
+                    {showAll ? 'Mostrar só os cansados' : 'Ver todos os músculos'}
+                  </button>
+                </div>
+              )}
               <p className="muted small" style={{ margin: 0 }}>
-                Séries em que o músculo é o principal. O tracinho é a sua média das 4 semanas anteriores. Para ganhar massa, 10 a 20 séries por semana costuma ser uma boa faixa.
+                Estimativa a partir das séries feitas, de quão perto da falha você foi e do tempo que cada músculo leva para se recuperar.
               </p>
+
+              <h2>Esta semana</h2>
+              <div className="grid-3">
+                <div className="card stat">
+                  <span className="muted small">Treinos</span>
+                  <strong>{thisWeek?.workouts ?? 0}</strong>
+                </div>
+                <div className="card stat">
+                  <span className="muted small">Séries</span>
+                  <strong>{thisWeek?.sets ?? 0}</strong>
+                </div>
+                <div className="card stat">
+                  <span className="muted small">Volume</span>
+                  <strong>{formatTons(thisWeek?.volume ?? 0)}</strong>
+                </div>
+              </div>
+
+              <h2>Volume por semana</h2>
+              <BarChart label="Volume por semana" bars={weeks.map(w => ({ label: weekLabel(w.start), value: w.volume }))} format={formatTons} />
+
+              {muscles.length > 0 && (
+                <>
+                  <h2>Séries por músculo</h2>
+                  <div className="card stack">
+                    {muscles.map(m => (
+                      <SetsRow key={m.muscle} name={MUSCLE_NAME_PT[m.muscle]} thisWeek={m.thisWeek} average={m.average} />
+                    ))}
+                  </div>
+                  <p className="muted small" style={{ margin: 0 }}>
+                    Séries em que o músculo é o principal. O tracinho é a sua média das 4 semanas anteriores. Para ganhar massa, 10 a 20 séries por semana costuma ser uma boa faixa.
+                  </p>
+                </>
+              )}
             </>
           )}
-        </>
-      )}
 
-      {data.data && <BodyWeightSection weights={weights} onSaved={data.reload} />}
+        </div>
+        <div className="col">
+          {data.data && <BodyWeightSection weights={weights} onSaved={data.reload} />}
 
-      {trained.length > 0 && (
-        <>
-          <h2>Evolução por exercício</h2>
-          <div className="chips" style={{ flexWrap: 'wrap' }}>
-            {trained.map(id => (
-              <Link key={id} to={`/progresso/${id}`} className="chip" style={{ textDecoration: 'none', color: 'inherit' }}>
-                {exerciseName(byId.get(id))}
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
+          {trained.length > 0 && (
+            <>
+              <h2>Evolução por exercício</h2>
+              <div className="chips" style={{ flexWrap: 'wrap' }}>
+                {trained.map(id => (
+                  <Link key={id} to={`/progresso/${id}`} className="chip" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    {exerciseName(byId.get(id))}
+                  </Link>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </main>
   )
 }

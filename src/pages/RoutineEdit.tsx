@@ -14,6 +14,8 @@ import {
   updateRoutine,
   WEEKDAYS,
   type RoutineExercise,
+  daysLabel,
+  WEEK_ORDER,
 } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
 
@@ -45,7 +47,7 @@ export default function RoutineEdit() {
   const navigate = useNavigate()
   const loaded = useAsync(() => Promise.all([getRoutine(id), loadCatalogue()]), [id])
   const [name, setName] = useState('')
-  const [weekday, setWeekday] = useState<number | null>(null)
+  const [weekdays, setWeekdays] = useState<number[]>([])
   const [items, setItems] = useState<Item[]>([])
   const [picking, setPicking] = useState(false)
   const [viewing, setViewing] = useState<ExerciseRow | null>(null)
@@ -59,7 +61,7 @@ export default function RoutineEdit() {
     if (!loaded.data) return
     const { routine, items } = loaded.data[0]
     setName(routine.name)
-    setWeekday(routine.weekday)
+    setWeekdays(routine.weekdays)
     setItems(items.map(({ id: _id, position: _p, routine_id: _r, ...rest }) => rest))
   }, [loaded.data])
 
@@ -77,7 +79,7 @@ export default function RoutineEdit() {
     setSaving(true)
     setStatus(null)
     try {
-      await updateRoutine(id, { name: name.trim() || 'Treino', weekday })
+      await updateRoutine(id, { name: name.trim() || 'Treino', weekdays })
       await saveRoutineExercises(
         id,
         items.map(it => ({ ...it, rep_max: it.rep_max != null && it.rep_min != null && it.rep_max < it.rep_min ? it.rep_min : it.rep_max })),
@@ -111,22 +113,25 @@ export default function RoutineEdit() {
         <span className="eyebrow">Editando rotina</span>
         <h1>{name || 'Rotina'}</h1>
       </div>
-      <div className="grid-2">
+      <div className="grid-2 routine-fields">
         <label className="field">
           <span>Nome</span>
           <input className="input" value={name} onChange={e => setName(e.target.value)} />
         </label>
-        <label className="field">
-          <span>Dia da semana</span>
-          <select className="input" value={weekday ?? ''} onChange={e => setWeekday(e.target.value === '' ? null : Number(e.target.value))}>
-            <option value="">Sem dia fixo</option>
-            {WEEKDAYS.map((d, i) => (
-              <option key={d} value={i}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="field">
+          <span>Dias da semana</span>
+          <div className="chips wrap" role="group" aria-label="Dias da semana">
+            {WEEK_ORDER.map(d => {
+              const on = weekdays.includes(d)
+              return (
+                <button key={d} type="button" className={`chip${on ? ' on' : ''}`} aria-pressed={on} onClick={() => setWeekdays(list => (on ? list.filter(x => x !== d) : [...list, d].sort((a, b) => a - b)))}>
+                  {WEEKDAYS[d].slice(0, 3)}
+                </button>
+              )
+            })}
+          </div>
+          <small className="muted tiny">{weekdays.length ? daysLabel(weekdays) : 'Sem dia fixo: a rotina fica disponível para qualquer dia.'}</small>
+        </div>
       </div>
 
       <h2>Exercícios · {items.length}</h2>
@@ -135,83 +140,85 @@ export default function RoutineEdit() {
           <span className="muted small">Nenhum exercício ainda. Abra a lista, veja como cada um é feito e adicione os que quiser.</span>
         </div>
       )}
-      {items.map((it, i) => {
-        const ex = byId.get(it.exercise_id)
-        const policy = it.progression.policy ?? 'double'
-        return (
-          <div key={`${it.exercise_id}-${i}`} className="card stack" style={{ gap: 14 }}>
-            <div className="row">
-              <button type="button" className="ex-head" onClick={() => ex && setViewing(ex)} aria-label={`Ver detalhes de ${exerciseName(ex)}`}>
-                {ex?.images[0] ? <img className="thumb" src={imageUrl(ex.images[0])} alt="" /> : <div className="thumb" />}
-                <div className="grow">
-                  <span className="eyebrow">Exercício {i + 1}</span>
-                  <div className="title clamp-2" style={{ fontWeight: 700 }}>
-                    {exerciseName(ex)}
+      <div className="grid-list">
+        {items.map((it, i) => {
+          const ex = byId.get(it.exercise_id)
+          const policy = it.progression.policy ?? 'double'
+          return (
+            <div key={`${it.exercise_id}-${i}`} className="card stack" style={{ gap: 14 }}>
+              <div className="row">
+                <button type="button" className="ex-head" onClick={() => ex && setViewing(ex)} aria-label={`Ver detalhes de ${exerciseName(ex)}`}>
+                  {ex?.images[0] ? <img className="thumb" src={imageUrl(ex.images[0])} alt="" /> : <div className="thumb" />}
+                  <div className="grow">
+                    <span className="eyebrow">Exercício {i + 1}</span>
+                    <div className="title clamp-2" style={{ fontWeight: 700 }}>
+                      {exerciseName(ex)}
+                    </div>
+                    {ex && <div className="muted tiny ellipsis">{ex.primary_muscles.map(muscleName).join(', ')} · ver como fazer</div>}
                   </div>
-                  {ex && <div className="muted tiny ellipsis">{ex.primary_muscles.map(muscleName).join(', ')} · ver como fazer</div>}
-                </div>
-              </button>
-              <div style={{ display: 'grid', gap: 2 }}>
-                <button type="button" className="btn ghost icon" aria-label="Subir" onClick={() => move(i, -1)} disabled={i === 0}>
-                  <Icon.up />
                 </button>
-                <button type="button" className="btn ghost icon" aria-label="Descer" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
-                  <Icon.down />
+                <div style={{ display: 'grid', gap: 2 }}>
+                  <button type="button" className="btn ghost icon" aria-label="Subir" onClick={() => move(i, -1)} disabled={i === 0}>
+                    <Icon.up />
+                  </button>
+                  <button type="button" className="btn ghost icon" aria-label="Descer" onClick={() => move(i, 1)} disabled={i === items.length - 1}>
+                    <Icon.down />
+                  </button>
+                </div>
+              </div>
+              <div className="grid-3">
+                <label className="field">
+                  <span>Séries</span>
+                  <input className="input" type="number" inputMode="numeric" min={1} value={it.sets} onChange={e => patch(i, { sets: Math.max(1, Number(e.target.value) || 1) })} />
+                </label>
+                <label className="field">
+                  <span>Reps mín.</span>
+                  <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_min ?? ''} onChange={e => patch(i, { rep_min: numberOrNull(e.target.value) })} />
+                </label>
+                <label className="field">
+                  <span>Reps máx.</span>
+                  <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_max ?? ''} onChange={e => patch(i, { rep_max: numberOrNull(e.target.value) })} />
+                </label>
+              </div>
+              <div className="grid-3">
+                <label className="field">
+                  <span>Descanso (s)</span>
+                  <input className="input" type="number" inputMode="numeric" min={0} step={15} value={it.rest_sec ?? ''} onChange={e => patch(i, { rest_sec: numberOrNull(e.target.value) })} />
+                </label>
+                <label className="field">
+                  <span>Incremento (kg)</span>
+                  <input
+                    className="input"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step={0.5}
+                    placeholder="auto"
+                    value={it.progression.increment ?? ''}
+                    onChange={e => patch(i, { progression: { ...it.progression, increment: e.target.value === '' ? undefined : Number(e.target.value) } })}
+                  />
+                </label>
+                <label className="field">
+                  <span>Progressão</span>
+                  <select className="input" value={policy} onChange={e => patch(i, { progression: { ...it.progression, policy: e.target.value } })}>
+                    {POLICIES.map(p => (
+                      <option key={p.value} value={p.value}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <div className="spread">
+                <span className="muted small">{POLICIES.find(p => p.value === policy)?.hint}</span>
+                <button type="button" className="btn ghost small danger" onClick={() => setItems(list => list.filter((_, j) => j !== i))}>
+                  Remover
                 </button>
               </div>
             </div>
-            <div className="grid-3">
-              <label className="field">
-                <span>Séries</span>
-                <input className="input" type="number" inputMode="numeric" min={1} value={it.sets} onChange={e => patch(i, { sets: Math.max(1, Number(e.target.value) || 1) })} />
-              </label>
-              <label className="field">
-                <span>Reps mín.</span>
-                <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_min ?? ''} onChange={e => patch(i, { rep_min: numberOrNull(e.target.value) })} />
-              </label>
-              <label className="field">
-                <span>Reps máx.</span>
-                <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_max ?? ''} onChange={e => patch(i, { rep_max: numberOrNull(e.target.value) })} />
-              </label>
-            </div>
-            <div className="grid-3">
-              <label className="field">
-                <span>Descanso (s)</span>
-                <input className="input" type="number" inputMode="numeric" min={0} step={15} value={it.rest_sec ?? ''} onChange={e => patch(i, { rest_sec: numberOrNull(e.target.value) })} />
-              </label>
-              <label className="field">
-                <span>Incremento (kg)</span>
-                <input
-                  className="input"
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step={0.5}
-                  placeholder="auto"
-                  value={it.progression.increment ?? ''}
-                  onChange={e => patch(i, { progression: { ...it.progression, increment: e.target.value === '' ? undefined : Number(e.target.value) } })}
-                />
-              </label>
-              <label className="field">
-                <span>Progressão</span>
-                <select className="input" value={policy} onChange={e => patch(i, { progression: { ...it.progression, policy: e.target.value } })}>
-                  {POLICIES.map(p => (
-                    <option key={p.value} value={p.value}>
-                      {p.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="spread">
-              <span className="muted small">{POLICIES.find(p => p.value === policy)?.hint}</span>
-              <button type="button" className="btn ghost small danger" onClick={() => setItems(list => list.filter((_, j) => j !== i))}>
-                Remover
-              </button>
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
       <button type="button" className="btn block" style={{ borderStyle: 'dashed' }} onClick={() => setPicking(true)}>
         <Icon.plus /> Adicionar exercício
       </button>

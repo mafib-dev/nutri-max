@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabase'
 import { macrosFor, microsFor, type Food, type FoodLog, type Meal } from './foods'
 import type { NutritionProfile } from './targets'
+import type { PlanMeal, SavedPlan } from './plan'
 
 const fail = (what: string, error: { message: string } | null) => {
   if (error) throw new Error(`${what}: ${error.message}`)
@@ -235,4 +236,42 @@ export async function loadFirstName(): Promise<string | null> {
   const { data } = await supabase.from('profiles').select('display_name').eq('id', auth.user?.id ?? '').maybeSingle()
   const name = (data?.display_name as string | null)?.trim() || auth.user?.email?.split('@')[0]?.split(/[._\d]/)[0] || ''
   return name ? name[0].toUpperCase() + name.slice(1) : null
+}
+
+export async function loadMealPlan(): Promise<SavedPlan | null> {
+  const { data, error } = await supabase.from('profiles').select('meal_plan').eq('id', await userId()).single()
+  fail('Falha ao carregar o plano alimentar', error)
+  return (data?.meal_plan as SavedPlan | null) ?? null
+}
+
+export async function saveMealPlan(plan: SavedPlan | null) {
+  const { error } = await supabase.from('profiles').update({ meal_plan: plan, updated_at: new Date().toISOString() }).eq('id', await userId())
+  fail('Falha ao salvar o plano alimentar', error)
+}
+
+/** Lança no diário os alimentos de uma refeição do plano, com as gramas do plano. */
+export async function logPlanMeal(date: string, meal: PlanMeal) {
+  const [uid, catalogue] = await Promise.all([userId(), loadFoods()])
+  const byId = new Map(catalogue.map(f => [f.id, f]))
+  const rows = meal.items.map(i => {
+    const food = byId.get(i.food.id)
+    if (food) return { user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
+    // Fora do catálogo (o whey padrão): entra com os valores do plano.
+    const k = i.grams / 100
+    const r = (n: number) => Math.round(n * k * 10) / 10
+    return { user_id: uid, date, meal: meal.log, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
+  })
+  const { error } = await supabase.from('food_logs').insert(rows)
+  fail('Falha ao lançar a refeição do plano', error)
+}
+
+/** Pede à IA (função plan-ai no Supabase, que chama o Claude) um ajuste do plano. */
+export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })
+  if (error) {
+    // A função devolve { error } com a explicação; sem ela, a mensagem genérica do cliente.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
 }

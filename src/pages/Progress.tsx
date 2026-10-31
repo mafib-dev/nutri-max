@@ -26,7 +26,7 @@ export default function Progress() {
   )
 
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate(-1)}>
         ‹ Voltar
       </button>

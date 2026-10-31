@@ -1,6 +1,5 @@
-/* NutriMax: visual de academia à noite. Fundo grafite com granulado, verde-limão "volt"
-   como cor de ação e títulos condensados em caixa alta, como placar esportivo. */
-@import '@fontsource-variable/big-shoulders-display';
+/* NutriMax: tema escuro e limpo. Fundo grafite liso, uma só fonte (Figtree) e o verde-limão
+   reservado para a ação principal e para o que está ativo. */
 @import '@fontsource-variable/figtree';
 
 :root {
@@ -21,7 +20,7 @@
   --warn: #ffb224;
   --radius: 16px;
   --radius-sm: 10px;
-  --display: 'Big Shoulders Display Variable', 'Arial Narrow', sans-serif;
+  --display: 'Figtree Variable', system-ui, sans-serif;
   --body: 'Figtree Variable', system-ui, sans-serif;
   --tabbar-h: 72px;
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -43,22 +42,7 @@
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    radial-gradient(120% 60% at 100% -10%, var(--bg-glow), transparent 60%),
-    radial-gradient(80% 40% at -20% 110%, rgb(200 240 49 / 0.04), transparent 70%),
-    var(--bg);
-  background-attachment: fixed;
-}
-
-/* Granulado sutil por cima de tudo, sem pegar cliques. */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  pointer-events: none;
-  opacity: 0.05;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background: var(--bg);
 }
 
 button,
@@ -89,53 +73,39 @@ a {
 h1,
 h2,
 h3 {
-  font-family: var(--display);
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
-  line-height: 0.95;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 h1 {
-  font-size: clamp(2.4rem, 9vw, 3.2rem);
-  font-weight: 800;
-  margin: 0 0 4px;
-}
-
-h2 {
-  font-size: 1.35rem;
-  font-weight: 700;
-  margin: 28px 0 6px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Fio que completa a linha do título de seção. */
-h2::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(90deg, var(--border-strong), transparent);
-}
-
-h3 {
-  font-size: 1.15rem;
+  font-size: clamp(1.6rem, 5vw, 2rem);
   font-weight: 700;
   margin: 0;
 }
 
+h2 {
+  font-size: 1.05rem;
+  font-weight: 650;
+  margin: 20px 0 2px;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 650;
+  margin: 0;
+}
+
 .eyebrow {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .page {
   max-width: 680px;
   margin: 0 auto;
-  padding: calc(24px + env(safe-area-inset-top)) 16px calc(var(--tabbar-h) + 40px + env(safe-area-inset-bottom));
+  /* Espaço embaixo para a barra de navegação e o botão do nutricionista. */
+  padding: calc(24px + env(safe-area-inset-top)) 16px calc(var(--tabbar-h) + 96px + env(safe-area-inset-bottom));
 }
 
 .page-head {
@@ -180,18 +150,6 @@ h3 {
   gap: 10px;
 }
 
-/* Entrada da página: os blocos sobem em sequência. */
-.page > * {
-  animation: rise 0.5s var(--ease) both;
-}
-
-.page > :nth-child(2) { animation-delay: 40ms; }
-.page > :nth-child(3) { animation-delay: 80ms; }
-.page > :nth-child(4) { animation-delay: 120ms; }
-.page > :nth-child(5) { animation-delay: 160ms; }
-.page > :nth-child(6) { animation-delay: 200ms; }
-.page > :nth-child(n + 7) { animation-delay: 240ms; }
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -224,17 +182,13 @@ h3 {
 
 .card {
   position: relative;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 40%), var(--surface);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
 }
 
 .card.hero {
-  border-color: rgb(200 240 49 / 0.35);
-  background:
-    radial-gradient(120% 120% at 100% 0%, rgb(200 240 49 / 0.16), transparent 55%),
-    var(--surface);
   overflow: hidden;
 }
 
@@ -249,7 +203,6 @@ h3 {
   border: 1px solid var(--border-strong);
   background: var(--surface-2);
   font-weight: 700;
-  letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
   color: var(--text);
@@ -275,11 +228,10 @@ h3 {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 6px 24px -8px rgb(200 240 49 / 0.55);
 }
 
 .btn.primary:hover {
-  box-shadow: 0 8px 30px -6px rgb(200 240 49 / 0.7);
+  filter: brightness(1.05);
 }
 
 .btn.danger {
@@ -312,12 +264,8 @@ h3 {
 }
 
 .btn.big {
-  min-height: 56px;
-  font-family: var(--display);
-  font-size: 1.35rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  min-height: 52px;
+  font-size: 1rem;
 }
 
 .field {
@@ -326,10 +274,8 @@ h3 {
 }
 
 .field > span {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 550;
   color: var(--muted);
 }
 
@@ -661,8 +607,6 @@ select.input {
   color: var(--text);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .facts {
@@ -681,8 +625,6 @@ select.input {
   display: block;
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -718,7 +660,7 @@ select.input {
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.05rem;
 }
 
@@ -733,8 +675,6 @@ select.input {
 .set-grid .head {
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
   text-align: center;
 }
@@ -742,7 +682,7 @@ select.input {
 .set-grid .idx {
   text-align: center;
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.15rem;
   color: var(--muted);
 }
@@ -804,7 +744,7 @@ select.input {
 .why::before {
   content: '↗ ';
   color: var(--accent);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .ex-head {
@@ -853,14 +793,14 @@ select.input {
   border-radius: 22px;
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: 0 18px 40px -10px rgb(200 240 49 / 0.45);
+  box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.6);
   animation: pop 0.3s var(--ease) both;
 }
 
 .rest-bar .clock {
   font-family: var(--display);
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -880,15 +820,13 @@ select.input {
 .stat span {
   font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
 .stat strong {
   font-family: var(--display);
   font-size: 2rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -928,8 +866,6 @@ select.input {
   font-size: 3.6rem;
   font-weight: 900;
   line-height: 0.85;
-  text-transform: uppercase;
-  letter-spacing: 0.01em;
 }
 
 .brand em {
@@ -1045,9 +981,8 @@ select.input {
   border-radius: 14px;
   background: var(--surface-3);
   font-family: var(--display);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.15rem;
-  text-transform: uppercase;
   color: var(--accent);
 }
 
@@ -1074,9 +1009,7 @@ select.input {
 .day-nav strong {
   font-family: var(--display);
   font-size: 1.3rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: 700;
 }
 
 .summary {
@@ -1129,7 +1062,7 @@ select.input {
 .ring-label strong {
   font-family: var(--display);
   font-size: 2.1rem;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1142,8 +1075,6 @@ select.input {
   max-width: 80px;
   font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--muted);
 }
 
@@ -1180,6 +1111,7 @@ select.input {
 
 .meal-items {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   border-top: 1px solid var(--border);
 }
 
@@ -1341,34 +1273,896 @@ details.card summary::marker {
   gap: 14px 20px;
 }
 
-/* Tela Hoje */
-.body-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+/* Tela Hoje: linhas compactas com rótulo, valor e uma ação. */
+.today-row {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
-.body-stats .stat small,
-.week-stats .stat small {
-  font-size: 0.78rem;
+.today-row > .grow {
+  flex: 1;
+  min-width: 0;
 }
 
-.week-stats .stat {
+.label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.today-row .title,
+.next-meal .title {
+  font-size: 1.1rem;
+  font-weight: 650;
+  margin-top: 2px;
+}
+
+.water-row .meter {
+  margin-top: 8px;
+}
+
+
+/* Plano alimentar */
+.chip.off {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.plan-item .meal-item:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.plan-item .subs {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0 12px 12px;
+  border-left: 2px solid var(--border-strong);
+  margin-left: 4px;
+}
+
+.plan-item .sub {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.plan-item .sub:hover {
+  border-color: var(--accent);
+}
+
+.shop-list {
+  display: grid;
+  gap: 10px;
+}
+
+.follow-plan {
+  justify-self: start;
+  margin-top: 8px;
+  color: var(--accent);
+}
+
+.next-meal ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
   gap: 4px;
 }
 
-.tip {
-  margin: 0;
-  padding-left: 12px;
-  border-left: 3px solid var(--muted);
-  font-size: 0.92rem;
-  line-height: 1.4;
+.ai-card textarea {
+  resize: vertical;
+  min-height: 80px;
+  font: inherit;
 }
 
-.tip.warn {
-  border-color: var(--warn);
+.chip.small-chip {
+  flex: 1 1 auto;
+  max-width: 100%;
+  border-radius: 14px;
+  font-size: 0.78rem;
+  text-align: left;
+  white-space: normal;
 }
 
-.tip.good {
+.ai-tip {
   border-color: var(--accent);
+}
+
+/* Nutricionista */
+.chat {
+  display: grid;
+  gap: 10px;
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  line-height: 1.5;
+  font-size: 0.93rem;
+}
+
+.bubble p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.bubble.user {
+  justify-self: end;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-bottom-right-radius: 4px;
+}
+
+.bubble.assistant {
+  justify-self: start;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+
+.bubble.typing {
+  color: var(--muted);
+}
+
+.bubble-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  align-items: center;
+}
+
+.chat-input textarea {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  font: inherit;
+}
+
+/* Nutricionista flutuante: botão no canto inferior direito, acima da barra de navegação. */
+.coach-fab {
+  position: fixed;
+  right: max(14px, calc((100% - 560px) / 2));
+  bottom: calc(var(--tabbar-h) + 22px + env(safe-area-inset-bottom));
+  z-index: 20;
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 8px 24px -8px rgb(0 0 0 / 0.7);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease);
+  animation: pop 0.35s var(--ease) both;
+}
+
+.coach-fab:hover {
+  transform: scale(1.06);
+}
+
+.coach-fab svg {
+  width: 26px;
+  height: 26px;
+}
+
+.coach-fab.open {
+  background: var(--surface-3);
+  color: var(--text);
+  box-shadow: 0 14px 30px -8px rgb(0 0 0 / 0.7);
+}
+
+.coach-panel {
+  position: fixed;
+  z-index: 30;
+  right: max(10px, calc((100% - 560px) / 2));
+  bottom: calc(var(--tabbar-h) + 90px + env(safe-area-inset-bottom));
+  width: min(420px, calc(100% - 20px));
+  height: min(620px, calc(100dvh - var(--tabbar-h) - 110px - env(safe-area-inset-bottom) - env(safe-area-inset-top)));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: rgb(19 23 21 / 0.96);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--border-strong);
+  border-radius: 22px;
+  box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.8);
+  animation: pop 0.25s var(--ease) both;
+  transform-origin: bottom right;
+}
+
+.coach-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.coach-panel-head h3 {
+  margin: 2px 0 0;
+}
+
+.coach-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coach-chat .coach-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.coach-chat.compact {
+  flex: 1;
+  min-height: 0;
+}
+
+.coach-chat.compact .coach-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.coach-chat.compact .bubble {
+  font-size: 0.9rem;
+}
+
+.coach-clear {
+  align-self: center;
+}
+
+.coach-chat.compact .coach-clear {
+  margin-top: -4px;
+  padding-block: 2px;
+}
+
+/* No computador o botão vai para o canto da janela, fora da coluna do conteúdo, e o painel abre ao lado dele. */
+@media (min-width: 900px) {
+  .coach-fab {
+    right: 28px;
+    bottom: 28px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .coach-panel {
+    right: 28px;
+    bottom: 92px;
+    width: min(400px, calc((100% - 680px) / 2 + 200px));
+    height: min(640px, calc(100dvh - 124px));
+  }
+}
+
+/* ---------- Computador: menu lateral e telas em colunas ---------- */
+
+/* No celular as colunas não existem: os itens seguem um abaixo do outro, na mesma ordem. */
+.cols,
+.col,
+.grid-list {
+  display: contents;
+}
+
+.nav-brand {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .has-nav {
+    padding-left: 252px;
+  }
+
+  .page {
+    max-width: 1180px;
+    padding: 44px 40px 64px;
+  }
+
+  .page.narrow {
+    max-width: 820px;
+  }
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .col {
+    display: grid;
+    gap: inherit;
+    row-gap: 12px;
+    align-content: start;
+  }
+
+  .sticky-col {
+    position: sticky;
+    top: 24px;
+  }
+
+  .grid-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .form-width {
+    max-width: 760px;
+  }
+
+  /* A barra de baixo vira um menu lateral. */
+  .tabbar {
+    left: 16px;
+    top: 16px;
+    bottom: 16px;
+    transform: none;
+    width: 220px;
+    height: auto;
+    grid-template-columns: 1fr;
+    grid-auto-rows: min-content;
+    align-content: start;
+    gap: 4px;
+    padding: 18px 12px;
+  }
+
+  .tabbar a {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    font-size: 0.92rem;
+  }
+
+  .tabbar a:not(.active):hover {
+    color: var(--text);
+    background: var(--surface-2);
+  }
+
+  .nav-brand {
+    display: block;
+    padding: 4px 14px 22px;
+    font-family: var(--display);
+    font-size: 1.7rem;
+    font-weight: 700;
+  }
+
+  .nav-brand span {
+    color: var(--accent);
+  }
+
+  .coach-fab {
+    bottom: 28px;
+  }
+}
+
+/* Aba Treinos: a semana em 7 dias e as rotinas em cartões. */
+.week-plan {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.week-day {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-height: 64px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.week-day.today {
+  border-color: var(--accent);
+}
+
+.week-day.rest {
+  background: transparent;
+}
+
+.week-routine {
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.week-day.rest .muted {
+  font-size: 0.78rem;
+}
+
+.routine-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.routine-card {
+  display: grid;
+  gap: 12px;
+}
+
+.routine-card.today {
+  border-color: var(--accent);
+}
+
+.routine-main {
+  display: grid;
+  gap: 2px;
+  color: inherit;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.routine-main .title {
+  font-size: 1.1rem;
+  font-weight: 650;
+}
+
+@media (max-width: 520px) {
+  .week-day {
+    padding: 6px 4px;
+    min-height: 56px;
+  }
+
+  .week-routine {
+    font-size: 0.7rem;
+  }
+
+  .week-day.rest .muted {
+    font-size: 0.65rem;
+  }
+}
+
+@media (min-width: 720px) {
+  .routine-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .week-day {
+    min-height: 88px;
+    padding: 12px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid-list.wide-items {
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  }
+}
+
+/* Histórico por dia */
+.day-list {
+  display: grid;
+  gap: 10px;
+}
+
+.day-card {
+  display: grid;
+  gap: 12px;
+}
+
+.day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.day-head .title {
+  font-weight: 650;
+}
+
+.day-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.day-stat {
+  min-width: 0;
+}
+
+.day-stat .value {
+  font-weight: 650;
+  margin-top: 1px;
+}
+
+.day-stat .value.hit {
+  color: var(--accent);
+}
+
+.day-stat .value.over {
+  color: var(--warn);
+}
+
+.meter.thin {
+  height: 4px;
+  margin-top: 6px;
+}
+
+.meter.thin .base {
+  background: var(--muted);
+}
+
+.meter.thin .hit {
+  background: var(--accent);
+}
+
+.meter.thin .over {
+  background: var(--warn);
+}
+
+.day-detail {
+  display: grid;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.day-detail h3 {
+  margin-bottom: 6px;
+}
+
+.day-meal,
+.day-workout {
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.day-meal + .day-meal,
+.day-workout + .day-workout {
+  border-top: 1px solid var(--border);
+}
+
+.day-meal ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 2px;
+}
+
+@media (min-width: 720px) {
+  .day-stats {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .day-detail {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+}
+
+/* Boneco da tela Hoje */
+.buddy {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px 12px 12px;
+}
+
+.buddy-figure {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.buddy-bubble {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-3);
+}
+
+/* Ponta do balão apontando para o boneco */
+.buddy-bubble::before {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  transform: translateY(-50%) rotate(45deg);
+  border-radius: 3px;
+}
+
+.buddy-bubble p {
+  position: relative;
+  margin: 0;
+  font-weight: 550;
+  line-height: 1.45;
+}
+
+.buddy-next {
+  position: relative;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+@media (min-width: 1024px) {
+  .buddy {
+    padding: 16px 28px 16px 20px;
+    gap: 24px;
+  }
+
+  .buddy-bubble {
+    max-width: 640px;
+  }
+}
+
+/* Cadastro do primeiro login */
+.onboarding {
+  min-height: 100dvh;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+  padding: max(16px, env(safe-area-inset-top)) 16px 32px;
+}
+
+.has-nav .onboarding {
+  min-height: 0;
+}
+
+.onb-stage {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.onb-stage svg {
+  width: 96px;
+  height: auto;
+}
+
+.onb-name {
+  font-weight: 700;
+}
+
+.onb-panel {
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+  max-width: 480px;
+  display: grid;
+  gap: 16px;
+}
+
+.onb-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 36px;
+}
+
+.onb-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.onb-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.onb-step h1 {
+  font-size: 1.6rem;
+}
+
+.big-input {
+  min-height: 56px;
+  font-size: 1.15rem;
+}
+
+.onb-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.onb-options {
+  display: grid;
+  gap: 8px;
+}
+
+.onb-options.two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.onb-option {
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  text-align: left;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.onb-options.two .onb-option {
+  justify-items: center;
+  gap: 8px;
+  padding: 16px 8px 12px;
+}
+
+.onb-option:hover {
+  border-color: var(--muted);
+}
+
+.onb-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+.swatch.on {
+  outline: 2px solid var(--accent);
+}
+
+.onb-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+@media (min-width: 900px) {
+  .onboarding {
+    grid-template-columns: minmax(220px, 320px) minmax(0, 480px);
+    justify-content: center;
+    align-content: center;
+    column-gap: 64px;
+  }
+
+  .has-nav .onboarding {
+    align-content: start;
+    padding-top: 48px;
+  }
+
+  .onb-stage svg {
+    width: 220px;
+  }
+
+  .onb-name {
+    font-size: 1.2rem;
+  }
+}
+
+/* Consulta e avaliação do plano alimentar */
+.consult h2 {
+  font-size: 1.35rem;
+}
+
+.consult textarea.input {
+  min-height: 0;
+  padding: 10px 14px;
+  resize: vertical;
+}
+
+.alert-card {
+  border-color: rgb(255 178 36 / 0.45);
+  background: rgb(255 178 36 / 0.08);
+}
+
+.alert-card strong {
+  color: var(--warn);
+}
+
+.reading {
+  margin: 0;
+  color: var(--muted);
+}
+
+.return-due {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.eval-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.eval-row {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.supp-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.supp-row {
+  display: grid;
+  gap: 2px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.supp-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .eval-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
