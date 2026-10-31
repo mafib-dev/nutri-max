@@ -5,6 +5,7 @@
 // Segredo necessário: ANTHROPIC_API_KEY (Supabase → Edge Functions → Secrets).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { askClaude } from '../_shared/claude.ts'
+import { NUTRITIONIST } from '../_shared/persona.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,7 +15,9 @@ const CORS = {
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
-const SYSTEM = `Você é o nutricionista esportivo do app NutriMax e acompanha a pessoa 24 horas por dia: alimentação,
+const SYSTEM = `${NUTRITIONIST}
+
+Você é o nutricionista do app NutriMax e acompanha a pessoa 24 horas por dia: alimentação,
 musculação, água, peso e recuperação. Fale em português do Brasil, de forma direta e acolhedora, como numa
 conversa de WhatsApp com o seu nutricionista: respostas curtas (até 6 frases ou uma lista curta), práticas e
 baseadas nos dados do contexto. Cite números do contexto quando ajudar (o que falta de proteína, kcal, água).

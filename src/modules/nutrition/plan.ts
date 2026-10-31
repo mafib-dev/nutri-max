@@ -4,11 +4,13 @@
 // equivalentes, lista de compras e orientações.
 import type { Meal } from './foods'
 import type { Goal, Targets } from './targets'
+import { clinicalGuidance, DEFAULT_ANAMNESIS, withAnamnesisDefaults, type Anamnesis } from './anamnesis'
 
 // ---------- Alimentos do plano ----------
 
 export type Role = 'protein' | 'carb' | 'legume' | 'veg' | 'salad' | 'fruit' | 'fat'
-type Tag = 'meat' | 'fish' | 'pork' | 'egg' | 'lactose' | 'gluten'
+/** processed = embutido (muito sódio); highGI = sobe a glicose rápido; acid = fruta ácida (refluxo). */
+type Tag = 'meat' | 'fish' | 'pork' | 'egg' | 'lactose' | 'gluten' | 'processed' | 'highGI' | 'acid'
 
 export interface PlanFood {
   /** id na tabela foods (TACO). */
@@ -63,15 +65,15 @@ export const PLAN_FOODS = {
   iogurte: food('taco-449', 'Iogurte natural desnatado', 41, 3.8, 5.8, 0.3, 0, ['lactose'], ['pote', 'potes', 170], false, undefined, { price: 1, quick: true }),
   ricota: food('taco-469', 'Ricota', 140, 12.6, 3.8, 8.1, 0, ['lactose'], ['fatia', 'fatias', 30], false, undefined, { price: 2, quick: true }),
   minas: food('taco-461', 'Queijo minas frescal', 264, 17.4, 3.2, 20.2, 0, ['lactose'], ['fatia', 'fatias', 30], false, undefined, { price: 2, quick: true }),
-  presunto: food('taco-439', 'Presunto magro', 94, 14.3, 2.1, 2.7, 0, ['meat', 'pork'], ['fatia', 'fatias', 15], false, undefined, { price: 2, quick: true }),
+  presunto: food('taco-439', 'Presunto magro', 94, 14.3, 2.1, 2.7, 0, ['meat', 'pork', 'processed'], ['fatia', 'fatias', 15], false, undefined, { price: 2, quick: true }),
   soja: food('taco-582', 'Bebida de soja', 39, 2.4, 4.3, 1.6, 0.4, [], ['copo', 'copos', 200], false, undefined, { price: 2, quick: true }),
   // Carboidratos
-  arroz: food('taco-3', 'Arroz branco cozido', 128, 2.5, 28.1, 0.2, 1.6, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1 }),
+  arroz: food('taco-3', 'Arroz branco cozido', 128, 2.5, 28.1, 0.2, 1.6, ['highGI'], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1 }),
   integral: food('taco-1', 'Arroz integral cozido', 124, 2.6, 25.8, 1, 2.7, [], ['col. de sopa', 'col. de sopa', 25], false, undefined, { price: 1 }),
   batataDoce: food('taco-88', 'Batata-doce cozida', 77, 0.6, 18.4, 0.1, 2.2, [], ['pedaço médio', 'pedaços médios', 80]),
   mandioca: food('taco-129', 'Mandioca cozida', 125, 0.6, 30.1, 0.3, 1.6, [], ['pedaço médio', 'pedaços médios', 60], false, undefined, { price: 1 }),
-  batata: food('taco-91', 'Batata inglesa cozida', 52, 1.2, 11.9, 0, 1.3, [], ['batata média', 'batatas médias', 120], false, undefined, { price: 1 }),
-  paoFrances: food('taco-53', 'Pão francês', 300, 8, 58.6, 3.1, 2.3, ['gluten'], ['pão', 'pães', 50], true, undefined, { price: 1, quick: true }),
+  batata: food('taco-91', 'Batata inglesa cozida', 52, 1.2, 11.9, 0, 1.3, ['highGI'], ['batata média', 'batatas médias', 120], false, undefined, { price: 1 }),
+  paoFrances: food('taco-53', 'Pão francês', 300, 8, 58.6, 3.1, 2.3, ['gluten', 'highGI'], ['pão', 'pães', 50], true, undefined, { price: 1, quick: true }),
   paoIntegral: food('taco-52', 'Pão integral de forma', 253, 9.4, 49.9, 3.7, 6.9, ['gluten'], ['fatia', 'fatias', 25], true, undefined, { price: 2, quick: true }),
   aveia: food('taco-7', 'Aveia em flocos', 394, 13.9, 66.6, 8.5, 9.1, ['gluten'], ['col. de sopa', 'col. de sopa', 15], false, undefined, { price: 1, quick: true }),
   cuscuz: food('taco-533', 'Cuscuz de milho', 113, 2.2, 25.3, 0.7, 2.1, [], ['fatia média', 'fatias médias', 100], false, undefined, { price: 1, quick: true }),
@@ -88,7 +90,7 @@ export const PLAN_FOODS = {
   banana: food('taco-182', 'Banana prata', 98, 1.3, 26, 0.1, 2, [], ['banana', 'bananas', 70], true, 250, { price: 1, quick: true }),
   maca: food('taco-222', 'Maçã fuji', 56, 0.3, 15.2, 0, 1.3, [], ['maçã', 'maçãs', 130], true, 250, { price: 2, quick: true }),
   mamao: food('taco-226', 'Mamão papaia', 40, 0.5, 10.4, 0.1, 1, [], ['metade', 'metades', 150], false, 250, { price: 1, quick: true }),
-  laranja: food('taco-214', 'Laranja pera', 37, 1, 8.9, 0.1, 0.8, [], ['laranja', 'laranjas', 140], true, 250, { price: 1, quick: true }),
+  laranja: food('taco-214', 'Laranja pera', 37, 1, 8.9, 0.1, 0.8, ['acid'], ['laranja', 'laranjas', 140], true, 250, { price: 1, quick: true }),
   morango: food('taco-239', 'Morango', 30, 0.9, 6.8, 0.3, 1.7, [], ['morango', 'morangos', 12], false, 250, { price: 3, quick: true }),
   manga: food('taco-231', 'Manga', 51, 0.9, 12.8, 0.2, 2.1, [], ['fatia', 'fatias', 80], false, 250, { price: 2, quick: true }),
   // Gorduras boas
@@ -110,9 +112,9 @@ export const PLAN_FOODS = {
   beterraba: food('taco-97', 'Beterraba cozida', 32, 1.3, 7.2, 0.1, 1.9, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
   chuchu: food('taco-112', 'Chuchu cozido', 19, 0.4, 4.8, 0, 1, [], ['col. de servir', 'col. de servir', 40], false, undefined, { price: 1 }),
   goiaba: food('taco-200', 'Goiaba', 54, 1.1, 13, 0.4, 6.2, [], ['goiaba', 'goiabas', 150], true, 300, { price: 1, quick: true }),
-  mexerica: food('taco-238', 'Mexerica', 37, 0.7, 9.3, 0.1, 2.7, [], ['mexerica', 'mexericas', 130], true, 260, { price: 1, quick: true }),
-  melancia: food('taco-235', 'Melancia', 33, 0.9, 8.1, 0, 0.1, [], ['fatia média', 'fatias médias', 200], false, 400, { price: 1, quick: true }),
-  abacaxi: food('taco-164', 'Abacaxi', 48, 0.9, 12.3, 0.1, 1, [], ['fatia', 'fatias', 75], false, 250, { price: 2, quick: true }),
+  mexerica: food('taco-238', 'Mexerica', 37, 0.7, 9.3, 0.1, 2.7, ['acid'], ['mexerica', 'mexericas', 130], true, 260, { price: 1, quick: true }),
+  melancia: food('taco-235', 'Melancia', 33, 0.9, 8.1, 0, 0.1, ['highGI'], ['fatia média', 'fatias médias', 200], false, 400, { price: 1, quick: true }),
+  abacaxi: food('taco-164', 'Abacaxi', 48, 0.9, 12.3, 0.1, 1, ['acid'], ['fatia', 'fatias', 75], false, 250, { price: 2, quick: true }),
   uva: food('taco-256', 'Uva itália', 53, 0.7, 13.6, 0.2, 0.9, [], ['cacho pequeno', 'cachos pequenos', 100], false, 250, { price: 2, quick: true }),
   caju: food('taco-588', 'Castanha de caju', 570, 18.5, 29.1, 46.3, 3.7, [], ['unidade', 'unidades', 2.5], false, undefined, { price: 3, quick: true }),
   linhaca: food('taco-594', 'Linhaça', 495, 14.1, 43.3, 32.3, 33.5, [], ['col. de sopa', 'col. de sopa', 10], false, undefined, { price: 1, quick: true }),
@@ -149,6 +151,8 @@ export interface PlanSettings {
   lunchAt: 'home' | 'lunchbox' | 'restaurant'
   cooking: 'little' | 'some' | 'plenty'
   budget: 'low' | 'medium' | 'high'
+  /** Anamnese: rotina, treino, hábitos, saúde e suplementos. */
+  anamnesis: Anamnesis
 }
 
 /** Whey cadastrado pela pessoa (valores por 100 g do rótulo). */
@@ -178,11 +182,12 @@ export const DEFAULT_SETTINGS: PlanSettings = {
   lunchAt: 'home',
   cooking: 'some',
   budget: 'medium',
+  anamnesis: DEFAULT_ANAMNESIS,
 }
 
 /** Consultas salvas antes de existirem as perguntas novas ganham os valores padrão. */
 export function withDefaults(s: Partial<PlanSettings>): PlanSettings {
-  return { ...DEFAULT_SETTINGS, ...s, whey: { ...DEFAULT_SETTINGS.whey, ...s.whey } }
+  return { ...DEFAULT_SETTINGS, ...s, whey: { ...DEFAULT_SETTINGS.whey, ...s.whey }, anamnesis: withAnamnesisDefaults(s.anamnesis) }
 }
 
 /** O que fica salvo no perfil: a consulta e as trocas que a pessoa escolheu. */
@@ -190,6 +195,8 @@ export interface SavedPlan {
   settings: PlanSettings
   /** slot → papel → alimento escolhido no lugar do sugerido. */
   picks: Record<string, Partial<Record<Role, FoodKey>>>
+  /** Quando a consulta foi feita (ISO), para marcar o retorno. */
+  consultedAt?: string
 }
 
 function allowed(key: FoodKey, s: PlanSettings) {
@@ -200,6 +207,8 @@ function allowed(key: FoodKey, s: PlanSettings) {
   if (s.noGluten && f.tags.includes('gluten')) return false
   if (s.noFish && f.tags.includes('fish')) return false
   if (s.noPork && f.tags.includes('pork')) return false
+  // Pressão alta: embutido sai do cardápio.
+  if (s.anamnesis.conditions.includes('hypertension') && f.tags.includes('processed')) return false
   return true
 }
 
@@ -272,6 +281,14 @@ const SHARE: Record<SlotKind, { p: number; c: number; f: number }> = {
   supper: { p: 0.7, c: 0.15, f: 0.8 },
 }
 
+/** Treinos longos ou de resistência pedem mais carboidrato antes e depois. */
+function shareOf(kind: SlotKind, s: PlanSettings) {
+  const t = s.anamnesis.training
+  const long = t.minutes >= 90 || t.type === 'endurance' || t.type === 'sport'
+  const base = SHARE[kind]
+  return long && (kind === 'pre_workout' || kind === 'post_workout') ? { ...base, c: base.c * 1.4 } : base
+}
+
 const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + (m || 0)
@@ -292,13 +309,20 @@ export interface Slot {
 /**
  * Quais refeições e em que horário. Café 30 min depois de acordar, jantar umas 3 h antes
  * de dormir, almoço perto do meio-dia e os lanches no meio. Com horário de treino, o lanche
- * mais perto antes dele vira pré-treino (1 h antes) e a refeição seguinte, pós-treino.
+ * mais perto antes dele vira pré-treino (1 h antes) e o lanche logo depois do fim do treino,
+ * pós-treino. Quem treina logo ao acordar toma o café depois do treino, como pós-treino, e
+ * (se não treina em jejum) come um pré-treino leve antes.
  */
 export function buildSlots(s: PlanSettings): Slot[] {
-  let wake = toMin(s.wake)
+  const wake = toMin(s.wake)
   let sleep = toMin(s.sleep)
   if (sleep <= wake) sleep += 1440
-  const breakfast = wake + 30
+  const t = withAnamnesisDefaults(s.anamnesis).training
+  let train = s.train ? toMin(s.train) : null
+  if (train != null && train < wake) train += 1440
+  const trainEnd = train != null ? train + t.minutes : null
+  const early = train != null && train - wake < 120
+  const breakfast = early ? trainEnd! + 30 : wake + 30
   const dinner = Math.max(sleep - 180, breakfast + 9 * 60)
   const lunch = Math.min(Math.max(12.5 * 60, breakfast + 4 * 60), dinner - 5 * 60)
   const kinds: [SlotKind, number][] = [
@@ -311,26 +335,28 @@ export function buildSlots(s: PlanSettings): Slot[] {
   if (s.meals >= 6) kinds.push(['supper', Math.min(sleep - 45, dinner + 150)])
   kinds.sort((a, b) => a[1] - b[1])
 
-  if (s.train) {
-    let train = toMin(s.train)
-    if (train < wake) train += 1440
+  if (train != null && early) {
+    if (!t.fasted) kinds.unshift(['pre_workout', Math.max(wake + 10, train - 40)])
+  } else if (train != null) {
     const isSnack = (k: SlotKind) => k === 'morning_snack' || k === 'afternoon_snack' || k === 'supper'
     // Pré-treino: o lanche que vem antes do treino e mais perto dele; sem lanche, nada muda.
-    const before = kinds.filter(([k, t]) => isSnack(k) && t <= train).at(-1)
-    if (before && train - before[1] <= 4 * 60) {
+    const before = kinds.filter(([k, at]) => isSnack(k) && at <= train).at(-1)
+    if (before && train - before[1] <= 4 * 60 && !t.fasted) {
       before[0] = 'pre_workout'
       before[1] = Math.max(before[1], train - 60)
     }
-    // Pós-treino: um lanche logo depois vira pós-treino; se a próxima for almoço ou jantar, ela já cumpre o papel.
-    const after = kinds.find(([, t]) => t > train)
-    if (after && isSnack(after[0]) && after[1] - train <= 3 * 60) {
+    // Pós-treino: um lanche logo depois do fim do treino vira pós-treino; se a próxima for
+    // almoço ou jantar, ela já cumpre o papel.
+    const after = kinds.find(([, at]) => at > trainEnd!)
+    if (after && isSnack(after[0]) && after[1] - trainEnd! <= 3 * 60) {
       after[0] = 'post_workout'
-      after[1] = Math.min(after[1], train + 90)
+      after[1] = Math.min(after[1], trainEnd! + 30)
     }
     kinds.sort((a, b) => a[1] - b[1])
   }
 
-  return kinds.map(([kind, t], i) => ({ key: `${i}-${kind}`, kind, label: KIND[kind].label, time: toHHMM(t), log: KIND[kind].log }))
+  const label = (kind: SlotKind) => (kind === 'breakfast' && early ? 'Café da manhã (pós-treino)' : kind === 'pre_workout' && early ? 'Pré-treino leve' : KIND[kind].label)
+  return kinds.map(([kind, at], i) => ({ key: `${i}-${kind}`, kind, label: label(kind), time: toHHMM(at), log: KIND[kind].log }))
 }
 
 // ---------- Montagem e gramas ----------
@@ -454,7 +480,9 @@ export function optionsFor(kind: SlotKind, role: Role, s: PlanSettings): FoodKey
   const score = (k: FoodKey) => {
     const f: PlanFood = F[k]
     const price = s.budget === 'low' ? (f.price ?? 2) * 10 : s.budget === 'medium' && f.price === 3 ? 10 : 0
-    return (s.likes.includes(k) ? 0 : 100) + price + (s.cooking === 'little' && !f.quick ? 5 : 0)
+    // Diabetes: o que sobe a glicose rápido vai para o fim; refluxo: frutas ácidas também.
+    const health = (s.anamnesis.conditions.includes('diabetes') && f.tags.includes('highGI') ? 30 : 0) + (s.anamnesis.conditions.includes('reflux') && f.tags.includes('acid') ? 30 : 0)
+    return (s.likes.includes(k) ? 0 : 100) + price + health + (s.cooking === 'little' && !f.quick ? 5 : 0)
   }
   return (OPTIONS[GROUP[kind]][role] ?? [])
     .filter(k => allowed(k, s))
@@ -500,7 +528,7 @@ export function buildPlan(targets: Targets, saved: SavedPlan, only?: Set<string>
   // Com `only`, as metas se dividem só entre essas refeições (o resto do dia); a variação dos
   // alimentos continua contada no dia inteiro para não mudar o que já estava no plano.
   const slots = only ? all.filter(sl => only.has(sl.key)) : all
-  const weight = (m: 'p' | 'c' | 'f') => slots.reduce((a, sl) => a + SHARE[sl.kind][m], 0)
+  const weight = (m: 'p' | 'c' | 'f') => slots.reduce((a, sl) => a + shareOf(sl.kind, s)[m], 0)
   const W = { p: weight('p'), c: weight('c'), f: weight('f') }
   let mainCount = 0
   let snackCount = 0
@@ -512,7 +540,7 @@ export function buildPlan(targets: Targets, saved: SavedPlan, only?: Set<string>
   }
 
   const meals = slots.map((slot): PlanMeal => {
-    const share = SHARE[slot.kind]
+    const share = shareOf(slot.kind, s)
     const target = { p: (targets.protein_g * share.p) / W.p, c: (targets.carbs_g * share.c) / W.c, f: (targets.fat_g * share.f) / W.f }
     const picks = saved.picks[slot.key] ?? {}
     const group = GROUP[slot.kind]
@@ -659,10 +687,11 @@ export function guidance(opts: { goal: Goal | null; targets: Targets; weightKg: 
       text: `São ${targets.protein_g} g por dia${perKg ? ` (${fmt1(perKg)} g por kg)` : ''}, cerca de ${perMeal} g em cada refeição. Dividir assim ajuda mais o músculo do que concentrar tudo no almoço e no jantar.`,
     },
   ]
-  if (settings.train) {
+  const a = withAnamnesisDefaults(settings.anamnesis)
+  if (settings.train && !a.training.fasted) {
     g.push({
       title: 'Comida em volta do treino',
-      text: `Treinando às ${settings.train}, coma o pré-treino 1 hora antes: carboidrato fácil de digerir e um pouco de proteína, com pouca gordura. Depois, faça uma refeição com proteína e carboidrato em até 2 horas.`,
+      text: `Treinando às ${settings.train}, coma o pré-treino 30 a 60 minutos antes: carboidrato fácil de digerir e um pouco de proteína, com pouca gordura e pouca fibra para não pesar. Depois, faça uma refeição com proteína (20 a 40 g) e carboidrato em até 2 horas.`,
     })
   }
   g.push({
@@ -684,6 +713,7 @@ export function guidance(opts: { goal: Goal | null; targets: Targets; weightKg: 
       text: 'Se for difícil comer tudo, use alimentos densos: azeite na comida, castanhas, aveia e pasta de amendoim. Não pule refeições: o superávit precisa acontecer todo dia.',
     })
   }
+  g.push(...clinicalGuidance(a, { train: settings.train, sleep: settings.sleep, waterMl: opts.waterMl }))
   g.push({
     title: 'Pesagem e ajuste',
     text: 'Pese-se 2 a 3 vezes por semana, de manhã, em jejum e depois do banheiro. O app recalcula as metas com o seu peso. Se em 2 a 3 semanas a média de 7 dias não andar no ritmo escolhido, ajuste a meta em 100 a 150 kcal.',

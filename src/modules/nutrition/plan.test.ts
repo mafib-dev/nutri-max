@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
 import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
+import { DEFAULT_ANAMNESIS } from './anamnesis'
 
 const targets = { kcal: 2400, protein_g: 160, carbs_g: 290, fat_g: 67 }
 const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { settings: { ...DEFAULT_SETTINGS, ...s }, picks: {} })
@@ -28,11 +29,21 @@ describe('buildSlots', () => {
     ])
   })
 
-  it('treino cedo vira pós-treino no lanche da manhã', () => {
-    const kinds = buildSlots({ ...DEFAULT_SETTINGS, wake: '06:00', train: '07:00', meals: 6 }).map(s => s.kind)
-    expect(kinds).toContain('post_workout')
-    expect(kinds).toContain('supper')
-    expect(kinds).toHaveLength(6)
+  it('treino logo ao acordar: pré-treino leve e o café vira pós-treino', () => {
+    const slots = buildSlots({ ...DEFAULT_SETTINGS, wake: '06:00', train: '07:00', meals: 6 })
+    expect(slots.slice(0, 2).map(s => [s.time, s.label])).toEqual([
+      ['06:15', 'Pré-treino leve'],
+      ['08:30', 'Café da manhã (pós-treino)'],
+    ])
+    expect(slots.map(s => s.kind)).toContain('supper')
+    expect(slots).toHaveLength(7)
+  })
+
+  it('em jejum, sem pré-treino; treino longo empurra o pós-treino', () => {
+    const fasted = buildSlots({ ...DEFAULT_SETTINGS, wake: '06:00', train: '07:00', anamnesis: { ...DEFAULT_ANAMNESIS, training: { type: 'strength', minutes: 60, fasted: true } } })
+    expect(fasted.map(s => s.kind)).not.toContain('pre_workout')
+    const long = buildSlots({ ...DEFAULT_SETTINGS, wake: '06:00', train: '14:00', meals: 6, anamnesis: { ...DEFAULT_ANAMNESIS, training: { type: 'endurance', minutes: 90, fasted: false } } })
+    expect(long.find(s => s.kind === 'post_workout')!.time).toBe('16:00')
   })
 
   it('3 refeições sem treino', () => {
@@ -86,7 +97,7 @@ describe('buildPlan', () => {
 
 describe('consulta completa', () => {
   it('whey entra no pós-treino no lugar da proteína', () => {
-    const p = plan({ meals: 6, wake: '06:00', train: '07:00', whey: { scoops: 1, scoopG: 30, when: 'post', food: null } })
+    const p = plan({ meals: 6, wake: '06:00', train: '14:00', whey: { scoops: 1, scoopG: 30, when: 'post', food: null } })
     const post = p.meals.find(m => m.kind === 'post_workout')!
     expect(post.items.find(i => i.role === 'protein')!.key).toBe('whey')
     expect(post.items.filter(i => i.role === 'protein')).toHaveLength(1)

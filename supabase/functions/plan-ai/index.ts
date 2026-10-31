@@ -5,6 +5,7 @@
 // Segredo necessário: ANTHROPIC_API_KEY (Supabase → Edge Functions → Secrets).
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { askClaude } from '../_shared/claude.ts'
+import { NUTRITIONIST } from '../_shared/persona.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -14,8 +15,9 @@ const CORS = {
 
 const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
-const SYSTEM = `Você é um nutricionista esportivo brasileiro ajustando o plano alimentar de um aluno de musculação.
-O app já calcula as calorias, os macros e as gramas de cada alimento: você NÃO define quantidades.
+const SYSTEM = `${NUTRITIONIST}
+
+Aqui você ajusta o plano alimentar da pessoa. O app já calcula as calorias, os macros e as gramas de cada alimento: você NÃO define quantidades.
 Seu trabalho é adaptar o plano à realidade da pessoa a partir do pedido dela: o que ela encontra onde mora,
 o que gosta, rotina, orçamento, suplementos e horários.
 
@@ -28,9 +30,14 @@ Você pode mudar:
   Não mude meals, horários ou dieta sem pedido explícito.
 - "trocas": lista de { "slot", "papel", "alimento" } usando SOMENTE um slot do cardápio e um alimento que esteja em
   opcoes[papel] daquele slot.
-- "dicas": até 4 orientações práticas e específicas para a situação da pessoa ({ "titulo", "texto" }, texto com até
+- "dicas": até 5 orientações práticas e específicas para a situação da pessoa ({ "titulo", "texto" }, texto com até
   3 frases, em português do Brasil, sem prometer resultados e sem tratar doenças).
 - "resumo": 1 a 2 frases dizendo o que você mudou e por quê.
+
+Quando o pedido começar com "Consulta inicial", você acabou de ler a anamnese: preencha likes com os alimentos do
+catálogo que aparecem nos hábitos dela, dislikes com o que ela não come ou não pode (alergias, intolerâncias,
+restrições), faça trocas que deixem cada refeição parecida com o que ela já come, escreva até 5 dicas que só quem leu
+a anamnese escreveria (horários, treino, saúde, hábitos a mudar) e use o resumo como o seu parecer em 2 a 3 frases.
 
 Responda APENAS com um objeto JSON, sem texto antes ou depois: { "resumo": string, "consulta": {...}, "trocas": [...], "dicas": [...] }.
 Use somente chaves de alimentos que existam em "alimentos".`

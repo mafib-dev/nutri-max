@@ -23,7 +23,8 @@ import {
   type Role,
 } from '../modules/nutrition/plan'
 import { loadPlanContext } from '../modules/nutrition/planContext'
-import { ageOn, fiberTarget, waterTarget } from '../modules/nutrition/targets'
+import { assessment, CONDITIONS, nextReturn, redFlags, supplementProtocol, type Anamnesis, type Condition, type HabitMeal } from '../modules/nutrition/anamnesis'
+import { ageOn, fiberTarget, waterTarget, type NutritionProfile } from '../modules/nutrition/targets'
 import { useAsync } from '../lib/useAsync'
 import { useDataChanged } from '../lib/events'
 
@@ -47,6 +48,7 @@ export default function MealPlan() {
   const powders = useAsync(async () => (await loadFoods()).filter(f => f.source === 'custom' && /whey|prote[ií]na|isolad|albumina/i.test(f.name)))
   const [editing, setEditing] = useState(false)
   const [saved, setSaved] = useState<SavedPlanWithAi | null>(null)
+  const [reading, setReading] = useState<'idle' | 'busy' | string>('idle')
 
   const data = ctx.data
   const raw = (saved ?? data?.saved ?? null) as SavedPlanWithAi | null
@@ -88,14 +90,27 @@ export default function MealPlan() {
           powders={(powders.data ?? []).map(f => ({ id: f.id, name: f.name, kcal: f.kcal, p: f.protein_g, c: f.carbs_g, f: f.fat_g }))}
           onCancel={current ? () => setEditing(false) : undefined}
           onSave={async settings => {
-            await persist({ ...current, settings, picks: {} })
+            const next: SavedPlanWithAi = { ...current, settings, picks: {}, consultedAt: new Date().toISOString() }
+            await persist(next)
             setEditing(false)
+            // Como no consultório: depois da anamnese, o nutricionista personaliza o cardápio e dá o parecer.
+            setReading('busy')
+            try {
+              const request = 'Consulta inicial: leia a anamnese e personalize o plano.'
+              const result = await askPlanAi(request, aiContext(next, buildPlan(targets, next), targets, data.profile.goal))
+              await persist(applyAiResult(next, result, request).saved)
+              setReading('idle')
+            } catch (err) {
+              setReading(`O plano está pronto, mas a análise personalizada falhou: ${(err as Error).message}`)
+            }
           }}
         />
       )}
 
       {data && targets && current && plan && !editing && (
         <PlanView
+          reading={reading}
+          profile={data.profile}
           plan={plan}
           saved={current}
           targets={targets}
@@ -135,11 +150,34 @@ function Choice<T extends string | number>({ value, options, onChange }: { value
 
 const short = (k: FoodKey) => PLAN_FOODS[k].name.replace(/ (grelhad[oa]|cozid[oa]|assad[oa])$/, '')
 
+const STEPS = [
+  ['Rotina', 'Como é o seu dia, para encaixar as refeições nos seus horários.'],
+  ['Treino', 'Com o horário, a duração e o tipo do treino eu ajusto o pré e o pós-treino.'],
+  ['O que você come hoje', 'Conte como é um dia normal seu. Eu parto do que você já come para o plano ser fácil de seguir.'],
+  ['Preferências', 'O que você gosta, tem em casa, não come ou não pode comer.'],
+  ['Saúde', 'Algumas condições mudam o que eu recomendo. Fica só no seu perfil.'],
+  ['Suplementos', 'O que você já usa, para entrar no plano com dose e horário.'],
+] as const
+
+const HABITS: [HabitMeal, string, string][] = [
+  ['breakfast', 'Café da manhã', 'Ex.: café com leite e pão com manteiga'],
+  ['lunch', 'Almoço', 'Ex.: arroz, feijão, frango e salada'],
+  ['snacks', 'Lanches', 'Ex.: fruta à tarde, bolacha no trabalho'],
+  ['dinner', 'Jantar', 'Ex.: o mesmo do almoço ou lanche'],
+  ['night', 'Depois do jantar e beliscos', 'Ex.: doce depois do jantar, pipoca vendo série'],
+]
+
 function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSettings; powders: WheyFood[]; onSave: (s: PlanSettings) => Promise<void>; onCancel?: () => void }) {
   const [s, setS] = useState<PlanSettings>(initial)
+  const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const set = <K extends keyof PlanSettings>(k: K, v: PlanSettings[K]) => setS(prev => ({ ...prev, [k]: v }))
+  const an = s.anamnesis
+  const setA = <K extends keyof Anamnesis>(k: K, v: Anamnesis[K]) => setS(prev => ({ ...prev, anamnesis: { ...prev.anamnesis, [k]: v } }))
+  const setTraining = (patch: Partial<Anamnesis['training']>) => setA('training', { ...an.training, ...patch })
+  const setSupp = (patch: Partial<Anamnesis['supplements']>) => setA('supplements', { ...an.supplements, ...patch })
+  const toggleCondition = (c: Condition) => setA('conditions', an.conditions.includes(c) ? an.conditions.filter(x => x !== c) : [...an.conditions, c])
   // Cada toque: neutro → tenho em casa → não como → neutro.
   const cycle = (k: FoodKey) =>
     setS(prev =>
@@ -150,8 +188,15 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
           : { ...prev, likes: [...prev.likes, k] },
     )
   const setWhey = (patch: Partial<PlanSettings['whey']>) => setS(prev => ({ ...prev, whey: { ...prev.whey, ...patch } }))
+  const flags = redFlags(an)
+  const last = step === STEPS.length - 1
 
-  async function submit() {
+  async function next() {
+    if (!last) {
+      setStep(n => n + 1)
+      window.scrollTo({ top: 0 })
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -163,93 +208,233 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
   }
 
   return (
-    <div className="stack form-width">
-      <p className="muted small" style={{ margin: 0 }}>
-        Responda como numa consulta. Com isso eu monto o cardápio do dia com as suas metas, os horários e as trocas possíveis.
-      </p>
+    <div className="stack form-width consult">
+      <div className="onb-top">
+        <span className="muted small">
+          Consulta · {step + 1} de {STEPS.length}
+        </span>
+        {onCancel && (
+          <button type="button" className="btn ghost small" onClick={onCancel}>
+            Cancelar
+          </button>
+        )}
+      </div>
+      <div className="onb-progress" aria-hidden="true">
+        <span style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+      </div>
+      <div>
+        <h2>{STEPS[step][0]}</h2>
+        <p className="muted small" style={{ margin: '4px 0 0' }}>
+          {STEPS[step][1]}
+        </p>
+      </div>
 
-      <div className="field">
-        <span>Quantas refeições por dia?</span>
-        <div className="chips wrap">
-          {([3, 4, 5, 6] as const).map(n => (
-            <button key={n} type="button" className={`chip ${s.meals === n ? 'on' : ''}`} onClick={() => set('meals', n)}>
-              {n}
-            </button>
+      {step === 0 && (
+        <>
+          <div className="field">
+            <span>Trabalho ou estudo</span>
+            <Choice
+              value={an.work}
+              options={[
+                ['office', 'Escritório'],
+                ['remote', 'Home office'],
+                ['physical', 'Trabalho físico'],
+                ['shift', 'Turnos ou plantão'],
+                ['student', 'Estudante'],
+                ['none', 'Não trabalho fora'],
+              ]}
+              onChange={v => setA('work', v)}
+            />
+          </div>
+          <div className="grid-2">
+            <label className="field">
+              <span>Acordo às</span>
+              <input className="input" type="time" value={s.wake} onChange={e => set('wake', e.target.value || '07:00')} />
+            </label>
+            <label className="field">
+              <span>Durmo às</span>
+              <input className="input" type="time" value={s.sleep} onChange={e => set('sleep', e.target.value || '23:00')} />
+            </label>
+          </div>
+          <div className="field">
+            <span>Quantas refeições por dia você consegue fazer?</span>
+            <Choice value={s.meals} options={[[3, '3'], [4, '4'], [5, '5'], [6, '6']]} onChange={v => set('meals', v)} />
+            <small className="muted tiny">5 costuma funcionar bem para quem treina: fica mais fácil bater a proteína e não passar fome.</small>
+          </div>
+          <div className="field">
+            <span>Onde você almoça?</span>
+            <Choice value={s.lunchAt} options={[['home', 'Em casa'], ['lunchbox', 'Marmita'], ['restaurant', 'Restaurante']]} onChange={v => set('lunchAt', v)} />
+          </div>
+          <div className="field">
+            <span>Tempo para cozinhar</span>
+            <Choice value={s.cooking} options={[['little', 'Pouco'], ['some', 'Médio'], ['plenty', 'Bastante']]} onChange={v => set('cooking', v)} />
+          </div>
+          <div className="field">
+            <span>Orçamento com comida</span>
+            <Choice value={s.budget} options={[['low', 'Apertado'], ['medium', 'Médio'], ['high', 'Folgado']]} onChange={v => set('budget', v)} />
+          </div>
+        </>
+      )}
+
+      {step === 1 && (
+        <>
+          <div className="field">
+            <span>Treino às</span>
+            <div className="row" style={{ gap: 8 }}>
+              <input className="input" type="time" value={s.train ?? ''} disabled={s.train == null} onChange={e => set('train', e.target.value || null)} aria-label="Horário do treino" />
+              <label className="row small" style={{ gap: 6, whiteSpace: 'nowrap' }}>
+                <input type="checkbox" checked={s.train == null} onChange={e => set('train', e.target.checked ? null : '18:00')} /> Varia ou não treino
+              </label>
+            </div>
+          </div>
+          <div className="field">
+            <span>Tipo de treino</span>
+            <Choice
+              value={an.training.type}
+              options={[
+                ['strength', 'Musculação'],
+                ['mixed', 'Musculação e aeróbico'],
+                ['endurance', 'Corrida, bike ou natação'],
+                ['sport', 'Esporte ou luta'],
+              ]}
+              onChange={v => setTraining({ type: v })}
+            />
+          </div>
+          <div className="field">
+            <span>Quanto tempo dura</span>
+            <Choice value={an.training.minutes} options={[[45, '45 min'], [60, '1 hora'], [90, '1h30'], [120, '2 horas ou mais']]} onChange={v => setTraining({ minutes: v })} />
+          </div>
+          {s.train && (
+            <label className="row small" style={{ gap: 8 }}>
+              <input type="checkbox" checked={an.training.fasted} onChange={e => setTraining({ fasted: e.target.checked })} /> Prefiro treinar em jejum
+            </label>
+          )}
+          <small className="muted tiny">
+            O pré-treino fica 30 a 60 minutos antes e o pós-treino logo depois do fim. Se você treina logo ao acordar, o café da manhã vira o pós-treino.
+          </small>
+        </>
+      )}
+
+      {step === 2 && (
+        <>
+          {HABITS.map(([k, label, hint]) => (
+            <label key={k} className="field">
+              <span>{label}</span>
+              <textarea className="input" rows={2} maxLength={300} placeholder={hint} value={an.habits[k]} onChange={e => setA('habits', { ...an.habits, [k]: e.target.value })} />
+            </label>
           ))}
-        </div>
-        <small className="muted tiny">5 costuma funcionar bem para quem treina: fica mais fácil bater a proteína e não passar fome.</small>
-      </div>
+          <div className="field">
+            <span>Quando bate mais fome?</span>
+            <Choice value={an.hungerPeak} options={[['morning', 'De manhã'], ['afternoon', 'À tarde'], ['night', 'À noite'], ['none', 'Sem horário']]} onChange={v => setA('hungerPeak', v)} />
+          </div>
+          <div className="grid-2">
+            <label className="field">
+              <span>Água por dia (litros)</span>
+              <input className="input" inputMode="decimal" placeholder="Não sei" value={an.waterL == null ? '' : String(an.waterL).replace('.', ',')} onChange={e => { const n = Number(e.target.value.replace(',', '.')); setA('waterL', e.target.value.trim() && Number.isFinite(n) ? Math.min(n, 8) : null) }} />
+            </label>
+            <div className="field">
+              <span>Doces</span>
+              <Choice value={an.sweets} options={[['rare', 'Raramente'], ['some', 'Às vezes'], ['daily', 'Todo dia']]} onChange={v => setA('sweets', v)} />
+            </div>
+          </div>
+          <div className="field">
+            <span>Bebida alcoólica</span>
+            <Choice value={an.alcohol} options={[['never', 'Não bebo'], ['rare', 'Raramente'], ['weekend', 'Fins de semana'], ['often', 'Várias vezes por semana']]} onChange={v => setA('alcohol', v)} />
+          </div>
+        </>
+      )}
 
-      <div className="grid-2">
-        <label className="field">
-          <span>Acordo às</span>
-          <input className="input" type="time" value={s.wake} onChange={e => set('wake', e.target.value || '07:00')} />
-        </label>
-        <label className="field">
-          <span>Durmo às</span>
-          <input className="input" type="time" value={s.sleep} onChange={e => set('sleep', e.target.value || '23:00')} />
-        </label>
-      </div>
-
-      <div className="field">
-        <span>Treino às</span>
-        <div className="row" style={{ gap: 8 }}>
-          <input className="input" type="time" value={s.train ?? ''} disabled={s.train == null} onChange={e => set('train', e.target.value || null)} aria-label="Horário do treino" />
-          <label className="row small" style={{ gap: 6, whiteSpace: 'nowrap' }}>
-            <input type="checkbox" checked={s.train == null} onChange={e => set('train', e.target.checked ? null : '18:00')} /> Varia
+      {step === 3 && (
+        <>
+          <div className="field">
+            <span>Alimentação</span>
+            <Choice value={s.diet} options={[['omnivore', 'Como de tudo'], ['vegetarian', 'Vegetariana']]} onChange={v => set('diet', v)} />
+          </div>
+          <div className="field">
+            <span>Restrições</span>
+            <div className="chips wrap">
+              {(
+                [
+                  ['noLactose', 'Sem lactose'],
+                  ['noGluten', 'Sem glúten'],
+                  ['noFish', 'Sem peixe'],
+                  ['noPork', 'Sem carne de porco'],
+                ] as const
+              ).map(([k, label]) => (
+                <button key={k} type="button" className={`chip ${s[k] ? 'on' : ''}`} aria-pressed={s[k]} onClick={() => set(k, !s[k])}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="field">
+            <span>Alergias ou intolerâncias</span>
+            <input className="input" maxLength={200} placeholder="Ex.: camarão, amendoim. Deixe vazio se não tiver." value={an.allergies} onChange={e => setA('allergies', e.target.value)} />
           </label>
-        </div>
-        <small className="muted tiny">Com horário fixo, o lanche antes vira pré-treino e o depois, pós-treino.</small>
-      </div>
+          <div className="field">
+            <span>O que você tem e o que não come</span>
+            <small className="muted tiny">
+              Toque uma vez: <strong style={{ color: 'var(--accent)' }}>costumo ter</strong> (entra primeiro no plano). Duas vezes: <s>não como</s>. Três vezes: volta ao normal.
+            </small>
+            {FOOD_GROUPS.map(([title, keys]) => (
+              <div key={title} className="stack" style={{ gap: 6, marginTop: 6 }}>
+                <span className="muted tiny">{title}</span>
+                <div className="chips wrap">
+                  {keys.map(k => {
+                    const state = s.likes.includes(k) ? 'on' : s.dislikes.includes(k) ? 'off' : ''
+                    return (
+                      <button key={k} type="button" className={`chip ${state}`} aria-label={`${short(k)}${state === 'on' ? ', costumo ter' : state === 'off' ? ', não como' : ''}`} onClick={() => cycle(k)}>
+                        {short(k)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-      <div className="field">
-        <span>Alimentação</span>
-        <div className="chips wrap">
-          {(
-            [
-              ['omnivore', 'Como de tudo'],
-              ['vegetarian', 'Vegetariana'],
-            ] as const
-          ).map(([v, label]) => (
-            <button key={v} type="button" className={`chip ${s.diet === v ? 'on' : ''}`} onClick={() => set('diet', v)}>
-              {label}
-            </button>
+      {step === 4 && (
+        <>
+          <div className="field">
+            <span>Você tem ou já teve</span>
+            <div className="chips wrap">
+              {CONDITIONS.map(([c, label]) => (
+                <button key={c} type="button" className={`chip ${an.conditions.includes(c) ? 'on' : ''}`} aria-pressed={an.conditions.includes(c)} onClick={() => toggleCondition(c)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <label className="field">
+            <span>Remédios de uso contínuo</span>
+            <input className="input" maxLength={200} placeholder="Ex.: levotiroxina 50 mcg, metformina. Deixe vazio se não usar." value={an.medications} onChange={e => setA('medications', e.target.value)} />
+          </label>
+          <div className="field">
+            <span>Intestino</span>
+            <Choice value={an.bowel} options={[['regular', 'Funciona bem'], ['constipated', 'Preso'], ['loose', 'Solto']]} onChange={v => setA('bowel', v)} />
+          </div>
+          <div className="field">
+            <span>Sono</span>
+            <Choice value={an.sleepQuality} options={[['good', 'Durmo bem'], ['ok', 'Mais ou menos'], ['bad', 'Durmo mal']]} onChange={v => setA('sleepQuality', v)} />
+          </div>
+          {flags.map(f => (
+            <div key={f.title} className="card alert-card">
+              <strong>{f.title}</strong>
+              <p className="small" style={{ margin: '4px 0 0' }}>
+                {f.text}
+              </p>
+            </div>
           ))}
-        </div>
-      </div>
+        </>
+      )}
 
-      <div className="field">
-        <span>Restrições</span>
-        <div className="chips wrap">
-          {(
-            [
-              ['noLactose', 'Sem lactose'],
-              ['noGluten', 'Sem glúten'],
-              ['noFish', 'Sem peixe'],
-              ['noPork', 'Sem carne de porco'],
-            ] as const
-          ).map(([k, label]) => (
-            <button key={k} type="button" className={`chip ${s[k] ? 'on' : ''}`} aria-pressed={s[k]} onClick={() => set(k, !s[k])}>
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="field">
-        <span>Suplementos</span>
+      {step === 5 && (
         <div className="card stack" style={{ gap: 12 }}>
           <div className="field">
             <span>Whey por dia</span>
-            <Choice
-              value={s.whey.scoops}
-              options={[
-                [0, 'Não tomo'],
-                [1, '1 scoop'],
-                [2, '2 scoops'],
-              ]}
-              onChange={v => setWhey({ scoops: v })}
-            />
+            <Choice value={s.whey.scoops} options={[[0, 'Não tomo'], [1, '1 scoop'], [2, '2 scoops']]} onChange={v => setWhey({ scoops: v })} />
           </div>
           {s.whey.scoops > 0 && (
             <>
@@ -269,11 +454,7 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
               </div>
               <div className="field">
                 <span>Qual whey</span>
-                <select
-                  className="input"
-                  value={s.whey.food?.id ?? ''}
-                  onChange={e => setWhey({ food: powders.find(p => p.id === e.target.value) ?? null })}
-                >
+                <select className="input" value={s.whey.food?.id ?? ''} onChange={e => setWhey({ food: powders.find(p => p.id === e.target.value) ?? null })}>
                   <option value="">Whey concentrado comum (24 g de proteína a cada 30 g)</option>
                   {powders.map(p => (
                     <option key={p.id} value={p.id}>
@@ -285,82 +466,37 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
               </div>
             </>
           )}
-          <label className="row small" style={{ gap: 8 }}>
-            <input type="checkbox" checked={s.creatine} onChange={e => set('creatine', e.target.checked)} /> Tomo creatina
+          {(
+            [
+              ['creatine', 'Creatina'],
+              ['caffeine', 'Cafeína em cápsula'],
+              ['preworkout', 'Pré-treino'],
+              ['multivitamin', 'Multivitamínico'],
+              ['omega3', 'Ômega-3'],
+            ] as const
+          ).map(([k, label]) => (
+            <label key={k} className="row small" style={{ gap: 8 }}>
+              <input type="checkbox" checked={k === 'creatine' ? s.creatine : an.supplements[k]} onChange={e => (k === 'creatine' ? set('creatine', e.target.checked) : setSupp({ [k]: e.target.checked }))} /> {label}
+            </label>
+          ))}
+          <label className="field">
+            <span>Outro suplemento</span>
+            <input className="input" maxLength={100} placeholder="Ex.: hipercalórico, vitamina D" value={an.supplements.other} onChange={e => setSupp({ other: e.target.value })} />
           </label>
         </div>
-      </div>
-
-      <div className="field">
-        <span>Onde você almoça?</span>
-        <Choice
-          value={s.lunchAt}
-          options={[
-            ['home', 'Em casa'],
-            ['lunchbox', 'Marmita'],
-            ['restaurant', 'Restaurante'],
-          ]}
-          onChange={v => set('lunchAt', v)}
-        />
-      </div>
-
-      <div className="field">
-        <span>Tempo para cozinhar</span>
-        <Choice
-          value={s.cooking}
-          options={[
-            ['little', 'Pouco'],
-            ['some', 'Médio'],
-            ['plenty', 'Bastante'],
-          ]}
-          onChange={v => set('cooking', v)}
-        />
-      </div>
-
-      <div className="field">
-        <span>Orçamento com comida</span>
-        <Choice
-          value={s.budget}
-          options={[
-            ['low', 'Apertado'],
-            ['medium', 'Médio'],
-            ['high', 'Folgado'],
-          ]}
-          onChange={v => set('budget', v)}
-        />
-      </div>
-
-      <div className="field">
-        <span>O que você tem e o que não come</span>
-        <small className="muted tiny">
-          Toque uma vez: <strong style={{ color: 'var(--accent)' }}>costumo ter</strong> (entra primeiro no plano). Duas vezes: <s>não como</s>. Três vezes: volta ao normal.
-        </small>
-        {FOOD_GROUPS.map(([title, keys]) => (
-          <div key={title} className="stack" style={{ gap: 6, marginTop: 6 }}>
-            <span className="muted tiny">{title}</span>
-            <div className="chips wrap">
-              {keys.map(k => {
-                const state = s.likes.includes(k) ? 'on' : s.dislikes.includes(k) ? 'off' : ''
-                return (
-                  <button key={k} type="button" className={`chip ${state}`} aria-label={`${short(k)}${state === 'on' ? ', costumo ter' : state === 'off' ? ', não como' : ''}`} onClick={() => cycle(k)}>
-                    {short(k)}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
+      )}
 
       {error && <p className="error">{error}</p>}
-      <button type="button" className="btn primary big block" onClick={submit} disabled={busy}>
-        {busy ? 'Montando…' : 'Montar meu plano'}
-      </button>
-      {onCancel && (
-        <button type="button" className="btn ghost block" onClick={onCancel}>
-          Cancelar
+      <div className="row" style={{ gap: 8 }}>
+        {step > 0 && (
+          <button type="button" className="btn" onClick={() => setStep(n => n - 1)} disabled={busy}>
+            Voltar
+          </button>
+        )}
+        <button type="button" className="btn primary big grow" onClick={next} disabled={busy}>
+          {last ? (busy ? 'Montando seu plano…' : 'Finalizar consulta') : 'Continuar'}
         </button>
-      )}
+      </div>
     </div>
   )
 }
@@ -368,6 +504,8 @@ function Consultation({ initial, powders, onSave, onCancel }: { initial: PlanSet
 // ---------- Plano ----------
 
 function PlanView(props: {
+  reading: string
+  profile: NutritionProfile
   plan: ReturnType<typeof buildPlan>
   saved: SavedPlanWithAi
   targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
@@ -379,7 +517,14 @@ function PlanView(props: {
   onAi: (next: SavedPlanWithAi) => Promise<void>
 }) {
   const { plan, targets, saved } = props
-  const [tab, setTab] = useState<'menu' | 'tips' | 'shop'>('menu')
+  const [tab, setTab] = useState<'menu' | 'eval' | 'tips' | 'shop'>('menu')
+  const an = saved.settings.anamnesis
+  const flags = redFlags(an)
+  const evaluation = assessment(props.profile, props.weight, targets)
+  const back = nextReturn(saved.consultedAt, props.goal)
+  const [now] = useState(() => Date.now())
+  const due = !!back && back.getTime() <= now
+  const supplements = supplementProtocol(an, { weightKg: props.weight, whey: saved.settings.whey, creatine: saved.settings.creatine, train: saved.settings.train, sleep: saved.settings.sleep })
   const t = plan.total
   const lowProtein = t.p < targets.protein_g * 0.9
   const tips = guidance({ goal: props.goal, targets, weightKg: props.weight, waterMl: waterTarget(props.weight), fiberG: props.fiberGoal, settings: saved.settings, meals: plan.meals.length })
@@ -403,18 +548,35 @@ function PlanView(props: {
               Com as suas restrições, a proteína ficou abaixo da meta. Um scoop de whey ou proteína de soja num lanche resolve.
             </p>
           )}
+          {back && (
+            <div className={`small ${due ? 'return-due' : 'muted'}`}>
+              {due ? 'Está na hora do retorno: refaça a consulta com o peso de hoje.' : `Retorno em ${back.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}.`}
+            </div>
+          )}
           <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={props.onRedo}>
-            Refazer a consulta
+            {due ? 'Fazer o retorno' : 'Refazer a consulta'}
           </button>
         </div>
 
         <AiAdjust plan={plan} saved={saved} targets={targets} goal={props.goal} onApply={props.onAi} onDone={() => setTab('menu')} />
       </div>
 
+      {flags.map(f => (
+        <div key={f.title} className="card alert-card">
+          <strong>{f.title}</strong>
+          <p className="small" style={{ margin: '4px 0 0' }}>
+            {f.text}
+          </p>
+        </div>
+      ))}
+      {props.reading === 'busy' && <p className="card small reading">Lendo a sua anamnese e personalizando o cardápio…</p>}
+      {props.reading !== 'busy' && props.reading !== 'idle' && <p className="error small">{props.reading}</p>}
+
       <div className="chips" role="tablist">
         {(
           [
             ['menu', 'Cardápio'],
+            ['eval', 'Avaliação'],
             ['tips', 'Orientações'],
             ['shop', 'Lista de compras'],
           ] as const
@@ -433,6 +595,54 @@ function PlanView(props: {
       {tab === 'menu' && (
         <div className="grid-list">
           {plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
+        </div>
+      )}
+
+      {tab === 'eval' && (
+        <div className="stack">
+          {saved.ai?.summary && saved.ai.history?.some(h => h.request.startsWith('Consulta inicial')) && (
+            <div className="card ai-tip">
+              <span className="eyebrow">Parecer</span>
+              <p className="small" style={{ margin: '6px 0 0', lineHeight: 1.5 }}>
+                {saved.ai.history.find(h => h.request.startsWith('Consulta inicial'))!.summary}
+              </p>
+            </div>
+          )}
+          {evaluation ? (
+            <div className="card eval-grid">
+              <EvalRow label="IMC" value={`${evaluation.bmi.toLocaleString('pt-BR')} kg/m²`} hint={evaluation.bmiClass} />
+              <EvalRow label="Metabolismo basal" value={`${fmt(evaluation.bmr)} kcal`} hint="Mifflin-St Jeor" />
+              <EvalRow label="Gasto do dia" value={`${fmt(evaluation.tdee)} kcal`} hint="basal × nível de atividade" />
+              <EvalRow
+                label="Sua meta"
+                value={`${fmt(targets.kcal)} kcal`}
+                hint={Math.abs(evaluation.balance) < 50 ? 'igual ao gasto' : `${evaluation.balance < 0 ? 'déficit' : 'superávit'} de ${fmt(Math.abs(evaluation.balance))} kcal`}
+              />
+              <EvalRow label="Proteína" value={`${targets.protein_g} g`} hint={`${evaluation.perKg.protein.toLocaleString('pt-BR')} g/kg · ${evaluation.percent.protein}% das kcal`} />
+              <EvalRow label="Carboidrato" value={`${targets.carbs_g} g`} hint={`${evaluation.perKg.carbs.toLocaleString('pt-BR')} g/kg · ${evaluation.percent.carbs}% das kcal`} />
+              <EvalRow label="Gordura" value={`${targets.fat_g} g`} hint={`${evaluation.perKg.fat.toLocaleString('pt-BR')} g/kg · ${evaluation.percent.fat}% das kcal`} />
+              <EvalRow label="Água" value={`${(waterTarget(props.weight) / 1000).toLocaleString('pt-BR')} L`} hint="35 ml por kg" />
+            </div>
+          ) : (
+            <p className="muted small">Complete peso, altura, nascimento e nível de atividade no Perfil para ver a avaliação.</p>
+          )}
+          {supplements.length > 0 && (
+            <div className="card">
+              <h3 style={{ fontSize: '1.05rem' }}>Suplementos</h3>
+              <div className="supp-list">
+                {supplements.map(r => (
+                  <div key={r.name} className="supp-row">
+                    <strong className="small">{r.name}</strong>
+                    <span className="small">{r.dose}</span>
+                    <span className="muted tiny">{r.when}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="muted tiny">
+            Os números saem da equação de Mifflin-St Jeor com o seu nível de atividade e o objetivo. No retorno, o peso dos últimos 15 dias mostra se a meta precisa de ajuste.
+          </p>
         </div>
       )}
 
@@ -475,6 +685,16 @@ function PlanView(props: {
         </div>
       )}
     </>
+  )
+}
+
+function EvalRow({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div className="eval-row">
+      <span className="label">{label}</span>
+      <strong>{value}</strong>
+      <span className="muted tiny">{hint}</span>
+    </div>
   )
 }
 

@@ -99,5 +99,5 @@ export function applyAiResult(saved: SavedPlanWithAi, result: unknown, request: 
   const summary = text(r.resumo, 600) || 'Plano ajustado.'
   const history = [{ at: now.toISOString(), request: request.slice(0, 500), summary }, ...(saved.ai?.history ?? [])].slice(0, 10)
 
-  return { saved: { settings: s, picks, ai: { tips, summary, history } }, discarded }
+  return { saved: { settings: s, picks, consultedAt: saved.consultedAt, ai: { tips, summary, history } }, discarded }
 }
