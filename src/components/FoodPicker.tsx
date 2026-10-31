@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { Icon, Modal } from './ui'
+import { Kcal, Macros } from './FoodRow'
 import BarcodeScanner from './BarcodeScanner'
 import { formatGrams, macrosFor, MEALS, searchFoods, type Food, type Meal } from '../modules/nutrition/foods'
 import { addLog, addQuickLog, createFood, deleteSavedMeal, findFoodByBarcode, listSavedMeals, loadFoods, logSavedMeal, recentFoodIds, type NewFood, type SavedMeal } from '../modules/nutrition/data'
@@ -177,7 +178,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
             <Icon.search />
             <input className="input" autoFocus placeholder="Buscar: arroz, frango, banana…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Buscar alimento" />
           </label>
-          <div className="grid-2">
+          <div className="grid-2 picker-actions">
             <button type="button" className="btn" onClick={() => setMode('scan')}>
               <Icon.barcode /> Código de barras
             </button>
@@ -198,10 +199,9 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
                     <div key={m.id} className="list-item saved-meal">
                       <button type="button" className="grow" onClick={() => logSaved(m)} disabled={!!mealBusy}>
                         <div className="title ellipsis">{m.name}</div>
-                        <div className="muted tiny ellipsis">
-                          {mealBusy === m.id ? 'Lançando…' : `${kcal} kcal · ${m.items.map(i => i.name.split(',')[0]).join(', ')}`}
-                        </div>
+                        <div className="muted tiny ellipsis">{mealBusy === m.id ? 'Lançando…' : m.items.map(i => i.name.split(',')[0]).join(', ')}</div>
                       </button>
+                      <Kcal value={kcal} />
                       <button type="button" className="btn ghost icon" aria-label={`Apagar ${m.name}`} onClick={() => removeSaved(m)}>
                         <Icon.close />
                       </button>
@@ -240,13 +240,21 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
     <div className="list">
       {foods.map(f => (
         <button key={f.id} type="button" className="list-item" onClick={() => onPick(f)}>
-          <div className="grow">
+          <div className="grow stack" style={{ gap: 6, minWidth: 0 }}>
             <div className="title clamp-2">{f.name}</div>
-            <div className="muted tiny">
-              {f.source === 'custom' && f.serving_g ? `${f.serving_name || 'porção'} (${formatGrams(f.serving_g)}) · ` : ''}
-              {Math.round(f.kcal)} kcal · {f.protein_g.toLocaleString('pt-BR')} g prot. em 100 g
-            </div>
+            <Macros p={f.protein_g} c={f.carbs_g} f={f.fat_g} />
+            {f.source === 'custom' && f.serving_g ? (
+              <div className="muted tiny">
+                {f.serving_name || 'porção'}: {formatGrams(f.serving_g)}
+              </div>
+            ) : null}
           </div>
+          <span className="food-kcal per100">
+            <span>
+              <b>{Math.round(f.kcal)}</b> kcal
+            </span>
+            <small>em 100 g</small>
+          </span>
           <span className="chev">›</span>
         </button>
       ))}

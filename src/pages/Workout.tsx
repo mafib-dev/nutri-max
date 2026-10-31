@@ -337,22 +337,31 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
   const last = entry.last
   return (
     <div className="ex-meta">
-      <span>
-        Meta <b>{cfg.sets} × {reps}</b>
-      </span>
-      <span>
-        Descanso <b>{formatClock(entry.restSec)}</b>
-      </span>
-      {exercise && (
-        <span>
-          <b>{exercise.primary_muscles.map(muscleName).join(', ')}</b> · {equipmentName(exercise.equipment)}
+      <div className="meta-chips">
+        <span className="meta-chip">
+          Meta <b>{cfg.sets} × {reps}</b>
         </span>
-      )}
+        <span className="meta-chip">
+          Descanso <b>{formatClock(entry.restSec)}</b>
+        </span>
+        {[...new Set(exercise?.primary_muscles.map(muscleName))].map(m => (
+          <span key={m} className="meta-chip">
+            {m}
+          </span>
+        ))}
+        {exercise && <span className="meta-chip">{equipmentName(exercise.equipment)}</span>}
+      </div>
       {last && (
-        <span style={{ flexBasis: '100%' }}>
-          Última vez ({new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}):{' '}
-          <b>{last.sets.map(s => `${kg(s.w)}×${s.r}`).join(' · ')}</b>
-        </span>
+        <div className="small">
+          <span className="muted">Última vez, {new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
+          <div className="set-pills">
+            {last.sets.map((s, i) => (
+              <span key={i} className="set-pill">
+                {kg(s.w)} kg × {s.r}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

@@ -77,8 +77,10 @@ export default function ExerciseBrowser({ onPick, pickLabel = 'Adicionar à roti
           </button>
         ))}
       </div>
-      <div className="spread">
-        <span className="muted small">{results.length} exercícios</span>
+      <div className="spread" style={{ flexWrap: 'wrap', gap: 8 }}>
+        <span className="muted small" style={{ whiteSpace: 'nowrap' }}>
+          {results.length} exercícios
+        </span>
         <label className="row small muted">
           <input type="checkbox" checked={showAll} onChange={e => setShowAll(e.target.checked)} />
           Alongamento, cardio e strongman

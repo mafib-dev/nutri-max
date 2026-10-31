@@ -2517,3 +2517,65 @@ a.panel-row:hover {
 .set-pill small {
   color: var(--muted);
 }
+
+/* Etiquetas de informação: meta, descanso, músculos, aparelho. */
+.meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.meta-chip b {
+  color: var(--text);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.ex-meta {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.food-kcal.per100 {
+  display: grid;
+  justify-items: end;
+  line-height: 1.2;
+}
+
+.food-kcal.per100 small {
+  font-size: 0.6875rem;
+}
+
+.picker-actions .btn {
+  white-space: nowrap;
+  padding-inline: 10px;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .routine-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list-item .macros {
+  gap: 4px;
+}
+
+.list-item .macro {
+  padding: 2px 7px;
+  gap: 4px;
+  font-size: 0.6875rem;
+}

@@ -125,11 +125,24 @@ export default function Routines() {
                     {onDay(r, today) ? ' · hoje' : ''}
                   </span>
                   <div className="title">{r.name}</div>
-                  <div className="muted small">
-                    {s?.exercises ? `${s.exercises} exercícios · ${s.sets} séries` : 'Nenhum exercício ainda'}
-                    {last ? ` · último em ${formatDay(last)}` : ''}
-                  </div>
-                  {s && s.muscles.length > 0 && <div className="muted small ellipsis">{s.muscles.slice(0, 4).join(', ')}</div>}
+                  {s?.exercises ? (
+                    <div className="meta-chips" style={{ marginTop: 8 }}>
+                      <span className="meta-chip">
+                        <b>{s.exercises}</b> exercícios
+                      </span>
+                      <span className="meta-chip">
+                        <b>{s.sets}</b> séries
+                      </span>
+                      {[...new Set(s.muscles)].slice(0, 3).map(m => (
+                        <span key={m} className="meta-chip">
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="muted small">Nenhum exercício ainda</div>
+                  )}
+                  {last && <div className="muted tiny" style={{ marginTop: 8 }}>Último treino: {formatDay(last)}</div>}
                 </Link>
                 <div className="row" style={{ gap: 6 }}>
                   <button type="button" className={`btn small${onDay(r, today) ? ' primary' : ''}`} onClick={() => start(r.id)} disabled={starting === r.id || !s?.exercises}>
