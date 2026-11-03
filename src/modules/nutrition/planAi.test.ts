@@ -33,6 +33,8 @@ describe('applyAiResult', () => {
     expect(next.settings.lunchAt).toBe('restaurant')
     expect(next.settings.whey.scoops).toBe(1)
     expect(next.picks[lunch].protein).toBe('carneMoida')
+    // Preferências são da pessoa: a IA não mexe nelas.
+    expect(next.settings.likes).toEqual(saved.settings.likes)
     expect(next.ai!.tips).toEqual([{ title: 'Feira', text: 'Compre frutas da estação.' }])
     expect(next.ai!.history[0]).toEqual({ at: '2026-10-29T12:00:00.000Z', request: 'Não acho peixe aqui', summary: 'Tirei o peixe e coloquei carne moída no almoço.' })
   })
@@ -50,8 +52,8 @@ describe('applyAiResult', () => {
       },
       'x',
     )
-    expect(discarded).toBe(6)
-    expect(next.settings.likes).toEqual(['ovo'])
+    expect(discarded).toBe(5)
+    expect(next.settings.likes).toEqual(saved.settings.likes)
     expect(next.settings.wake).toBe('07:00')
     expect(next.settings.meals).toBe(5)
     expect(next.picks).toEqual({})
@@ -77,10 +79,11 @@ describe('applyAiResult', () => {
     }
   })
 
-  it('"não como" vence "costumo ter" e o histórico guarda 10', () => {
-    let s: ReturnType<typeof applyAiResult>['saved'] = saved
-    for (let i = 0; i < 12; i++) s = applyAiResult(s, { consulta: { likes: ['ovo'], dislikes: ['ovo'] } }, `pedido ${i}`).saved
-    expect(s.settings.likes).toEqual([])
+  it('não mexe nas preferências e o histórico guarda 10', () => {
+    let s: ReturnType<typeof applyAiResult>['saved'] = { ...saved, settings: { ...saved.settings, likes: ['frango'], dislikes: ['ovo'] } }
+    for (let i = 0; i < 12; i++) s = applyAiResult(s, { consulta: { likes: ['ovo'], dislikes: ['frango'] } }, `pedido ${i}`).saved
+    expect(s.settings.likes).toEqual(['frango'])
+    expect(s.settings.dislikes).toEqual(['ovo'])
     expect(s.ai!.history).toHaveLength(10)
     expect(s.ai!.history[0].request).toBe('pedido 11')
   })

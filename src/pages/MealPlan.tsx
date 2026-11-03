@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Download } from 'lucide-react'
-import { Icon, TabPill } from '../components/ui'
+import { AnimatePresence, motion } from 'motion/react'
+import { Clock3, Download, ThumbsDown, ThumbsUp } from 'lucide-react'
+import { Icon, Modal, TabPill } from '../components/ui'
 import { GroupDot, GroupLegend, Kcal, MacroTiles, Macros } from '../components/FoodRow'
-import { askPlanAi, loadFirstName, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
+import { askFoodReview, askPlanAi, loadFirstName, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
   buildPlan,
@@ -18,12 +19,17 @@ import {
   portion,
   shoppingList,
   substitutes,
+  timeWarnings,
   type FoodKey,
   type PlanItem,
   type PlanMeal,
   type PlanSettings,
   type Role,
+  type SlotKind,
 } from '../modules/nutrition/plan'
+import { parseReview, PREFERENCE_FOODS, reviewContext, roleLabel, swapPreference, togglePreference, VERDICT, type FoodReview, type SavedWithReviews } from '../modules/nutrition/preferences'
+import { searchFoods } from '../modules/nutrition/foods'
+import { listItem } from '../lib/motion'
 import { loadPlanContext } from '../modules/nutrition/planContext'
 import { MORE_FOODS, MORE_OPTIONS, RECIPES } from '../modules/nutrition/planFoodsMore'
 import { assessment, CONDITIONS, nextReturn, redFlags, supplementProtocol, type Anamnesis, type Condition, type HabitMeal } from '../modules/nutrition/anamnesis'
@@ -43,6 +49,8 @@ const ROLE_LABEL: Record<Role, string> = {
   fat: 'Gordura boa',
 }
 
+type Plan = SavedPlanWithAi & SavedWithReviews
+
 export default function MealPlan() {
   const navigate = useNavigate()
   const ctx = useAsync(loadPlanContext)
@@ -54,15 +62,23 @@ export default function MealPlan() {
   const [reading, setReading] = useState<'idle' | 'busy' | string>('idle')
 
   const data = ctx.data
-  const raw = (saved ?? data?.saved ?? null) as SavedPlanWithAi | null
+  const raw = (saved ?? data?.saved ?? null) as Plan | null
   const current = raw ? { ...raw, settings: withDefaults(raw.settings) } : null
   const targets = data?.targets ?? null
   const plan = targets && current ? buildPlan(targets, current) : null
 
   async function persist(next: SavedPlanWithAi) {
+    latest.current = next
     setSaved(next)
     await saveMealPlan(next)
   }
+
+  // Mudanças que chegam depois de uma espera (a avaliação da IA) partem sempre do plano mais novo.
+  const latest = useRef<Plan | null>(null)
+  useEffect(() => {
+    latest.current = current
+  })
+  const update = (fn: (p: Plan) => Plan) => (latest.current ? persist(fn(latest.current)) : Promise.resolve())
 
   return (
     <main className="page stack">
@@ -123,6 +139,8 @@ export default function MealPlan() {
           onPick={(slot, role, key) => persist({ ...current, picks: { ...current.picks, [slot]: { ...current.picks[slot], [role]: key } } })}
           onRedo={() => setEditing(true)}
           onAi={persist}
+          onUpdate={update}
+          onTime={(kind, time) => update(p => ({ ...p, settings: { ...p.settings, times: { ...p.settings.times, [kind]: time ?? undefined } } }))}
         />
       )}
     </main>
@@ -525,7 +543,7 @@ function PlanView(props: {
   reading: string
   profile: NutritionProfile
   plan: ReturnType<typeof buildPlan>
-  saved: SavedPlanWithAi
+  saved: Plan
   targets: { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
   goal: Parameters<typeof guidance>[0]['goal']
   weight: number | null
@@ -533,9 +551,12 @@ function PlanView(props: {
   onPick: (slot: string, role: Role, key: FoodKey) => Promise<void>
   onRedo: () => void
   onAi: (next: SavedPlanWithAi) => Promise<void>
+  onUpdate: (fn: (p: Plan) => Plan) => Promise<void>
+  onTime: (kind: SlotKind, time: string | null) => Promise<void>
 }) {
   const { plan, targets, saved } = props
-  const [tab, setTab] = useState<'menu' | 'eval' | 'tips' | 'shop'>('menu')
+  const [tab, setTab] = useState<'menu' | 'prefs' | 'eval' | 'tips' | 'shop'>('menu')
+  const warnings = timeWarnings(saved.settings)
   const an = saved.settings.anamnesis
   const flags = redFlags(an)
   const evaluation = assessment(props.profile, props.weight, targets)
@@ -618,9 +639,10 @@ function PlanView(props: {
         {(
           [
             ['menu', 'Cardápio'],
+            ['prefs', 'Preferências'],
             ['eval', 'Avaliação'],
             ['tips', 'Orientações'],
-            ['shop', 'Lista de compras'],
+            ['shop', 'Compras'],
           ] as const
         ).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} className={`chip ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>
@@ -638,9 +660,13 @@ function PlanView(props: {
       {tab === 'menu' && <GroupLegend />}
       {tab === 'menu' && (
         <div className="grid-list">
-          {plan.meals.map(m => <PlanMealCard key={m.key} meal={m} settings={saved.settings} onPick={(role, key) => props.onPick(m.key, role, key)} />)}
+          {plan.meals.map(m => (
+            <PlanMealCard key={m.key} meal={m} settings={saved.settings} warning={warnings[m.key]} onTime={t => props.onTime(m.kind, t)} onPick={(role, key) => props.onPick(m.key, role, key)} />
+          ))}
         </div>
       )}
+
+      {tab === 'prefs' && <Preferences saved={saved} targets={targets} goal={props.goal} onUpdate={props.onUpdate} />}
 
       {tab === 'eval' && (
         <div className="stack">
@@ -775,8 +801,10 @@ function EvalRow({ label, value, hint }: { label: string; value: string; hint: s
   )
 }
 
-function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: PlanSettings; onPick: (role: Role, key: FoodKey) => Promise<void> }) {
+function PlanMealCard({ meal, settings, warning, onTime, onPick }: { meal: PlanMeal; settings: PlanSettings; warning?: string; onTime: (time: string | null) => Promise<void>; onPick: (role: Role, key: FoodKey) => Promise<void> }) {
   const [open, setOpen] = useState<FoodKey | null>(null)
+  const [timing, setTiming] = useState(false)
+  const manual = meal.time !== meal.auto
   const [state, setState] = useState<'idle' | 'busy' | 'done' | string>('idle')
 
   async function log() {
@@ -793,7 +821,11 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
     <section className="card meal plan-meal">
       <div className="spread">
         <div>
-          <span className="eyebrow">{meal.time}</span>
+          <button type="button" className={`time-edit${manual ? ' manual' : ''}`} onClick={() => setTiming(true)} aria-label={`Horário de ${meal.label}: ${meal.time}. Mudar`}>
+            <Clock3 size={13} strokeWidth={2} aria-hidden="true" />
+            {meal.time}
+            {manual && <span className="time-tag">seu horário</span>}
+          </button>
           <h3>{meal.label}</h3>
         </div>
         <button type="button" className="btn small" onClick={log} disabled={state === 'busy' || state === 'done'}>
@@ -814,6 +846,11 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
         </span>
         <Macros p={meal.total.p} c={meal.total.c} f={meal.total.f} />
       </div>
+      {warning && (
+        <p className="tiny warn" style={{ margin: '8px 0 0' }}>
+          {warning}
+        </p>
+      )}
       {meal.note && <p className="muted tiny" style={{ margin: '8px 0 0' }}>{meal.note}</p>}
       {state !== 'idle' && state !== 'busy' && state !== 'done' && <p className="error small">{state}</p>}
       <div className="meal-items">
@@ -821,6 +858,7 @@ function PlanMealCard({ meal, settings, onPick }: { meal: PlanMeal; settings: Pl
           <PlanItemRow key={`${i.role}-${i.key}`} item={i} kind={meal.kind} settings={settings} open={open === i.key} onToggle={() => setOpen(o => (o === i.key ? null : i.key))} onPick={k => onPick(i.role, k).then(() => setOpen(null))} />
         ))}
       </div>
+      {timing && <TimeEditor meal={meal} onClose={() => setTiming(false)} onSave={t => onTime(t).then(() => setTiming(false))} />}
     </section>
   )
 }
@@ -937,5 +975,206 @@ function AiAdjust(props: { plan: ReturnType<typeof buildPlan>; saved: SavedPlanW
         </p>
       )}
     </section>
+  )
+}
+
+// ---------- Horário na mão ----------
+
+function TimeEditor({ meal, onClose, onSave }: { meal: PlanMeal; onClose: () => void; onSave: (time: string | null) => Promise<void> }) {
+  const [time, setTime] = useState(meal.time)
+  const [busy, setBusy] = useState(false)
+  const save = async (t: string | null) => {
+    setBusy(true)
+    await onSave(t).catch(() => setBusy(false))
+  }
+  return (
+    <Modal
+      title={`Horário: ${meal.label}`}
+      onClose={onClose}
+      footer={
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            Cancelar
+          </button>
+          <button type="button" className="btn primary" disabled={busy || !/^\d{2}:\d{2}$/.test(time)} onClick={() => save(time === meal.auto ? null : time)}>
+            {busy ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+      }
+    >
+      <div className="stack" style={{ gap: 12 }}>
+        <input className="input big-input time-input" type="time" step={300} value={time} onChange={e => setTime(e.target.value)} aria-label="Horário" autoFocus />
+        <p className="muted small" style={{ margin: 0 }}>
+          Pela regra do plano seria <b>{meal.auto}</b>. As porções não mudam, só a hora em que a refeição aparece no dia e nos lembretes.
+        </p>
+        {meal.time !== meal.auto && (
+          <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} disabled={busy} onClick={() => save(null)}>
+            Voltar ao horário automático ({meal.auto})
+          </button>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ---------- Preferências ----------
+
+const PREF_LIST = PREFERENCE_FOODS.map(k => ({ key: k, name: PLAN_FOODS[k].name, source: 'taco' as const }))
+
+function Preferences(props: { saved: Plan; targets: Parameters<typeof reviewContext>[2]; goal: Parameters<typeof reviewContext>[3]; onUpdate: (fn: (p: Plan) => Plan) => Promise<void> }) {
+  const { saved } = props
+  const s = saved.settings
+  const [query, setQuery] = useState('')
+  const [pending, setPending] = useState<Partial<Record<FoodKey, 'busy' | string>>>({})
+  const results = useMemo(() => (query.trim() ? searchFoods(PREF_LIST, query, 30) : []), [query])
+
+  // A IA só avalia e sugere; a lista muda apenas pelos botões da pessoa.
+  async function review(key: FoodKey) {
+    setPending(p => ({ ...p, [key]: 'busy' }))
+    try {
+      const result = await askFoodReview(reviewContext(key, saved, props.targets, props.goal))
+      const r = parseReview(result, key, s)
+      if (!r) throw new Error('A resposta da IA veio incompleta.')
+      await props.onUpdate(p => ({ ...p, reviews: { ...p.reviews, [key]: r } }))
+      setPending(p => ({ ...p, [key]: undefined }))
+    } catch (err) {
+      setPending(p => ({ ...p, [key]: (err as Error).message }))
+    }
+  }
+
+  async function toggle(key: FoodKey, list: 'likes' | 'dislikes') {
+    const adding = !s[list].includes(key)
+    await props.onUpdate(p => ({ ...p, settings: togglePreference(p.settings, key, list) }))
+    if (adding && list === 'likes' && !saved.reviews?.[key]) review(key)
+  }
+
+  const row = (key: FoodKey) => {
+    const f = PLAN_FOODS[key]
+    const like = s.likes.includes(key)
+    const dislike = s.dislikes.includes(key)
+    return (
+      <div className="pref-actions">
+        <button type="button" className={`pref-btn${like ? ' on' : ''}`} aria-pressed={like} aria-label={`Quero ${f.name}`} onClick={() => toggle(key, 'likes')}>
+          <ThumbsUp size={16} strokeWidth={1.9} aria-hidden="true" />
+        </button>
+        <button type="button" className={`pref-btn no${dislike ? ' on' : ''}`} aria-pressed={dislike} aria-label={`Não quero ${f.name}`} onClick={() => toggle(key, 'dislikes')}>
+          <ThumbsDown size={16} strokeWidth={1.9} aria-hidden="true" />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="stack">
+      <p className="muted small" style={{ margin: 0 }}>
+        Escolha na tabela do plano o que você quer e o que não quer. O que você quer entra primeiro no cardápio; o que não quer sai. A IA avalia cada escolha e avisa se algo não combina com você, mas só você muda a lista.
+      </p>
+      <label className="search">
+        <Icon.search />
+        <input className="input" placeholder={`Buscar entre ${PREF_LIST.length} alimentos`} value={query} onChange={e => setQuery(e.target.value)} />
+      </label>
+      {query.trim() && (
+        <div className="panel">
+          {results.length === 0 && <p className="panel-row muted small" style={{ margin: 0 }}>Nada com "{query}" na tabela do plano.</p>}
+          {results.map(({ key }) => (
+            <div key={key} className="panel-row pref-row">
+              <span className="food-main">
+                <span className="food-name">{PLAN_FOODS[key].name}</span>
+                <span className="food-detail">
+                  {roleLabel(key)} · {fmt(PLAN_FOODS[key].kcal)} kcal em 100 g
+                </span>
+              </span>
+              {row(key)}
+            </div>
+          ))}
+        </div>
+      )}
+
+      <section className="stack" style={{ gap: 8 }}>
+        <div className="spread">
+          <h3 style={{ margin: 0 }}>Quero no plano</h3>
+          <span className="muted small">{s.likes.length}</span>
+        </div>
+        {s.likes.length === 0 ? (
+          <p className="muted small" style={{ margin: 0 }}>Nada marcado ainda. Busque um alimento acima e toque no polegar para cima.</p>
+        ) : (
+          <div className="panel">
+            <AnimatePresence initial={false}>
+              {s.likes.map(key => (
+                <motion.div key={key} className="panel-row pref-item" {...listItem}>
+                  <div className="pref-row">
+                    <span className="food-main">
+                      <span className="food-name">{PLAN_FOODS[key].name}</span>
+                      <span className="food-detail">{roleLabel(key)}</span>
+                    </span>
+                    {row(key)}
+                  </div>
+                  <ReviewNote review={saved.reviews?.[key]} state={pending[key]} onRetry={() => review(key)} onSwap={to => props.onUpdate(p => swapPreference(p, key, to)).then(() => {
+                      if (!saved.reviews?.[to]) review(to)
+                    })} />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </section>
+
+      <section className="stack" style={{ gap: 8 }}>
+        <div className="spread">
+          <h3 style={{ margin: 0 }}>Não quero</h3>
+          <span className="muted small">{s.dislikes.length}</span>
+        </div>
+        {s.dislikes.length === 0 ? (
+          <p className="muted small" style={{ margin: 0 }}>Nada marcado. O que você não come ou não encontra fica fora do cardápio e das trocas.</p>
+        ) : (
+          <div className="chips wrap">
+            {s.dislikes.map(key => (
+              <button key={key} type="button" className="chip dislike-chip" onClick={() => toggle(key, 'dislikes')} aria-label={`Tirar ${PLAN_FOODS[key].name} de "não quero"`}>
+                {PLAN_FOODS[key].name} <Icon.close />
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+function ReviewNote({ review, state, onRetry, onSwap }: { review?: FoodReview; state?: 'busy' | string; onRetry: () => void; onSwap: (to: FoodKey) => void }) {
+  if (state === 'busy') return <p className="review-note busy">A IA está avaliando…</p>
+  if (state)
+    return (
+      <p className="review-note error-note">
+        Não deu para avaliar: {state}{' '}
+        <button type="button" className="link-btn" onClick={onRetry}>
+          Tentar de novo
+        </button>
+      </p>
+    )
+  if (!review)
+    return (
+      <p className="review-note">
+        <button type="button" className="link-btn" onClick={onRetry}>
+          Pedir a avaliação da IA
+        </button>
+      </p>
+    )
+  const v = VERDICT[review.verdict]
+  return (
+    <div className={`review-note ${v.tone}`}>
+      <span>
+        <b>{v.label}.</b> {review.reason}
+      </span>
+      {review.suggestions.length > 0 && (
+        <span className="review-subs">
+          <span className="muted tiny">Trocar por:</span>
+          {review.suggestions.map(k => (
+            <button key={k} type="button" className="chip small-chip" onClick={() => onSwap(k)}>
+              {PLAN_FOODS[k].name}
+            </button>
+          ))}
+        </span>
+      )}
+    </div>
   )
 }

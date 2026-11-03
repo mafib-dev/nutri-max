@@ -61,15 +61,7 @@ export function applyAiResult(saved: SavedPlanWithAi, result: unknown, request: 
   if ('lunchAt' in patch) take(['home', 'lunchbox', 'restaurant'].includes(patch.lunchAt as string), () => (s.lunchAt = patch.lunchAt as PlanSettings['lunchAt']))
   if ('cooking' in patch) take(['little', 'some', 'plenty'].includes(patch.cooking as string), () => (s.cooking = patch.cooking as PlanSettings['cooking']))
   if ('budget' in patch) take(['low', 'medium', 'high'].includes(patch.budget as string), () => (s.budget = patch.budget as PlanSettings['budget']))
-  for (const k of ['likes', 'dislikes'] as const) {
-    if (!(k in patch)) continue
-    const list = Array.isArray(patch[k]) ? (patch[k] as unknown[]) : []
-    const valid = list.filter(isFoodKey)
-    discarded += list.length - valid.length + (Array.isArray(patch[k]) ? 0 : 1)
-    s[k] = [...new Set(valid)]
-  }
-  // Um alimento não pode estar nas duas listas: "não como" vence.
-  s.likes = s.likes.filter(k => !s.dislikes.includes(k))
+  // As preferências (likes e dislikes) são da pessoa: a IA comenta e sugere, mas não muda.
   const whey = (patch.whey && typeof patch.whey === 'object' ? patch.whey : {}) as Record<string, unknown>
   if ('scoops' in whey) take([0, 1, 2].includes(whey.scoops as number), () => (s.whey.scoops = whey.scoops as 0 | 1 | 2))
   if ('when' in whey) take(['post', 'breakfast', 'snack'].includes(whey.when as string), () => (s.whey.when = whey.when as PlanSettings['whey']['when']))

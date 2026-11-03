@@ -304,6 +304,16 @@ export async function logPlanMeal(date: string, meal: PlanMeal) {
   fail('Falha ao lançar a refeição do plano', error)
 }
 
+/** Pede à IA (função food-review) a avaliação de um alimento das preferências. Ela só opina. */
+export async function askFoodReview(context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('food-review', { body: { context } })
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
+}
+
 /** Pede à IA (função plan-ai no Supabase, que chama o Claude) um ajuste do plano. */
 export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
   const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })

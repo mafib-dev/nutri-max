@@ -119,6 +119,8 @@ export interface PlanSettings {
   budget: 'low' | 'medium' | 'high'
   /** Anamnese: rotina, treino, hábitos, saúde e suplementos. */
   anamnesis: Anamnesis
+  /** Horários que a pessoa escolheu na mão ("HH:MM" por refeição); o resto segue a regra. */
+  times: Partial<Record<SlotKind, string>>
 }
 
 /** Whey cadastrado pela pessoa (valores por 100 g do rótulo). */
@@ -149,11 +151,12 @@ export const DEFAULT_SETTINGS: PlanSettings = {
   cooking: 'some',
   budget: 'medium',
   anamnesis: DEFAULT_ANAMNESIS,
+  times: {},
 }
 
 /** Consultas salvas antes de existirem as perguntas novas ganham os valores padrão. */
 export function withDefaults(s: Partial<PlanSettings>): PlanSettings {
-  return { ...DEFAULT_SETTINGS, ...s, whey: { ...DEFAULT_SETTINGS.whey, ...s.whey }, anamnesis: withAnamnesisDefaults(s.anamnesis) }
+  return { ...DEFAULT_SETTINGS, ...s, whey: { ...DEFAULT_SETTINGS.whey, ...s.whey }, anamnesis: withAnamnesisDefaults(s.anamnesis), times: { ...s.times } }
 }
 
 /** O que fica salvo no perfil: a consulta e as trocas que a pessoa escolheu. */
@@ -278,6 +281,8 @@ export interface Slot {
   label: string
   time: string
   log: Meal
+  /** Horário pela regra; difere de time quando a pessoa escolheu outro. */
+  auto: string
 }
 
 /**
@@ -330,8 +335,42 @@ export function buildSlots(s: PlanSettings): Slot[] {
   }
 
   const label = (kind: SlotKind) => (kind === 'breakfast' && early ? 'Café da manhã (pós-treino)' : kind === 'pre_workout' && early ? 'Pré-treino leve' : KIND[kind].label)
-  return kinds.map(([kind, at], i) => ({ key: `${i}-${kind}`, kind, label: label(kind), time: toHHMM(at), log: KIND[kind].log }))
+  const slots = kinds.map(([kind, at], i) => ({ key: `${i}-${kind}`, kind, label: label(kind), time: toHHMM(at), log: KIND[kind].log, auto: toHHMM(at) }))
+  // Horário escolhido na mão vale por cima da regra. A chave continua a da ordem automática,
+  // para as trocas salvas não mudarem de refeição; a lista é reordenada pelo dia de quem acorda.
+  for (const sl of slots) {
+    const t = s.times?.[sl.kind]
+    if (t && isHHMM(t)) sl.time = t
+  }
+  const ofDay = (t: string) => (toMin(t) - wake + 1440) % 1440
+  return slots.sort((a, b) => ofDay(a.time) - ofDay(b.time))
 }
+
+/**
+ * Avisos para horários escolhidos na mão que atrapalham: refeições coladas, pré-treino depois do
+ * treino, pós-treino antes de ele acabar, comer quase na hora de dormir. Não bloqueia nada.
+ */
+export function timeWarnings(s: PlanSettings, slots: Slot[] = buildSlots(s)): Record<string, string> {
+  const wake = toMin(s.wake)
+  const day = (t: string) => (toMin(t) - wake + 1440) % 1440
+  const out: Record<string, string> = {}
+  const sleep = day(s.sleep)
+  const t = withAnamnesisDefaults(s.anamnesis).training
+  const train = s.train ? day(s.train) : null
+  slots.forEach((sl, i) => {
+    const at = day(sl.time)
+    const prev = slots[i - 1]
+    if (sl.time === sl.auto && (!prev || prev.time === prev.auto)) return
+    if (train != null && sl.kind === 'pre_workout' && at > train) out[sl.key] = `Fica depois do início do treino (${s.train}).`
+    else if (train != null && sl.kind === 'post_workout' && at < train + t.minutes) out[sl.key] = 'Fica antes de o treino acabar.'
+    else if (sleep > 0 && at > sleep) out[sl.key] = 'Fica depois da hora de dormir.'
+    else if (sleep > 0 && sleep - at < 45 && sl.kind !== 'supper') out[sl.key] = 'Muito perto da hora de dormir: pode atrapalhar o sono.'
+    else if (prev && at - day(prev.time) < 90) out[sl.key] = `Menos de 1h30 depois de ${prev.label.toLowerCase()}.`
+  })
+  return out
+}
+
+export const isHHMM = (v: unknown): v is string => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v)
 
 // ---------- Montagem e gramas ----------
 
@@ -463,6 +502,24 @@ export function optionsFor(kind: SlotKind, role: Role, s: PlanSettings): FoodKey
     .map((k, i) => ({ k, rank: score(k) * 100 + i }))
     .sort((a, b) => a.rank - b.rank)
     .map(x => x.k)
+}
+
+/** Em que papéis o alimento entra no plano (um ovo é proteína; aveia, carboidrato). */
+export function rolesOf(key: FoodKey): Role[] {
+  const out = new Set<Role>()
+  for (const g of Object.values(OPTIONS)) for (const [r, list] of Object.entries(g)) if ((list as FoodKey[]).includes(key)) out.add(r as Role)
+  return [...out]
+}
+
+/** Pode entrar no plano com as restrições da consulta (dieta, alergias, o que a pessoa não quer). */
+export const isAllowed = (key: FoodKey, s: PlanSettings) => allowed(key, s)
+
+/** Outros alimentos que cumprem o mesmo papel e cabem nas restrições: as alternativas para sugerir. */
+export function alternativesFor(key: FoodKey, s: PlanSettings): FoodKey[] {
+  const roles = rolesOf(key)
+  const out = new Set<FoodKey>()
+  for (const g of Object.values(OPTIONS)) for (const r of roles) for (const k of (g[r] ?? []) as FoodKey[]) if (k !== key && allowed(k, s)) out.add(k)
+  return [...out]
 }
 
 /** O whey da pessoa (valores do rótulo) ou o padrão, com o scoop dela. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
-import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, type PlanSettings } from './plan'
+import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, timeWarnings, type PlanSettings } from './plan'
 import { DEFAULT_ANAMNESIS } from './anamnesis'
 import { RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
@@ -97,6 +97,44 @@ describe('buildSlots', () => {
   it('quem dorme depois da meia-noite janta antes', () => {
     const slots = buildSlots({ ...DEFAULT_SETTINGS, wake: '09:00', sleep: '01:00', train: null })
     expect(slots.at(-1)!.time).toBe('22:00')
+  })
+})
+
+describe('horários escolhidos na mão', () => {
+  const base = { ...DEFAULT_SETTINGS, meals: 5 as const, wake: '07:00', sleep: '23:00', train: '18:00' }
+
+  it('valem por cima da regra e mantêm a chave da refeição', () => {
+    const auto = buildSlots(base)
+    const lunch = auto.find(x => x.kind === 'lunch')!
+    const mine = buildSlots({ ...base, times: { lunch: '11:40' } })
+    const moved = mine.find(x => x.kind === 'lunch')!
+    expect(moved.time).toBe('11:40')
+    expect(moved.auto).toBe(lunch.time)
+    expect(moved.key).toBe(lunch.key)
+    expect(mine.map(x => x.key).sort()).toEqual(auto.map(x => x.key).sort())
+  })
+
+  it('reordenam o dia e as trocas continuam na mesma refeição', () => {
+    const mine = buildSlots({ ...base, times: { morning_snack: '13:30' } })
+    const kinds = mine.map(x => x.kind)
+    expect(kinds.indexOf('morning_snack')).toBeGreaterThan(kinds.indexOf('lunch'))
+    const snack = mine.find(x => x.kind === 'morning_snack')!
+    const plan = buildPlan({ kcal: 2200, protein_g: 150, carbs_g: 250, fat_g: 65 }, { settings: { ...base, times: { morning_snack: '13:30' } }, picks: { [snack.key]: { fruit: 'mamao' } } })
+    expect(plan.meals.find(m => m.kind === 'morning_snack')!.items.some(i => i.key === 'mamao')).toBe(true)
+  })
+
+  it('ignoram horário malformado', () => {
+    expect(buildSlots({ ...base, times: { lunch: '25:00' } }).find(x => x.kind === 'lunch')!.time).toBe(buildSlots(base).find(x => x.kind === 'lunch')!.time)
+  })
+
+  it('avisam quando atrapalham, sem avisar a regra automática', () => {
+    expect(timeWarnings(base)).toEqual({})
+    const pre = buildSlots(base).find(x => x.kind === 'pre_workout')!
+    expect(timeWarnings({ ...base, times: { pre_workout: '18:30' } })[pre.key]).toMatch(/depois do início do treino/)
+    const lunch = buildSlots(base).find(x => x.kind === 'lunch')!
+    expect(timeWarnings({ ...base, times: { lunch: '10:15' } })[lunch.key]).toMatch(/Menos de 1h30/)
+    const dinner = buildSlots(base).find(x => x.kind === 'dinner')!
+    expect(timeWarnings({ ...base, times: { dinner: '22:40' } })[dinner.key]).toMatch(/dormir/)
   })
 })
 

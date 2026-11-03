@@ -2686,3 +2686,183 @@ a.panel-row:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* Horário de cada refeição, editável */
+.time-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 2px -6px;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.time-edit:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.time-edit.manual {
+  color: var(--accent);
+}
+
+.time-tag {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.time-input {
+  font-size: 1.75rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Preferências */
+.pref-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pref-item {
+  display: grid;
+  gap: 8px;
+}
+
+.pref-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+
+.pref-btn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.pref-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.pref-btn.on {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pref-btn.no.on {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.dislike-chip {
+  gap: 6px;
+}
+
+.dislike-chip svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.review-note {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 9px 12px;
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.review-note b {
+  color: var(--text);
+}
+
+.review-note.ok {
+  border-left-color: var(--accent);
+}
+
+.review-note.ok b {
+  color: var(--accent);
+}
+
+.review-note.warn {
+  border-left-color: var(--warn);
+}
+
+.review-note.warn b {
+  color: var(--warn);
+}
+
+.review-note.danger {
+  border-left-color: var(--danger);
+}
+
+.review-note.danger b {
+  color: var(--danger);
+}
+
+.review-note.busy {
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}
+
+.review-note.error-note {
+  border-left-color: var(--danger);
+}
+
+@keyframes pulse-soft {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.review-subs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.review-subs .chip {
+  flex: 0 1 auto;
+  font-size: 0.8125rem;
+  padding: 5px 10px;
+}
+
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
