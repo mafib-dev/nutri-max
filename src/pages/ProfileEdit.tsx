@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react'
 import { Buddy3D } from '../components/Buddy3D'
 import { Icon, Modal } from '../components/ui'
 import { loadSetup, saveSetup } from '../modules/profile/data'
+import { isAdmin } from '../modules/nutrition/data'
 import { EXPERIENCE, parseNumber, readLook, stepError, toNutritionProfile, type Experience, type ProfileSetup, type Step } from '../modules/profile/setup'
 import { DEFAULT_LOOK } from '../modules/profile/look'
 import { ACTIVITY, ageOn, dailyTargets, GOALS, type ActivityLevel, type Goal } from '../modules/nutrition/targets'
@@ -38,6 +39,7 @@ export default function ProfileEdit() {
   const navigate = useNavigate()
   const { session } = useAuth()
   const setup = useAsync(loadSetup)
+  const admin = useAsync(isAdmin)
   const [editing, setEditing] = useState<Field | null>(null)
   const [today] = useState(() => todayIso())
 
@@ -126,6 +128,21 @@ export default function ProfileEdit() {
           </Link>
         </div>
       </section>
+
+      {admin.data && (
+        <section>
+          <h2>Administração</h2>
+          <div className="panel">
+            <Link to="/admin/alimentos" className="panel-row profile-row">
+              <span className="grow">
+                <span className="label">Catálogo de alimentos</span>
+                <span className="profile-value">Cadastrar o que falta na tabela, pelo código de barras</span>
+              </span>
+              <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" className="muted" />
+            </Link>
+          </div>
+        </section>
+      )}
 
       {editing && (
         <FieldEditor

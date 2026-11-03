@@ -66,6 +66,45 @@ export async function deleteFood(id: string) {
   foods = null
 }
 
+/** Quem pode mexer no catálogo de todo mundo (a página /admin/alimentos). */
+export async function isAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) return false
+  return data === true
+}
+
+/** Alimentos que o administrador acrescentou ao catálogo, os mais novos primeiro. */
+export async function listCatalogueFoods(): Promise<Food[]> {
+  const { data, error } = await supabase.from('foods').select('*').eq('source', 'nutrimax').order('created_at', { ascending: false })
+  fail('Falha ao carregar o catálogo', error)
+  return (data ?? []).map(r => numbers<Food>(r))
+}
+
+export type CatalogueFood = NewFood & { fiber_g: number | null; sodium_mg: number | null; barcode: string | null; category: string | null }
+
+const catalogueError = (error: { message: string; code?: string } | null) => {
+  if (error?.code === '23505') throw new Error('Esse código de barras já está no catálogo.')
+  if (error?.code === '42501') throw new Error('Só o administrador pode mexer no catálogo.')
+  fail('Falha ao salvar no catálogo', error)
+}
+
+/** Cria (sem id) ou atualiza um alimento do catálogo. Valores sempre por 100 g. */
+export async function saveCatalogueFood(food: CatalogueFood, id?: string): Promise<Food> {
+  const query = id
+    ? supabase.from('foods').update({ ...food, updated_at: new Date().toISOString() }).eq('id', id).eq('source', 'nutrimax')
+    : supabase.from('foods').insert({ ...food, owner_id: null, source: 'nutrimax' })
+  const { data, error } = await query.select().single()
+  catalogueError(error)
+  foods = null
+  return numbers<Food>(data!)
+}
+
+export async function deleteCatalogueFood(id: string) {
+  const { error } = await supabase.from('foods').delete().eq('id', id).eq('source', 'nutrimax')
+  catalogueError(error)
+  foods = null
+}
+
 export async function listLogs(date: string): Promise<FoodLog[]> {
   const { data, error } = await supabase.from('food_logs').select('*').eq('date', date).order('created_at')
   fail('Falha ao carregar as refeições', error)

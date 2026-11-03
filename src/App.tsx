@@ -13,6 +13,7 @@ import Nutrition from './pages/Nutrition'
 import NutritionGoals from './pages/NutritionGoals'
 import MealPlan from './pages/MealPlan'
 import Coach from './pages/Coach'
+import CatalogueAdmin from './pages/CatalogueAdmin'
 import Onboarding from './pages/Onboarding'
 import ProfileEdit from './pages/ProfileEdit'
 import { CoachDock } from './components/CoachDock'
@@ -90,6 +91,7 @@ function Main() {
         <Route path="/nutricao/plano" element={<MealPlan />} />
         <Route path="/nutricionista" element={<Coach />} />
         <Route path="/perfil" element={<ProfileEdit />} />
+        <Route path="/admin/alimentos" element={<CatalogueAdmin />} />
         <Route path="/progresso/:exerciseId" element={<Progress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

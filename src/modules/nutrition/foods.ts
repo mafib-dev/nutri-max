@@ -14,7 +14,8 @@ export interface Food {
   serving_name: string | null
   serving_g: number | null
   barcode: string | null
-  source: 'taco' | 'custom'
+  /** taco: tabela oficial; nutrimax: acrescentado ao catálogo pelo administrador; custom: só da pessoa. */
+  source: 'taco' | 'custom' | 'nutrimax'
 }
 
 export type Meal = 'breakfast' | 'lunch' | 'snack' | 'dinner'

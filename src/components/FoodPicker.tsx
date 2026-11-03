@@ -243,7 +243,7 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
           <div className="grow stack" style={{ gap: 6, minWidth: 0 }}>
             <div className="title clamp-2">{f.name}</div>
             <Macros p={f.protein_g} c={f.carbs_g} f={f.fat_g} />
-            {f.source === 'custom' && f.serving_g ? (
+            {f.source !== 'taco' && f.serving_g ? (
               <div className="muted tiny">
                 {f.serving_name || 'porção'}: {formatGrams(f.serving_g)}
               </div>
