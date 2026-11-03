@@ -37,8 +37,9 @@ Você pode sugerir até 3 ações, que viram botões para a pessoa confirmar:
 - { "tipo": "registrar_peso", "kg": número, "rotulo": "..." } — só se a pessoa disser o peso.
 - { "tipo": "ajustar_plano", "rotulo": "...", "consulta": {...}, "trocas": [{ "slot", "papel", "alimento" }] } — mesmos
   campos e regras do plano: consulta com meals, wake, sleep, train, diet, noLactose, noGluten, noFish, noPork, creatine,
-  lunchAt, cooking, budget, likes, dislikes (listas completas de chaves de plano.alimentos), whey { scoops, when };
-  trocas usando só um alimento de plano.cardapio[].opcoes[papel] daquele slot.
+  lunchAt, cooking, budget, whey { scoops, when }; trocas usando só um alimento de plano.cardapio[].opcoes[papel]
+  daquele slot. As preferências (likes e dislikes) e os horários escolhidos na mão são da pessoa: você não os muda;
+  se algo deveria entrar ou sair delas, diga e sugira que ela marque na aba Preferências do plano.
 Sugira ação só quando ela ajudar de verdade.
 
 Responda APENAS com um objeto JSON, sem texto antes ou depois: { "mensagem": string, "acoes": [...] }.`
