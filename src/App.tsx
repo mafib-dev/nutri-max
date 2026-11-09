@@ -11,6 +11,7 @@ import Progress from './pages/Progress'
 import Overview from './pages/Overview'
 import Nutrition from './pages/Nutrition'
 import NutritionGoals from './pages/NutritionGoals'
+import MealPlan from './pages/MealPlan'
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -61,6 +62,7 @@ export default function App() {
         <Route path="/progresso" element={<Overview />} />
         <Route path="/nutricao" element={<Nutrition />} />
         <Route path="/nutricao/metas" element={<NutritionGoals />} />
+        <Route path="/nutricao/plano" element={<MealPlan />} />
         <Route path="/progresso/:exerciseId" element={<Progress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

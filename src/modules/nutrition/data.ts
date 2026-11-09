@@ -1,6 +1,7 @@
 // Leitura e escrita do módulo de nutrição no Supabase.
 import { supabase } from '../../lib/supabase'
 import { macrosFor, microsFor, type Food, type FoodLog, type Meal } from './foods'
+import type { MealPlan, PlanItem, PlanSettings } from './mealPlan'
 import type { NutritionProfile } from './targets'
 
 const fail = (what: string, error: { message: string } | null) => {
@@ -85,7 +86,7 @@ export async function recentFoodIds(limit = 12): Promise<string[]> {
   return [...new Set((data ?? []).map(r => r.food_id as string))].slice(0, limit)
 }
 
-export async function addLog(date: string, meal: Meal, food: Food, grams: number) {
+export async function addLog(date: string, meal: Meal, food: Food, grams: number, measure: string | null = null) {
   const { error } = await supabase.from('food_logs').insert({
     user_id: await userId(),
     date,
@@ -93,6 +94,7 @@ export async function addLog(date: string, meal: Meal, food: Food, grams: number
     food_id: food.id,
     name: food.name,
     grams,
+    measure,
     ...macrosFor(food, grams),
     ...microsFor(food, grams),
   })
@@ -110,7 +112,7 @@ export async function updateQuickLog(id: string, entry: { kcal: number; protein_
   fail('Falha ao salvar', error)
 }
 
-/** Muda a quantidade, refazendo as contas pela proporção do que foi registrado. */
+/** Muda a quantidade, refazendo as contas pela proporção do que foi registrado. A medida caseira sai: agora vale o peso digitado. */
 export async function updateLogGrams(log: FoodLog & { grams: number }, grams: number) {
   const k = grams / log.grams
   const r1 = (n: number) => Math.round(n * k * 10) / 10
@@ -118,6 +120,7 @@ export async function updateLogGrams(log: FoodLog & { grams: number }, grams: nu
     .from('food_logs')
     .update({
       grams,
+      measure: null,
       kcal: Math.round(log.kcal * k),
       protein_g: r1(log.protein_g),
       carbs_g: r1(log.carbs_g),
@@ -167,6 +170,7 @@ export interface SavedMealItem {
   food_id: string | null
   name: string
   grams: number | null
+  measure?: string | null
   kcal: number
   protein_g: number
   carbs_g: number
@@ -193,6 +197,7 @@ export async function saveMeal(name: string, logs: FoodLog[]) {
     food_id: l.food_id,
     name: l.name,
     grams: l.grams,
+    measure: l.measure,
     kcal: l.kcal,
     protein_g: l.protein_g,
     carbs_g: l.carbs_g,
@@ -235,4 +240,54 @@ export async function loadFirstName(): Promise<string | null> {
   const { data } = await supabase.from('profiles').select('display_name').eq('id', auth.user?.id ?? '').maybeSingle()
   const name = (data?.display_name as string | null)?.trim() || auth.user?.email?.split('@')[0]?.split(/[._\d]/)[0] || ''
   return name ? name[0].toUpperCase() + name.slice(1) : null
+}
+
+export interface SavedPlan {
+  id: string
+  settings: PlanSettings
+  plan: MealPlan
+  created_at: string
+}
+
+/** O plano alimentar mais recente, ou null se ainda não houver. */
+export async function loadMealPlan(): Promise<SavedPlan | null> {
+  const { data, error } = await supabase.from('meal_plans').select('id, settings, plan, created_at').order('created_at', { ascending: false }).limit(1).maybeSingle()
+  fail('Falha ao carregar o plano', error)
+  return (data as SavedPlan | null) ?? null
+}
+
+/** Grava um plano novo; os anteriores ficam guardados como histórico. */
+export async function createMealPlan(settings: PlanSettings, plan: MealPlan): Promise<SavedPlan> {
+  const { data, error } = await supabase.from('meal_plans').insert({ user_id: await userId(), settings, plan }).select('id, settings, plan, created_at').single()
+  fail('Falha ao salvar o plano', error)
+  return data as SavedPlan
+}
+
+/** Atualiza o plano depois de uma troca de alimento. */
+export async function updateMealPlan(id: string, plan: MealPlan) {
+  const { error } = await supabase.from('meal_plans').update({ plan, updated_at: new Date().toISOString() }).eq('id', id)
+  fail('Falha ao salvar o plano', error)
+}
+
+/** Lança uma refeição do plano no diário, com a medida caseira de cada alimento. */
+export async function logPlanMeal(date: string, meal: Meal, items: PlanItem[]) {
+  const [uid, foods] = await Promise.all([userId(), loadFoods()])
+  const known = new Set(foods.map(f => f.id))
+  const rows = items.map(i => ({
+    user_id: uid,
+    date,
+    meal,
+    food_id: known.has(i.food_id) ? i.food_id : null,
+    name: i.name,
+    grams: i.grams,
+    measure: i.measure,
+    kcal: i.kcal,
+    protein_g: i.protein_g,
+    carbs_g: i.carbs_g,
+    fat_g: i.fat_g,
+    fiber_g: i.fiber_g,
+    sodium_mg: i.sodium_mg,
+  }))
+  const { error } = await supabase.from('food_logs').insert(rows)
+  fail('Falha ao lançar a refeição', error)
 }
