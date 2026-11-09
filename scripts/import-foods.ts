@@ -5,9 +5,11 @@
 // Uso:
 //   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run import:foods
 //
-// Pode rodar de novo sem duplicar: os alimentos entram com upsert pelo id.
+// Pode rodar de novo sem duplicar: os alimentos entram com upsert pelo id. Rodar de novo
+// também atualiza as medidas caseiras de scripts/data/taco-portions.json.
 import { createClient } from '@supabase/supabase-js'
 import foods from './data/taco-foods.json' with { type: 'json' }
+import portions from './data/taco-portions.json' with { type: 'json' }
 
 const url = process.env.SUPABASE_URL
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -17,7 +19,9 @@ if (!url || !serviceKey) {
 }
 const supabase = createClient(url, serviceKey, { auth: { persistSession: false } })
 
-const rows = foods.map(f => ({ ...f, source: 'taco', owner_id: null }))
+// Medidas caseiras (concha, colher, unidade) dos alimentos mais comuns.
+const portionsById = portions as Record<string, unknown[]>
+const rows = foods.map(f => ({ ...f, portions: portionsById[f.id] ?? [], source: 'taco', owner_id: null }))
 const { error } = await supabase.from('foods').upsert(rows, { onConflict: 'id' })
 if (error) {
   console.error(`Falha ao gravar alimentos: ${error.message}`)

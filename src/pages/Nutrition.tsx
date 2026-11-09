@@ -65,9 +65,14 @@ export default function Nutrition() {
           <span className="eyebrow">Diário alimentar</span>
           <h1>Nutrição</h1>
         </div>
-        <Link to="/nutricao/metas" className="btn ghost small">
-          Metas
-        </Link>
+        <div className="row" style={{ gap: 4 }}>
+          <Link to="/nutricao/plano" className="btn ghost small">
+            Plano
+          </Link>
+          <Link to="/nutricao/metas" className="btn ghost small">
+            Metas
+          </Link>
+        </div>
       </div>
 
       <div className="day-nav">
@@ -174,7 +179,7 @@ export default function Nutrition() {
                 {mealItems.map(i => (
                   <button key={i.id} type="button" className="meal-item" onClick={() => setEditing(i)}>
                     <span className="grow ellipsis">{i.name}</span>
-                    <span className="muted small">{i.grams == null ? 'rápido' : formatGrams(i.grams)}</span>
+                    <span className="muted small">{i.grams == null ? 'rápido' : (i.measure ?? formatGrams(i.grams))}</span>
                     <strong className="small">{fmt(i.kcal)} kcal</strong>
                   </button>
                 ))}
@@ -186,6 +191,16 @@ export default function Nutrition() {
           </section>
         )
       })}
+
+      {logs.data && items.length === 0 && isToday && targets && (
+        <Link to="/nutricao/plano" className="card plan-cta">
+          <div className="grow">
+            <div style={{ fontWeight: 700 }}>Não sabe o que comer?</div>
+            <div className="muted tiny">Monte um cardápio que bate as suas metas, com medidas caseiras, trocas e lista de compras.</div>
+          </div>
+          <span className="chev">›</span>
+        </Link>
+      )}
 
       {logs.data && items.length === 0 && isToday && (
         <button type="button" className="btn primary big block" onClick={() => setAdding(mealForHour(new Date().getHours()))}>

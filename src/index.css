@@ -1372,3 +1372,245 @@ details.card summary::marker {
 .tip.good {
   border-color: var(--accent);
 }
+
+/* Plano alimentar */
+.block {
+  display: block;
+}
+
+.chip.off {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.input.time {
+  width: auto;
+  min-width: 120px;
+  padding: 8px 12px;
+}
+
+.subs {
+  display: grid;
+  gap: 6px;
+  padding: 2px 0 12px;
+}
+
+.subs .chip {
+  white-space: normal;
+  text-align: left;
+}
+
+.shopping {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+details.guidance summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+details.guidance p {
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+  }
+
+  body::before,
+  .no-print,
+  .tabbar,
+  .rest-bar {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+  }
+
+  .plan-print {
+    font-family: var(--body);
+    font-size: 10pt;
+    color: #111;
+  }
+
+  .plan-print header {
+    display: flex;
+    justify-content: space-between;
+    color: #555;
+    font-size: 9pt;
+  }
+
+  .plan-print .brand-print {
+    font-family: var(--display);
+    font-size: 14pt;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #111;
+  }
+
+  .plan-print h1 {
+    margin: 10pt 0 2pt;
+    font-family: var(--display);
+    font-size: 24pt;
+    text-transform: uppercase;
+    color: #111;
+  }
+
+  .plan-print h2 {
+    margin: 16pt 0 6pt;
+    font-family: var(--display);
+    font-size: 15pt;
+    text-transform: uppercase;
+    color: #111;
+    break-after: avoid;
+  }
+
+  .plan-print h2::after {
+    display: none;
+  }
+
+  .plan-print .sub {
+    margin: 0;
+    color: #555;
+  }
+
+  .plan-print .totals {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6pt;
+    margin-top: 12pt;
+  }
+
+  .plan-print .totals > div {
+    display: grid;
+    padding: 6pt 8pt;
+    border: 1px solid #ccc;
+    border-radius: 6pt;
+  }
+
+  .plan-print .totals span,
+  .plan-print .totals small {
+    color: #666;
+    font-size: 8pt;
+  }
+
+  .plan-print .totals strong {
+    font-size: 13pt;
+  }
+
+  .print-meal {
+    margin-bottom: 10pt;
+    break-inside: avoid;
+  }
+
+  .print-meal-head {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 3pt;
+    border-bottom: 2px solid #111;
+  }
+
+  .print-meal-head span {
+    color: #555;
+    font-size: 9pt;
+  }
+
+  .plan-print table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+  }
+
+  .plan-print th {
+    padding: 4pt 4pt 2pt;
+    color: #666;
+    font-size: 8pt;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .plan-print td {
+    padding: 4pt;
+    border-bottom: 1px solid #e3e3e3;
+    vertical-align: top;
+  }
+
+  .plan-print td:first-child {
+    width: 24%;
+  }
+
+  .plan-print td:last-child {
+    width: 36%;
+    color: #444;
+  }
+
+  .plan-print .num {
+    text-align: right;
+  }
+
+  .print-guidance {
+    margin-bottom: 6pt;
+    break-inside: avoid;
+  }
+
+  .print-guidance p {
+    margin: 2pt 0 0;
+    line-height: 1.4;
+  }
+
+  .print-shopping {
+    margin-bottom: 8pt;
+    break-inside: avoid;
+  }
+
+  .print-shopping .row-print {
+    display: flex;
+    justify-content: space-between;
+    padding: 2pt 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .plan-print footer {
+    margin-top: 16pt;
+    color: #666;
+    font-size: 8pt;
+  }
+}
+
+.plan-cta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.plan-cta .grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-cta:hover {
+  border-color: var(--accent);
+}
