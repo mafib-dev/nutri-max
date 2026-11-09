@@ -5,7 +5,7 @@ import { macrosFor, microsFor, sumMacros, type Food, type Macros, type Meal } fr
 import { describeGrams, measureText, portionsOf, type Portion } from './portions'
 import { GOALS, type Goal, type Targets } from './targets'
 
-export type SlotKind = 'breakfast' | 'snack' | 'main' | 'pre_workout' | 'supper'
+export type SlotKind = 'breakfast' | 'snack' | 'main' | 'pre_workout' | 'post_workout' | 'supper'
 
 export interface PlanSlot {
   kind: SlotKind
@@ -16,8 +16,12 @@ export interface PlanSlot {
 
 export interface PlanSettings {
   slots: PlanSlot[]
-  /** Horário do treino ("HH:MM") ou null para quem não treina. */
+  /** Horário do treino ("HH:MM") ou null para quem não treina. Planos antigos; os novos usam training_times. */
   training_time: string | null
+  /** Horários dos treinos do dia (musculação, corrida…), quando há mais de um. */
+  training_times?: string[]
+  /** Calorias a mais (ou a menos) neste tipo de dia, somadas à meta antes de montar o cardápio. */
+  extra_kcal?: number
   /** Alimentos que a pessoa não come: ficam fora do cardápio e das trocas. */
   excluded: string[]
   /** Muda a escolha dos alimentos para gerar outro cardápio com as mesmas regras. */
@@ -302,6 +306,7 @@ const TEMPLATES: Record<SlotKind, Step[]> = {
     { role: 'oil', solve: 'fat_g' },
   ],
   pre_workout: [{ role: 'protein_pre', solve: 'protein_g' }, { role: 'carb_quick', solve: 'carbs_g' }],
+  post_workout: [{ role: 'protein_snack', solve: 'protein_g' }, { role: 'carb_quick', solve: 'carbs_g' }],
   supper: [{ role: 'protein_snack', solve: 'protein_g' }, { role: 'fruit', grams: 140 }],
 }
 
@@ -312,6 +317,8 @@ const SHARE: Record<SlotKind, { kcal: number; protein: number; fat: number }> = 
   main: { kcal: 1.4, protein: 1.3, fat: 1 },
   // Pouca gordura antes do treino para não pesar.
   pre_workout: { kcal: 0.55, protein: 0.6, fat: 0.2 },
+  // Depois do treino: proteína e carboidrato, pouca gordura.
+  post_workout: { kcal: 0.7, protein: 1.1, fat: 0.2 },
   supper: { kcal: 0.5, protein: 0.8, fat: 0.6 },
 }
 
@@ -320,6 +327,7 @@ export const KIND_LABEL: Record<SlotKind, string> = {
   snack: 'Lanche',
   main: 'Refeição principal',
   pre_workout: 'Pré-treino',
+  post_workout: 'Pós-treino',
   supper: 'Ceia',
 }
 
@@ -361,21 +369,41 @@ const minutes = (hhmm: string) => {
 }
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
+/** Horários de treino do dia, de planos novos (vários) ou antigos (um só). */
+export function trainingTimes(settings: Pick<PlanSettings, 'training_time' | 'training_times'>): string[] {
+  const times = settings.training_times ?? (settings.training_time ? [settings.training_time] : [])
+  return [...new Set(times.filter(t => /^\d{2}:\d{2}$/.test(t)))].sort((a, b) => minutes(a) - minutes(b))
+}
+
+/** Duração presumida de cada treino, para saber quando ele termina. */
+const SESSION_MIN = 60
+
 /**
- * Põe as refeições em ordem e, se houver treino, transforma o último lanche antes dele
- * (até 4 horas antes) em pré-treino, uma hora antes do treino.
+ * Põe as refeições em ordem e, para cada treino do dia:
+ * - transforma o último lanche antes dele (até 4 horas antes) em pré-treino, uma hora antes;
+ * - se não houver refeição entre 30 min e 2h30 depois do início, põe um pós-treino
+ *   (ou transforma o lanche que estiver nessa janela).
  */
-export function arrangeSlots(slots: PlanSlot[], trainingTime: string | null): PlanSlot[] {
-  const sorted = [...slots].sort((a, b) => minutes(a.time) - minutes(b.time)).map(s => ({ ...s }))
-  if (!trainingTime) return sorted
-  const t = minutes(trainingTime)
-  let idx = -1
-  sorted.forEach((s, i) => {
-    if ((s.kind === 'snack' || s.kind === 'pre_workout') && minutes(s.time) < t && t - minutes(s.time) <= 240) idx = i
-  })
-  if (idx < 0) return sorted
-  const before = idx > 0 ? minutes(sorted[idx - 1].time) : 0
-  sorted[idx] = { kind: 'pre_workout', label: 'Pré-treino', time: hhmm(Math.max(minutes(sorted[idx].time), t - 60, before + 30)) }
+export function arrangeSlots(slots: PlanSlot[], training: string | null | string[]): PlanSlot[] {
+  let sorted = [...slots].sort((a, b) => minutes(a.time) - minutes(b.time)).map(s => ({ ...s }))
+  const times = Array.isArray(training) ? trainingTimes({ training_time: null, training_times: training }) : training ? [training] : []
+  for (const time of times) {
+    const t = minutes(time)
+    let idx = -1
+    sorted.forEach((s, i) => {
+      if ((s.kind === 'snack' || s.kind === 'pre_workout') && minutes(s.time) < t && t - minutes(s.time) <= 240) idx = i
+    })
+    if (idx >= 0) {
+      const before = idx > 0 ? minutes(sorted[idx - 1].time) : 0
+      sorted[idx] = { kind: 'pre_workout', label: 'Pré-treino', time: hhmm(Math.max(minutes(sorted[idx].time), t - 60, before + 30)) }
+    }
+    const after = sorted.filter(s => minutes(s.time) >= t + 30 && minutes(s.time) <= t + 150)
+    if (after.some(s => s.kind !== 'snack')) continue
+    const snack = after.find(s => s.kind === 'snack')
+    if (snack) Object.assign(snack, { kind: 'post_workout', label: 'Pós-treino' })
+    else sorted = [...sorted, { kind: 'post_workout' as const, label: 'Pós-treino', time: hhmm(Math.min(t + SESSION_MIN + 15, 23 * 60 + 30)) }]
+    sorted.sort((a, b) => minutes(a.time) - minutes(b.time))
+  }
   return sorted
 }
 
@@ -507,7 +535,7 @@ export function generatePlan(input: PlanInput): MealPlan {
   const { targets, settings } = input
   const byId = new Map(input.foods.map(f => [f.id, f]))
   const excluded = new Set(settings.excluded)
-  const slots = arrangeSlots(settings.slots, settings.training_time)
+  const slots = arrangeSlots(settings.slots, trainingTimes(settings))
 
   // Metas de cada refeição, pelo peso de cada tipo.
   const sum = (k: keyof (typeof SHARE)['main']) => slots.reduce((a, s) => a + SHARE[s.kind][k], 0)
@@ -599,7 +627,7 @@ export function generatePlan(input: PlanInput): MealPlan {
     targets: planTargets,
     meals,
     total: planTotal(meals),
-    guidance: planGuidance({ targets: planTargets, weightKg: input.weightKg, goal: input.goal, meals, trainingTime: settings.training_time }),
+    guidance: planGuidance({ targets: planTargets, weightKg: input.weightKg, goal: input.goal, meals, trainingTimes: trainingTimes(settings) }),
     shopping: shoppingList(meals, input.foods),
   }
 }
@@ -631,7 +659,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString('pt-BR')
 const fmt1 = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
 
 /** Orientações do plano, escritas a partir das metas e do cardápio. */
-export function planGuidance(ctx: { targets: PlanTargets; weightKg: number; goal: Goal; meals: PlanMeal[]; trainingTime: string | null }): Guidance[] {
+export function planGuidance(ctx: { targets: PlanTargets; weightKg: number; goal: Goal; meals: PlanMeal[]; trainingTimes: string[] }): Guidance[] {
   const { targets: t, goal, meals } = ctx
   const out: Guidance[] = []
   const perKg = t.protein_g / ctx.weightKg
@@ -641,10 +669,17 @@ export function planGuidance(ctx: { targets: PlanTargets; weightKg: number; goal
   })
 
   const pre = meals.find(m => m.kind === 'pre_workout')
-  if (ctx.trainingTime) {
+  const times = ctx.trainingTimes
+  if (times.length > 1) {
+    out.push({
+      title: 'Dois treinos no dia',
+      text: `Com treinos às ${times.join(' e às ')}, cada um tem a sua refeição antes e depois: carboidrato fácil e pouca gordura antes, proteína (20 a 40 g) e carboidrato depois. São os dias de maior gasto, então não pule refeições e beba mais água. Se os dois forem puxados, deixe pelo menos 6 horas entre eles.`,
+    })
+  } else if (times.length === 1) {
+    const time = times[0]
     out.push({
       title: 'Comida em volta do treino',
-      text: `Treinando às ${ctx.trainingTime}, ${pre ? `coma o pré-treino (${pre.time}) 30 a 60 minutos antes` : 'faça uma refeição leve 1 a 2 horas antes'}: carboidrato fácil de digerir e um pouco de proteína, com pouca gordura e pouca fibra para não pesar. Depois, faça uma refeição com proteína (20 a 40 g) e carboidrato em até 2 horas.`,
+      text: `Treinando às ${time}, ${pre ? `coma o pré-treino (${pre.time}) 30 a 60 minutos antes` : 'faça uma refeição leve 1 a 2 horas antes'}: carboidrato fácil de digerir e um pouco de proteína, com pouca gordura e pouca fibra para não pesar. Depois, faça uma refeição com proteína (20 a 40 g) e carboidrato em até 2 horas.`,
     })
   } else {
     out.push({

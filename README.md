@@ -13,6 +13,9 @@ calculadas pelo perfil, com peso-alvo, ritmo semanal e opção de somar as calor
 Os alimentos mais comuns têm medidas caseiras (concha, colher, fatia, unidade), e o **plano
 alimentar** monta um cardápio do dia que bate as metas, com trocas equivalentes, orientações,
 lista de compras de 7 dias e versão para imprimir ou salvar em PDF.
+O plano pode ter um cardápio para cada **tipo de dia** (ex.: "Musculação", "Musculação + Corrida",
+"Descanso"), sugeridos a partir das rotinas e do cardio da semana, com pré e pós-treino nos
+horários de cada treino e mais calorias e água nos dias de maior gasto.
 
 O **cardio** (corrida, caminhada, bicicleta, natação, remo, elíptico, trilha, corda) tem planos
 por dia da semana com distância, tempo, intensidade, intervalos e progressão por sessão, e o
@@ -86,7 +89,7 @@ scripts/import-foods.ts       importação dos alimentos da TACO e das medidas c
 | `water_logs` | Água bebida por dia |
 | `cardio_plans` | Planos de cardio: dias, distância, tempo, intensidade, intervalos e progressão |
 | `cardio_logs` | Cada atividade de cardio feita, com ritmo, esforço e calorias |
-| `meal_plans` | Planos alimentares gerados, com o cardápio congelado como foi gerado |
+| `meal_plans` | Planos alimentares gerados, com o cardápio congelado como foi gerado (um por tipo de dia, ligados por `batch_id`) |
 | `ai_insights` | Sugestões da IA, aprovadas ou recusadas pelo usuário |
 
 Views: `last_sets` (última série de cada exercício, usada pela progressão) e

@@ -46,6 +46,7 @@ export default function RoutineEdit() {
   const loaded = useAsync(() => Promise.all([getRoutine(id), loadCatalogue()]), [id])
   const [name, setName] = useState('')
   const [weekday, setWeekday] = useState<number | null>(null)
+  const [time, setTime] = useState('')
   const [items, setItems] = useState<Item[]>([])
   const [picking, setPicking] = useState(false)
   const [viewing, setViewing] = useState<ExerciseRow | null>(null)
@@ -60,6 +61,7 @@ export default function RoutineEdit() {
     const { routine, items } = loaded.data[0]
     setName(routine.name)
     setWeekday(routine.weekday)
+    setTime(routine.time ?? '')
     setItems(items.map(({ id: _id, position: _p, routine_id: _r, ...rest }) => rest))
   }, [loaded.data])
 
@@ -77,7 +79,7 @@ export default function RoutineEdit() {
     setSaving(true)
     setStatus(null)
     try {
-      await updateRoutine(id, { name: name.trim() || 'Treino', weekday })
+      await updateRoutine(id, { name: name.trim() || 'Treino', weekday, time: time || null })
       await saveRoutineExercises(
         id,
         items.map(it => ({ ...it, rep_max: it.rep_max != null && it.rep_min != null && it.rep_max < it.rep_min ? it.rep_min : it.rep_max })),
@@ -128,6 +130,11 @@ export default function RoutineEdit() {
           </select>
         </label>
       </div>
+      <label className="field">
+        <span>Horário (opcional)</span>
+        <input className="input" type="time" value={time} onChange={e => setTime(e.target.value)} />
+        <small className="muted tiny">O plano alimentar usa o horário para pôr o pré e o pós-treino.</small>
+      </label>
 
       <h2>Exercícios · {items.length}</h2>
       {items.length === 0 && (

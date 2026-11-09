@@ -9,6 +9,8 @@ export interface Routine {
   id: string
   name: string
   weekday: number | null
+  /** "HH:MM" em que costuma treinar, ou null. */
+  time: string | null
   position: number
 }
 
@@ -65,31 +67,34 @@ export async function loadState() {
 }
 
 export async function listRoutines(): Promise<Routine[]> {
-  const { data, error } = await supabase.from('routines').select('id, name, weekday, position').order('position').order('created_at')
+  const { data, error } = await supabase.from('routines').select('id, name, weekday, time, position').order('position').order('created_at')
   fail('Falha ao carregar rotinas', error)
-  return data as Routine[]
+  return (data as Routine[]).map(toRoutine)
 }
 
 export async function getRoutine(id: string) {
   const [routine, items] = await Promise.all([
-    supabase.from('routines').select('id, name, weekday, position').eq('id', id).single(),
+    supabase.from('routines').select('id, name, weekday, time, position').eq('id', id).single(),
     supabase.from('routine_exercises').select('*').eq('routine_id', id).order('position'),
   ])
   fail('Falha ao carregar a rotina', routine.error ?? items.error)
-  return { routine: routine.data as Routine, items: items.data as RoutineExercise[] }
+  return { routine: toRoutine(routine.data as Routine), items: items.data as RoutineExercise[] }
 }
 
 export async function createRoutine(name: string, weekday: number | null): Promise<Routine> {
   const { data, error } = await supabase
     .from('routines')
     .insert({ user_id: await userId(), name, weekday })
-    .select('id, name, weekday, position')
+    .select('id, name, weekday, time, position')
     .single()
   fail('Falha ao criar a rotina', error)
-  return data as Routine
+  return toRoutine(data as Routine)
 }
 
-export async function updateRoutine(id: string, patch: Partial<Pick<Routine, 'name' | 'weekday'>>) {
+// O Postgres devolve "07:00:00"; a tela usa "07:00".
+const toRoutine = (r: Routine): Routine => ({ ...r, time: r.time ? r.time.slice(0, 5) : null })
+
+export async function updateRoutine(id: string, patch: Partial<Pick<Routine, 'name' | 'weekday' | 'time'>>) {
   const { error } = await supabase.from('routines').update(patch).eq('id', id)
   fail('Falha ao salvar a rotina', error)
 }

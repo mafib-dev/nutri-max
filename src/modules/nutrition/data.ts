@@ -247,20 +247,44 @@ export interface SavedPlan {
   settings: PlanSettings
   plan: MealPlan
   created_at: string
+  batch_id: string | null
+  /** Nome do tipo de dia ("Musculação + Corrida"); nulo nos planos de um cardápio só. */
+  day_name: string | null
+  weekdays: number[]
+  position: number
 }
 
-/** O plano alimentar mais recente, ou null se ainda não houver. */
-export async function loadMealPlan(): Promise<SavedPlan | null> {
-  const { data, error } = await supabase.from('meal_plans').select('id, settings, plan, created_at').order('created_at', { ascending: false }).limit(1).maybeSingle()
+const PLAN_COLUMNS = 'id, settings, plan, created_at, batch_id, day_name, weekdays, position'
+
+/** Os cardápios do plano mais recente (um por tipo de dia), ou [] se ainda não houver. */
+export async function loadMealPlans(): Promise<SavedPlan[]> {
+  const { data, error } = await supabase.from('meal_plans').select(PLAN_COLUMNS).order('created_at', { ascending: false }).limit(1).maybeSingle()
   fail('Falha ao carregar o plano', error)
-  return (data as SavedPlan | null) ?? null
+  const latest = data as SavedPlan | null
+  if (!latest) return []
+  if (!latest.batch_id) return [latest]
+  const batch = await supabase.from('meal_plans').select(PLAN_COLUMNS).eq('batch_id', latest.batch_id).order('position')
+  fail('Falha ao carregar o plano', batch.error)
+  return batch.data as SavedPlan[]
 }
 
-/** Grava um plano novo; os anteriores ficam guardados como histórico. */
-export async function createMealPlan(settings: PlanSettings, plan: MealPlan): Promise<SavedPlan> {
-  const { data, error } = await supabase.from('meal_plans').insert({ user_id: await userId(), settings, plan }).select('id, settings, plan, created_at').single()
+export interface NewDayPlan {
+  day_name: string | null
+  weekdays: number[]
+  settings: PlanSettings
+  plan: MealPlan
+}
+
+/** Grava um plano novo, com um cardápio por tipo de dia; os anteriores ficam guardados como histórico. */
+export async function createMealPlans(days: NewDayPlan[]): Promise<SavedPlan[]> {
+  const uid = await userId()
+  const batch_id = crypto.randomUUID()
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .insert(days.map((d, position) => ({ user_id: uid, batch_id, position, ...d })))
+    .select(PLAN_COLUMNS)
   fail('Falha ao salvar o plano', error)
-  return data as SavedPlan
+  return (data as SavedPlan[]).sort((a, b) => a.position - b.position)
 }
 
 /** Atualiza o plano depois de uma troca de alimento. */

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
-import { createMealPlan, loadFirstName, loadFoods, loadMealPlan, loadNutritionProfile, logPlanMeal, todayIso, updateMealPlan, type SavedPlan } from '../modules/nutrition/data'
+import { createMealPlans, loadFirstName, loadFoods, loadMealPlans, loadNutritionProfile, logPlanMeal, todayIso, updateMealPlan, type SavedPlan } from '../modules/nutrition/data'
 import { formatGrams } from '../modules/nutrition/foods'
 import {
   arrangeSlots,
@@ -10,17 +10,23 @@ import {
   generatePlan,
   MEAL_PRESETS,
   planFoodChoices,
+  shoppingList,
   swapItem,
   targetsChanged,
+  trainingTimes,
   type MealPlan,
   type PlanMeal,
   type PlanSettings,
+  type PlanSlot,
 } from '../modules/nutrition/mealPlan'
-import { ageOn, dailyTargets, fiberTarget, waterTarget } from '../modules/nutrition/targets'
-import { listBodyWeights } from '../modules/training/data'
+import { assignWeekday, dayActivity, daysLabel, dayTypeOf, singleDayType, suggestDayTypes, typicalStrengthMin, weekSchedule, type DaySchedule, type DayType } from '../modules/nutrition/dayTypes'
+import { ageOn, dailyTargets, fiberTarget, waterTarget, type NutritionProfile } from '../modules/nutrition/targets'
+import { listBodyWeights, listRoutines, listWorkouts, WEEKDAYS } from '../modules/training/data'
+import { lastDistanceByPlan, listCardioPlans } from '../modules/cardio/data'
 import { useAsync } from '../lib/useAsync'
 
 const fmt = (n: number) => Math.round(n).toLocaleString('pt-BR')
+const liters = (ml: number) => (ml / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 const longDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })
 const shortDate = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
 /** Revisão do plano duas semanas depois de gerado. */
@@ -30,12 +36,46 @@ const reviewDate = (iso: string) => {
   return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
 }
 
+/** O que o formulário devolve: as refeições, o que não come e os tipos de dia. */
+interface PlanRequest {
+  slots: PlanSlot[]
+  excluded: string[]
+  seed: number
+  days: DayType[]
+}
+
+/** Os tipos de dia de um plano salvo, para refazer com outra semente ou metas novas. */
+function daysOf(saved: SavedPlan[]): DayType[] {
+  return saved.map((p, i) => ({
+    id: `d${i + 1}`,
+    name: p.day_name ?? 'Todos os dias',
+    weekdays: p.weekdays,
+    training_times: trainingTimes(p.settings),
+    extra_kcal: p.settings.extra_kcal ?? 0,
+  }))
+}
+
+const dayLabel = (p: SavedPlan) => (p.day_name ? `${p.day_name} · ${daysLabel(p.weekdays)}` : 'Todos os dias')
+
 export default function MealPlanPage() {
   const navigate = useNavigate()
-  const loaded = useAsync(() => Promise.all([loadNutritionProfile(), listBodyWeights(1), loadMealPlan(), loadFoods(), loadFirstName()]))
+  const loaded = useAsync(() =>
+    Promise.all([
+      loadNutritionProfile(),
+      listBodyWeights(1),
+      loadMealPlans(),
+      loadFoods(),
+      loadFirstName(),
+      listRoutines(),
+      listCardioPlans(),
+      lastDistanceByPlan(todayIso()),
+      listWorkouts(20),
+    ]),
+  )
   // Até a primeira mudança na tela, o plano é o que veio do banco.
-  const [changedPlan, setSaved] = useState<SavedPlan | null | undefined>(undefined)
-  const saved = changedPlan === undefined ? (loaded.data?.[2] ?? null) : changedPlan
+  const [changedPlans, setSaved] = useState<SavedPlan[] | undefined>(undefined)
+  const saved = changedPlans ?? loaded.data?.[2] ?? []
+  const [tab, setTab] = useState<number | null>(null)
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -43,19 +83,35 @@ export default function MealPlanPage() {
   if (loaded.loading) return <main className="page muted">Carregando…</main>
   if (loaded.error || !loaded.data) return <main className="page error">{loaded.error}</main>
 
-  const [profile, weights, , foods, firstName] = loaded.data
+  const [profile, weights, , foods, firstName, routines, cardio, lastCardio, workouts] = loaded.data
   const weight = weights.at(-1)?.weight_kg ?? null
   const now = new Date()
-  const targets = dailyTargets(profile, weight, now)
+  const schedule = weekSchedule({
+    routines,
+    cardio,
+    lastCardioByPlan: lastCardio,
+    strengthMin: typicalStrengthMin(workouts.filter(w => w.ended_at).map(w => (Date.parse(w.ended_at!) - Date.parse(w.started_at)) / 60000)),
+    weightKg: weight,
+    countKcal: profile.add_workout_kcal,
+  })
+  const baseTargets = dailyTargets(profile, weight, now)
   const fiber = fiberTarget(profile.sex, profile.birth_date ? ageOn(profile.birth_date, now) : null)
+  const forDay = (day: Pick<DayType, 'weekdays' | 'extra_kcal'>) => dayGoals(profile, weight, now, schedule, day)
 
-  async function generate(settings: PlanSettings) {
-    if (!targets || !weight) return
+  async function generate(req: PlanRequest) {
+    if (!baseTargets || !weight) return
     setBusy(true)
     setError(null)
     try {
-      const plan = generatePlan({ targets, weightKg: weight, goal: profile.goal ?? 'maintain', fiberTarget: fiber, waterMl: waterTarget(weight), settings, foods })
-      setSaved(await createMealPlan(settings, plan))
+      const days = req.days.filter(d => d.weekdays.length)
+      const entries = days.map(day => {
+        const goals = forDay(day)
+        const settings: PlanSettings = { slots: req.slots, training_time: null, training_times: day.training_times, excluded: req.excluded, seed: req.seed, extra_kcal: day.extra_kcal }
+        const plan = generatePlan({ targets: goals.targets!, weightKg: weight, goal: profile.goal ?? 'maintain', fiberTarget: fiber, waterMl: goals.water_ml, settings, foods })
+        return { day_name: days.length > 1 ? day.name : null, weekdays: day.weekdays, settings, plan }
+      })
+      setSaved(await createMealPlans(entries))
+      setTab(null)
       setEditing(false)
       window.scrollTo({ top: 0 })
     } catch (err) {
@@ -64,13 +120,14 @@ export default function MealPlanPage() {
     setBusy(false)
   }
 
-  async function swap(mealIdx: number, itemIdx: number, subId: string) {
-    if (!saved) return
-    const plan = swapItem(saved.plan, mealIdx, itemIdx, subId, foods, saved.settings.excluded)
+  async function swap(planIdx: number, mealIdx: number, itemIdx: number, subId: string) {
+    const current = saved[planIdx]
+    if (!current) return
+    const plan = swapItem(current.plan, mealIdx, itemIdx, subId, foods, current.settings.excluded)
     const previous = saved
-    setSaved({ ...saved, plan })
+    setSaved(saved.map((p, i) => (i === planIdx ? { ...p, plan } : p)))
     try {
-      await updateMealPlan(saved.id, plan)
+      await updateMealPlan(current.id, plan)
     } catch (err) {
       setSaved(previous)
       setError((err as Error).message)
@@ -83,7 +140,7 @@ export default function MealPlanPage() {
     </button>
   )
 
-  if (!targets || !weight) {
+  if (!baseTargets || !weight) {
     return (
       <main className="page stack">
         {back}
@@ -98,25 +155,42 @@ export default function MealPlanPage() {
     )
   }
 
-  if (!saved || editing) {
+  const first = saved[0]
+  const request = (seedDelta = 0): PlanRequest => ({ slots: first.settings.slots, excluded: first.settings.excluded, seed: first.settings.seed + seedDelta, days: daysOf(saved) })
+
+  if (!first || editing) {
+    const suggested = suggestDayTypes(schedule)
+    const initial: PlanRequest = first
+      ? request()
+      : { slots: DEFAULT_SETTINGS.slots, excluded: [], seed: 0, days: suggested.length > 1 ? suggested : [{ ...singleDayType(), training_times: suggested[0]?.training_times ?? [] }] }
     return (
       <main className="page stack">
         {back}
         <div>
           <span className="eyebrow">Cardápio com os alimentos da TACO</span>
-          <h1>{saved ? 'Ajustar o plano' : 'Plano alimentar'}</h1>
+          <h1>{first ? 'Ajustar o plano' : 'Plano alimentar'}</h1>
         </div>
         <p className="muted small" style={{ margin: 0 }}>
-          Monto um dia de refeições para bater {fmt(targets.kcal)} kcal, {fmt(targets.protein_g)} g de proteína, {fmt(targets.carbs_g)} g de carboidrato e {fmt(targets.fat_g)} g de gordura, com medidas caseiras, opções de troca e a lista de compras da semana.
+          Monto as refeições para bater suas metas ({fmt(baseTargets.kcal)} kcal e {fmt(baseTargets.protein_g)} g de proteína num dia sem treino{profile.add_workout_kcal ? ', mais o gasto dos treinos de cada dia' : ''}), com medidas caseiras, opções de troca e a lista de compras da semana.
         </p>
-        <SettingsForm initial={saved?.settings ?? DEFAULT_SETTINGS} busy={busy} onSubmit={generate} onCancel={saved ? () => setEditing(false) : undefined} />
+        <SettingsForm initial={initial} schedule={schedule} suggested={suggested} goalsFor={forDay} busy={busy} onSubmit={generate} onCancel={first ? () => setEditing(false) : undefined} />
         {error && <p className="error">{error}</p>}
       </main>
     )
   }
 
-  const { plan, settings } = saved
-  const changed = targetsChanged(plan, targets)
+  const todayIdx = Math.max(0, saved.findIndex(p => p.weekdays.includes(now.getDay())))
+  const current = tab != null && saved[tab] ? tab : todayIdx
+  const selected = saved[current]
+  const { plan } = selected
+  const goals = forDay({ weekdays: selected.weekdays, extra_kcal: selected.settings.extra_kcal ?? 0 })
+  const changed = saved.some(p => targetsChanged(p.plan, forDay({ weekdays: p.weekdays, extra_kcal: p.settings.extra_kcal ?? 0 }).targets))
+  // Lista de compras da semana: cada cardápio conta tantas vezes quantos dias ele tem.
+  const shopping = shoppingList(
+    saved.flatMap(p => p.plan.meals.map(m => ({ ...m, items: m.items.map(i => ({ ...i, grams: i.grams * p.weekdays.length })) }))),
+    foods,
+    1,
+  )
 
   return (
     <>
@@ -132,12 +206,31 @@ export default function MealPlanPage() {
           </button>
         </div>
 
+        {saved.length > 1 && (
+          <div className="chips wrap" role="tablist" aria-label="Tipos de dia">
+            {saved.map((p, i) => (
+              <button key={p.id} type="button" role="tab" aria-selected={i === current} className={`chip ${i === current ? 'on' : ''}`} onClick={() => setTab(i)}>
+                {p.day_name}
+                {i === todayIdx && p.weekdays.includes(now.getDay()) ? ' · hoje' : ''}
+              </button>
+            ))}
+          </div>
+        )}
+        {saved.length > 1 && (
+          <p className="muted small" style={{ margin: 0 }}>
+            {daysLabel(selected.weekdays)}
+            {trainingTimes(selected.settings).length ? ` · treinos às ${trainingTimes(selected.settings).join(' e ')}` : ' · sem treino'}
+            {goals.activity_kcal ? ` · +${fmt(goals.activity_kcal)} kcal dos treinos` : ''}
+            {selected.settings.extra_kcal ? ` · ${selected.settings.extra_kcal > 0 ? '+' : ''}${fmt(selected.settings.extra_kcal)} kcal de ajuste` : ''}
+          </p>
+        )}
+
         {changed && (
           <div className="card stack" style={{ gap: 10, borderColor: 'var(--warn)' }}>
             <span className="small">
-              Suas metas mudaram desde este plano: agora são {fmt(targets.kcal)} kcal e {fmt(targets.protein_g)} g de proteína (o plano usa {fmt(plan.targets.kcal)} kcal e {fmt(plan.targets.protein_g)} g).
+              Suas metas ou seus treinos mudaram desde este plano{goals.targets ? `: hoje este dia pede ${fmt(goals.targets.kcal)} kcal e ${fmt(goals.targets.protein_g)} g de proteína (o plano usa ${fmt(plan.targets.kcal)} kcal e ${fmt(plan.targets.protein_g)} g)` : ''}.
             </span>
-            <button type="button" className="btn primary small" style={{ justifySelf: 'start' }} disabled={busy} onClick={() => generate(settings)}>
+            <button type="button" className="btn primary small" style={{ justifySelf: 'start' }} disabled={busy} onClick={() => generate(request())}>
               Refazer com as metas novas
             </button>
           </div>
@@ -146,7 +239,7 @@ export default function MealPlanPage() {
         <PlanTotals plan={plan} />
 
         <div className="grid-2">
-          <button type="button" className="btn" disabled={busy} onClick={() => generate({ ...settings, seed: settings.seed + 1 })}>
+          <button type="button" className="btn" disabled={busy} onClick={() => generate(request(1))}>
             {busy ? 'Gerando…' : 'Outro cardápio'}
           </button>
           <button type="button" className="btn" onClick={() => setEditing(true)}>
@@ -156,7 +249,7 @@ export default function MealPlanPage() {
         {error && <p className="error">{error}</p>}
 
         {plan.meals.map((m, mi) => (
-          <PlanMealCard key={mi} meal={m} onSwap={(ii, subId) => swap(mi, ii, subId)} />
+          <PlanMealCard key={`${selected.id}-${mi}`} meal={m} onSwap={(ii, subId) => swap(current, mi, ii, subId)} />
         ))}
 
         <section className="stack" style={{ gap: 10 }}>
@@ -172,7 +265,7 @@ export default function MealPlanPage() {
         <section className="stack" style={{ gap: 10 }}>
           <h2>Lista de compras para 7 dias</h2>
           <div className="card stack" style={{ gap: 14 }}>
-            {plan.shopping.map(g => (
+            {shopping.map(g => (
               <div key={g.title}>
                 <span className="eyebrow">{g.title}</span>
                 <div className="shopping">
@@ -190,7 +283,8 @@ export default function MealPlanPage() {
             ))}
           </div>
           <p className="muted tiny" style={{ margin: 0 }}>
-            Carnes, arroz e feijão aparecem crus, no peso de comprar; entre parênteses, quanto rende pronto. Trocar alimentos no cardápio atualiza a lista.
+            Carnes, arroz e feijão aparecem crus, no peso de comprar; entre parênteses, quanto rende pronto.
+            {saved.length > 1 ? ' Soma os cardápios de cada tipo de dia pelos dias da semana.' : ''} Trocar alimentos no cardápio atualiza a lista.
           </p>
         </section>
 
@@ -198,9 +292,19 @@ export default function MealPlanPage() {
           Orientação geral calculada pelo NutriMax com a tabela TACO. Não substitui a consulta com um nutricionista, principalmente se você tiver alguma condição de saúde.
         </p>
       </main>
-      <PlanPrint plan={plan} name={firstName} />
+      <PlanPrint plans={saved} shopping={shopping} name={firstName} />
     </>
   )
+}
+
+/** Metas de um tipo de dia: as do perfil mais o gasto dos treinos desses dias e o ajuste manual. */
+function dayGoals(profile: NutritionProfile, weight: number | null, now: Date, schedule: DaySchedule[], day: Pick<DayType, 'weekdays' | 'extra_kcal'>) {
+  const activity = dayActivity(day, schedule)
+  return {
+    targets: dailyTargets(profile, weight, now, activity.kcal + day.extra_kcal),
+    water_ml: waterTarget(weight) + activity.water_ml,
+    activity_kcal: activity.kcal,
+  }
 }
 
 function PlanTotals({ plan }: { plan: MealPlan }) {
@@ -309,14 +413,22 @@ function PlanMealCard({ meal, onSwap }: { meal: PlanMeal; onSwap: (itemIdx: numb
   )
 }
 
-function SettingsForm(props: { initial: PlanSettings; busy: boolean; onSubmit: (s: PlanSettings) => void; onCancel?: () => void }) {
+function SettingsForm(props: {
+  initial: PlanRequest
+  schedule: DaySchedule[]
+  suggested: DayType[]
+  goalsFor: (day: Pick<DayType, 'weekdays' | 'extra_kcal'>) => ReturnType<typeof dayGoals>
+  busy: boolean
+  onSubmit: (r: PlanRequest) => void
+  onCancel?: () => void
+}) {
   const [slots, setSlots] = useState(props.initial.slots)
-  const [trains, setTrains] = useState(props.initial.training_time != null)
-  const [trainingTime, setTrainingTime] = useState(props.initial.training_time ?? '18:00')
+  const [days, setDays] = useState<DayType[]>(props.initial.days)
   const [excluded, setExcluded] = useState(new Set(props.initial.excluded))
+  const byDay = days.length > 1
   const choices = planFoodChoices()
-  const preview = arrangeSlots(slots, trains ? trainingTime : null)
-  const validTimes = slots.every(s => /^\d{2}:\d{2}$/.test(s.time)) && (!trains || /^\d{2}:\d{2}$/.test(trainingTime))
+  const validTimes = slots.every(s => /^\d{2}:\d{2}$/.test(s.time)) && days.every(d => d.training_times.every(t => /^\d{2}:\d{2}$/.test(t)))
+  const uncovered = [0, 1, 2, 3, 4, 5, 6].filter(w => !dayTypeOf(w, days))
 
   const toggle = (id: string) =>
     setExcluded(prev => {
@@ -326,13 +438,26 @@ function SettingsForm(props: { initial: PlanSettings; busy: boolean; onSubmit: (
       return next
     })
 
+  const patchDay = (id: string, patch: Partial<DayType>) => setDays(ds => ds.map(d => (d.id === id ? { ...d, ...patch } : d)))
+
+  function setMode(perDay: boolean) {
+    if (perDay === byDay) return
+    if (perDay) setDays(props.suggested.length > 1 ? props.suggested : [{ ...singleDayType(), name: 'Dia de treino', weekdays: [1, 2, 3, 4, 5] }, { id: 'd2', name: 'Descanso', weekdays: [6, 0], training_times: [], extra_kcal: 0 }])
+    else setDays([{ ...singleDayType(), training_times: days[0]?.training_times ?? [] }])
+  }
+
+  function addDay() {
+    const id = `d${Date.now()}`
+    setDays(ds => [...ds, { id, name: `Tipo ${ds.length + 1}`, weekdays: [], training_times: [], extra_kcal: 0 }])
+  }
+
   return (
     <form
       className="stack"
       onSubmit={e => {
         e.preventDefault()
         if (!validTimes) return
-        props.onSubmit({ slots, training_time: trains ? trainingTime : null, excluded: [...excluded], seed: props.initial.seed })
+        props.onSubmit({ slots, excluded: [...excluded], seed: props.initial.seed, days: days.map(d => ({ ...d, name: d.name.trim() || 'Dia' })) })
       }}
     >
       <div className="field">
@@ -364,27 +489,49 @@ function SettingsForm(props: { initial: PlanSettings; busy: boolean; onSubmit: (
       </div>
 
       <div className="field">
-        <span>Treino</span>
+        <span>Cardápio</span>
         <div className="chips wrap">
-          <button type="button" className={`chip ${trains ? 'on' : ''}`} onClick={() => setTrains(true)}>
-            Treino em um horário fixo
+          <button type="button" className={`chip ${!byDay ? 'on' : ''}`} onClick={() => setMode(false)}>
+            Igual todos os dias
           </button>
-          <button type="button" className={`chip ${!trains ? 'on' : ''}`} onClick={() => setTrains(false)}>
-            Sem horário fixo
+          <button type="button" className={`chip ${byDay ? 'on' : ''}`} onClick={() => setMode(true)}>
+            Um para cada tipo de dia
           </button>
         </div>
-        {trains && (
-          <label className="spread" style={{ marginTop: 8 }}>
-            <span className="small">Horário do treino</span>
-            <input className="input time" type="time" value={trainingTime} onChange={e => setTrainingTime(e.target.value)} />
-          </label>
-        )}
-        {trains && preview.some(s => s.kind === 'pre_workout') && (
-          <p className="muted tiny" style={{ margin: '6px 0 0' }}>
-            O lanche antes do treino vira pré-treino às {preview.find(s => s.kind === 'pre_workout')!.time}, leve e com pouca gordura.
-          </p>
-        )}
+        <small className="muted tiny">
+          {byDay
+            ? 'Dias com treinos diferentes ganham cardápios diferentes: mais comida nos dias de maior gasto, pré e pós-treino nos horários certos.'
+            : 'Um cardápio só, com o treino no horário que você escolher.'}
+        </small>
       </div>
+
+      {days.map(d => (
+        <DayCard
+          key={d.id}
+          day={d}
+          byDay={byDay}
+          goals={props.goalsFor(d)}
+          slots={slots}
+          onChange={patch => patchDay(d.id, patch)}
+          onToggleWeekday={w => setDays(ds => (d.weekdays.includes(w) ? ds.map(x => (x.id === d.id ? { ...x, weekdays: x.weekdays.filter(y => y !== w) } : x)) : assignWeekday(ds, d.id, w)))}
+          onRemove={byDay && days.length > 1 ? () => setDays(ds => ds.filter(x => x.id !== d.id)) : undefined}
+        />
+      ))}
+      {byDay && (
+        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="btn ghost small" onClick={addDay}>
+            + Tipo de dia
+          </button>
+          <button type="button" className="btn ghost small" onClick={() => setDays(props.suggested.length > 1 ? props.suggested : days)}>
+            Sugerir pelos meus treinos
+          </button>
+        </div>
+      )}
+      {byDay && uncovered.length > 0 && (
+        <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
+          {uncovered.map(w => WEEKDAYS[w]).join(', ')} {uncovered.length === 1 ? 'está' : 'estão'} sem cardápio. Toque no dia em um dos tipos acima.
+        </p>
+      )}
 
       <div className="field">
         <span>O que você não come</span>
@@ -405,8 +552,8 @@ function SettingsForm(props: { initial: PlanSettings; busy: boolean; onSubmit: (
         ))}
       </div>
 
-      <button className="btn primary big block" disabled={props.busy || !validTimes}>
-        {props.busy ? 'Gerando…' : 'Gerar plano'}
+      <button className="btn primary big block" disabled={props.busy || !validTimes || !days.some(d => d.weekdays.length)}>
+        {props.busy ? 'Gerando…' : byDay ? `Gerar ${days.filter(d => d.weekdays.length).length} cardápios` : 'Gerar plano'}
       </button>
       {props.onCancel && (
         <button type="button" className="btn ghost block" onClick={props.onCancel}>
@@ -417,8 +564,148 @@ function SettingsForm(props: { initial: PlanSettings; busy: boolean; onSubmit: (
   )
 }
 
+/** Um tipo de dia no formulário: nome, dias da semana, horários de treino e ajuste de calorias. */
+function DayCard(props: {
+  day: DayType
+  byDay: boolean
+  goals: ReturnType<typeof dayGoals>
+  slots: PlanSlot[]
+  onChange: (patch: Partial<DayType>) => void
+  onToggleWeekday: (w: number) => void
+  onRemove?: () => void
+}) {
+  const { day, goals } = props
+  const [newTime, setNewTime] = useState('')
+  const preview = arrangeSlots(props.slots, day.training_times)
+  const around = preview.filter(s => s.kind === 'pre_workout' || s.kind === 'post_workout')
+  const extraText = day.extra_kcal ? String(day.extra_kcal) : ''
+
+  return (
+    <div className="card stack" style={{ gap: 12 }}>
+      {props.byDay && (
+        <div className="spread" style={{ gap: 8 }}>
+          <input className="input" value={day.name} onChange={e => props.onChange({ name: e.target.value })} aria-label="Nome do tipo de dia" />
+          {props.onRemove && (
+            <button type="button" className="btn ghost icon" onClick={props.onRemove} aria-label={`Remover ${day.name}`}>
+              <Icon.close />
+            </button>
+          )}
+        </div>
+      )}
+      {props.byDay && (
+        <div className="chips wrap" aria-label="Dias da semana">
+          {[1, 2, 3, 4, 5, 6, 0].map(w => (
+            <button key={w} type="button" className={`chip ${day.weekdays.includes(w) ? 'on' : ''}`} aria-pressed={day.weekdays.includes(w)} onClick={() => props.onToggleWeekday(w)}>
+              {WEEKDAYS[w].slice(0, 3)}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="field">
+        <span>Horários de treino</span>
+        <div className="chips wrap">
+          {day.training_times.map(t => (
+            <button key={t} type="button" className="chip on" onClick={() => props.onChange({ training_times: day.training_times.filter(x => x !== t) })} aria-label={`Tirar o treino das ${t}`}>
+              {t} ✕
+            </button>
+          ))}
+          {!day.training_times.length && <span className="muted small">Sem treino</span>}
+        </div>
+        <div className="row" style={{ gap: 8, marginTop: 6 }}>
+          <input className="input time" type="time" value={newTime} onChange={e => setNewTime(e.target.value)} aria-label="Novo horário de treino" />
+          <button
+            type="button"
+            className="btn small"
+            disabled={!/^\d{2}:\d{2}$/.test(newTime) || day.training_times.includes(newTime)}
+            onClick={() => {
+              props.onChange({ training_times: [...day.training_times, newTime].sort() })
+              setNewTime('')
+            }}
+          >
+            + Treino
+          </button>
+        </div>
+        {around.length > 0 && (
+          <small className="muted tiny" style={{ marginTop: 4 }}>
+            {around.map(s => `${s.label} às ${s.time}`).join(', ')}.
+          </small>
+        )}
+      </div>
+      <label className="field">
+        <span>Ajuste de calorias neste dia (opcional)</span>
+        <input
+          className="input"
+          inputMode="numeric"
+          placeholder="0"
+          value={extraText}
+          onChange={e => {
+            const n = Number(e.target.value.replace(/[^\d-]/g, ''))
+            props.onChange({ extra_kcal: Number.isFinite(n) ? Math.max(-1500, Math.min(1500, n)) : 0 })
+          }}
+        />
+      </label>
+      {goals.targets && (
+        <small className="muted tiny">
+          Meta deste dia: {fmt(goals.targets.kcal)} kcal, {fmt(goals.targets.protein_g)} g de proteína, {fmt(goals.targets.carbs_g)} g de carboidrato e {liters(goals.water_ml)} L de água
+          {goals.activity_kcal ? ` (inclui ${fmt(goals.activity_kcal)} kcal dos treinos)` : ''}.
+        </small>
+      )}
+    </div>
+  )
+}
+
 /** Versão para imprimir ou salvar em PDF, no formato de um plano de consultório. */
-function PlanPrint({ plan, name }: { plan: MealPlan; name: string | null }) {
+function PlanPrint({ plans, shopping, name }: { plans: SavedPlan[]; shopping: ReturnType<typeof shoppingList>; name: string | null }) {
+  const first = plans[0].plan
+  // Orientações repetidas entre os dias aparecem uma vez só.
+  const guidance = [...new Map(plans.flatMap(p => p.plan.guidance).map(g => [g.title, g])).values()]
+  return (
+    <div className="print-only plan-print">
+      <header>
+        <strong className="brand-print">NutriMax</strong>
+        <span>Gerado em {longDate(first.generated_at)}</span>
+      </header>
+      <h1>Plano alimentar</h1>
+      <p className="sub">
+        {name ? `${name} · ` : ''}
+        {plans.length > 1 ? `${plans.length} cardápios, um para cada tipo de dia` : `${first.meals.length} refeições por dia`} · revisar em {reviewDate(first.generated_at)}
+      </p>
+
+      {plans.map(p => (
+        <PrintDay key={p.id} saved={p} title={plans.length > 1 ? dayLabel(p) : 'Cardápio do dia'} />
+      ))}
+
+      <h2>Orientações</h2>
+      {guidance.map(g => (
+        <div key={g.title} className="print-guidance">
+          <strong>{g.title}</strong>
+          <p>{g.text}</p>
+        </div>
+      ))}
+
+      <h2>Lista de compras para 7 dias</h2>
+      {shopping.map(g => (
+        <div key={g.title} className="print-shopping">
+          <strong>{g.title}</strong>
+          {g.items.map(i => (
+            <div key={i.food_id} className="row-print">
+              <span>{i.name}</span>
+              <span>
+                {i.amount}
+                {i.note ? ` (${i.note})` : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <footer>Orientação geral calculada pelo NutriMax. Não substitui a consulta com um nutricionista, principalmente se você tiver alguma condição de saúde.</footer>
+    </div>
+  )
+}
+
+function PrintDay({ saved, title }: { saved: SavedPlan; title: string }) {
+  const { plan } = saved
   const t = plan.targets
   const totals: [string, number, number, string][] = [
     ['Calorias', plan.total.kcal, t.kcal, 'kcal'],
@@ -428,16 +715,8 @@ function PlanPrint({ plan, name }: { plan: MealPlan; name: string | null }) {
     ['Fibra', plan.total.fiber_g, t.fiber_g, 'g'],
   ]
   return (
-    <div className="print-only plan-print">
-      <header>
-        <strong className="brand-print">NutriMax</strong>
-        <span>Gerado em {longDate(plan.generated_at)}</span>
-      </header>
-      <h1>Plano alimentar</h1>
-      <p className="sub">
-        {name ? `${name} · ` : ''}
-        {plan.meals.length} refeições por dia · revisar em {reviewDate(plan.generated_at)}
-      </p>
+    <>
+      <h2>{title}</h2>
       <div className="totals">
         {totals.map(([label, v, target, unit]) => (
           <div key={label}>
@@ -451,8 +730,6 @@ function PlanPrint({ plan, name }: { plan: MealPlan; name: string | null }) {
           </div>
         ))}
       </div>
-
-      <h2>Cardápio do dia</h2>
       {plan.meals.map((m, i) => (
         <section key={i} className="print-meal">
           <div className="print-meal-head">
@@ -487,33 +764,6 @@ function PlanPrint({ plan, name }: { plan: MealPlan; name: string | null }) {
           </table>
         </section>
       ))}
-
-      <h2>Orientações</h2>
-      {plan.guidance.map(g => (
-        <div key={g.title} className="print-guidance">
-          <strong>{g.title}</strong>
-          <p>{g.text}</p>
-        </div>
-      ))}
-
-      <h2>Lista de compras para 7 dias</h2>
-      {plan.shopping.map(g => (
-        <div key={g.title} className="print-shopping">
-          <strong>{g.title}</strong>
-          {g.items.map(i => (
-            <div key={i.food_id} className="row-print">
-              <span>{i.name}</span>
-              <span>
-                {i.amount}
-                {i.note ? ` (${i.note})` : ''}
-              </span>
-            </div>
-          ))}
-        </div>
-      ))}
-
-      <footer>Orientação geral calculada pelo NutriMax. Não substitui a consulta com um nutricionista, principalmente se você tiver alguma condição de saúde.</footer>
-    </div>
+    </>
   )
 }
-
