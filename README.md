@@ -11,6 +11,11 @@ alimentos próprios (copiados do rótulo ou lidos pelo código de barras no Open
 adição rápida de calorias, refeições salvas, água, fibra e sódio, e metas de calorias e macros
 calculadas pelo perfil, com peso-alvo, ritmo semanal e opção de somar as calorias dos treinos.
 
+O **cardio** (corrida, caminhada, bicicleta, natação, remo, elíptico, trilha, corda) tem planos
+por dia da semana com distância, tempo, intensidade, intervalos e progressão por sessão, e o
+registro do que foi feito com ritmo e gasto estimado. As calorias do cardio entram na meta do dia
+(com "somar as calorias dos treinos" ligado) e a meta de água sobe nos dias de cardio.
+
 ## Stack
 
 - React 19 + Vite + TypeScript, com `vite-plugin-pwa`
@@ -48,6 +53,9 @@ src/
     data.ts                   leituras e gravações no Supabase
     why.ts                    explicação da sugestão de carga em português
     opengym/                  lógica de treino portada do openGym (AGPL-3.0)
+  modules/cardio/             cardio
+    cardio.ts                 atividades, ritmo, gasto (MET/ACSM), progressão e água
+    data.ts                   leituras e gravações no Supabase
   modules/nutrition/          módulo de nutrição
     targets.ts                gasto calórico (Mifflin-St Jeor) e divisão dos macros
     foods.ts                  macros por porção, totais e busca de alimentos
@@ -71,6 +79,8 @@ scripts/import-foods.ts       importação dos alimentos da TACO
 | `food_logs` | O que foi comido, por dia e refeição, com os macros copiados na hora |
 | `saved_meals` | Refeições salvas para lançar de novo com um toque |
 | `water_logs` | Água bebida por dia |
+| `cardio_plans` | Planos de cardio: dias, distância, tempo, intensidade, intervalos e progressão |
+| `cardio_logs` | Cada atividade de cardio feita, com ritmo, esforço e calorias |
 | `ai_insights` | Sugestões da IA, aprovadas ou recusadas pelo usuário |
 
 Views: `last_sets` (última série de cada exercício, usada pela progressão) e

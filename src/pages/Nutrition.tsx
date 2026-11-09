@@ -5,6 +5,8 @@ import { Icon, Modal } from '../components/ui'
 import NutritionSummary from '../components/NutritionSummary'
 import { deleteLog, getWater, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
 import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
+import { dayCardio } from '../modules/cardio/cardio'
+import { loadCardioDay } from '../modules/cardio/data'
 import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal } from '../modules/nutrition/targets'
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
@@ -28,7 +30,7 @@ export default function Nutrition() {
   const [date, setDate] = useState(todayIso)
   const setup = useAsync(() => Promise.all([loadNutritionProfile(), listBodyWeights(1)]))
   const logs = useAsync(() => listLogs(date), [date])
-  const day = useAsync(() => Promise.all([workoutMinutesOn(date), getWater(date)]), [date])
+  const day = useAsync(() => Promise.all([workoutMinutesOn(date), getWater(date), loadCardioDay(date)]), [date])
   const [adding, setAdding] = useState<Meal | null>(null)
   const [editing, setEditing] = useState<FoodLog | null>(null)
   const [saving, setSaving] = useState<{ meal: string; items: FoodLog[] } | null>(null)
@@ -37,14 +39,18 @@ export default function Nutrition() {
   const [profile, weights] = setup.data ?? [null, []]
   const weight = weights.at(-1)?.weight_kg ?? null
   const on = new Date(date + 'T12:00:00')
-  const trainingKcal = profile?.add_workout_kcal && weight ? (day.data?.[0] ?? []).reduce((a, m) => a + workoutKcal(m, weight), 0) : 0
+  // Corrida, bike etc. do dia: calorias na meta (se ligado) e água a mais. Dias passados não contam o que ficou só no plano.
+  const cardioData = day.data?.[2]
+  const cardio = cardioData ? dayCardio(date >= todayIso() ? cardioData.plans : [], on.getDay(), cardioData.logs, cardioData.last) : null
+  const trainingKcal =
+    profile?.add_workout_kcal && weight ? (day.data?.[0] ?? []).reduce((a, m) => a + workoutKcal(m, weight), 0) + (cardio?.creditKcal ?? 0) : 0
   const targets = profile ? dailyTargets(profile, weight, on, trainingKcal) : null
   const items = logs.data ?? []
   const total = sumMacros(items)
   const micros = sumMicros(items)
   const isToday = date === todayIso()
   const waterMl = water?.date === date ? water.ml : (day.data?.[1] ?? 0)
-  const waterGoal = waterTarget(weight)
+  const waterGoal = waterTarget(weight) + (cardio?.waterMl ?? 0)
   const fiberGoal = fiberTarget(profile?.sex ?? null, profile?.birth_date ? ageOn(profile.birth_date, on) : null)
   const lowKcal = targets && profile && !profile.kcal_target && targets.kcal - trainingKcal < kcalFloor(profile.sex)
 

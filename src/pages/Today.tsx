@@ -9,6 +9,9 @@ import { sumMacros } from '../modules/nutrition/foods'
 import { dailyTargets, GOALS, waterTarget, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
 import { dayTips, daysBetween, greeting, waterExpected, weekNutrition } from '../modules/home/today'
 import { startRoutine } from '../modules/training/start'
+import { dayCardio, describeTarget, logSummary, type CardioLog } from '../modules/cardio/cardio'
+import { loadCardioDay } from '../modules/cardio/data'
+import { CardioLogModal, type LogStart } from '../components/CardioForms'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
 import { supabase } from '../lib/supabase'
@@ -32,6 +35,8 @@ export default function Today() {
   const training = useAsync(() => Promise.all([listRoutines(), listWorkouts(1), loadState(), workoutMinutesOn(today)]))
   const body = useAsync(() => Promise.all([loadFirstName(), loadNutritionProfile(), listBodyWeights(60)]))
   const food = useAsync(() => Promise.all([listLogs(today), getWater(today), listLogTotals(shift(today, -7), today)]))
+  const cardioDay = useAsync(() => loadCardioDay(today))
+  const [cardioEdit, setCardioEdit] = useState<{ log?: CardioLog; from?: LogStart } | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [waterMl, setWaterMl] = useState<number | null>(null)
@@ -44,15 +49,18 @@ export default function Today() {
   const last = recent[0]
   const todays = routines.filter(r => r.weekday === weekday)
   const others = routines.filter(r => r.weekday !== weekday)
-  const trainedToday = minutesToday.length > 0
+  const strengthDone = minutesToday.length > 0
+  const cardio = cardioDay.data ? dayCardio(cardioDay.data.plans, weekday, cardioDay.data.logs, cardioDay.data.last) : null
+  const cardioPending = cardio?.plans.some(p => !p.done) ?? false
+  const trainedToday = strengthDone || (cardioDay.data?.logs.length ?? 0) > 0
 
   const weight = weights.at(-1)?.weight_kg ?? null
   const trend = weightTrend(weights).at(-1)?.avg ?? null
-  const trainingKcal = profile?.add_workout_kcal && weight ? minutesToday.reduce((a, m) => a + workoutKcal(m, weight), 0) : 0
+  const trainingKcal = profile?.add_workout_kcal && weight ? minutesToday.reduce((a, m) => a + workoutKcal(m, weight), 0) + (cardio?.creditKcal ?? 0) : 0
   const targets = profile ? dailyTargets(profile, weight, now, trainingKcal) : null
   const eaten = sumMacros(logs)
   const water = waterMl ?? savedWater
-  const waterGoal = waterTarget(weight)
+  const waterGoal = waterTarget(weight) + (cardio?.waterMl ?? 0)
   const week = weekNutrition(weekRows, today, targets?.protein_g ?? null)
 
   const recovery = state ? recoveryByMuscle(state, now.getTime(), weight ?? undefined) : []
@@ -70,7 +78,8 @@ export default function Today() {
         logged: logs.length,
         trainedToday,
         trainingKcal,
-        workoutPending: todays.length > 0 && !trainedToday,
+        workoutPending: (todays.length > 0 && !strengthDone) || cardioPending,
+        cardioWaterMl: cardio?.waterMl ?? 0,
         waterMl: water,
         waterGoal,
         week,
@@ -103,7 +112,7 @@ export default function Today() {
     }
   }
 
-  const loadError = training.error ?? body.error ?? food.error
+  const loadError = training.error ?? body.error ?? food.error ?? cardioDay.error
 
   return (
     <main className="page stack">
@@ -153,7 +162,7 @@ export default function Today() {
             <span className="btn primary">Continuar</span>
           </div>
         </Link>
-      ) : trainedToday ? (
+      ) : strengthDone ? (
         <div className="card hero">
           <span className="eyebrow">Treino de hoje</span>
           <h3 style={{ fontSize: '1.8rem', marginTop: 4 }}>Feito ✓</h3>
@@ -164,6 +173,59 @@ export default function Today() {
         </div>
       ) : (
         todays.map(r => <RoutineCard key={r.id} name={r.name} hint="Programado para hoje" starting={starting === r.id} onStart={() => start(r.id)} highlight />)
+      )}
+
+      {cardio?.plans.map(({ plan, distance_m, duration_sec, done }) =>
+        done ? (
+          <button key={plan.id} type="button" className="card spread" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => setCardioEdit({ log: done })}>
+            <div style={{ minWidth: 0 }}>
+              <span className="eyebrow">{plan.name}</span>
+              <div style={{ fontWeight: 700, marginTop: 2 }}>Feito ✓</div>
+              <div className="muted small">{logSummary(done, false)}</div>
+            </div>
+          </button>
+        ) : (
+          <div key={plan.id} className="card spread" style={{ gap: 10 }}>
+            <div style={{ minWidth: 0 }}>
+              <span className="eyebrow">Cardio de hoje{plan.time ? ` · ${plan.time}` : ''}</span>
+              <div className="title ellipsis" style={{ fontWeight: 700, marginTop: 2 }}>
+                {plan.name}
+              </div>
+              <div className="muted small">{describeTarget(distance_m, plan.duration_sec, plan.intensity, plan.intervals)}</div>
+              {plan.notes && <div className="muted tiny">{plan.notes}</div>}
+            </div>
+            <button type="button" className="btn small" onClick={() => setCardioEdit({ from: { plan, distance_m, duration_sec } })}>
+              Registrar
+            </button>
+          </div>
+        ),
+      )}
+      {cardio?.extra.map(l => (
+        <button key={l.id} type="button" className="card spread" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => setCardioEdit({ log: l })}>
+          <div style={{ minWidth: 0 }}>
+            <span className="eyebrow">{l.name}</span>
+            <div style={{ fontWeight: 700, marginTop: 2 }}>Feito ✓</div>
+            <div className="muted small">{logSummary(l, false)}</div>
+          </div>
+        </button>
+      ))}
+      {cardioDay.data && (
+        <button type="button" className="btn ghost small" style={{ justifySelf: 'start' }} onClick={() => setCardioEdit({})}>
+          + Registrar cardio
+        </button>
+      )}
+      {cardioEdit && (
+        <CardioLogModal
+          log={cardioEdit.log}
+          from={cardioEdit.from}
+          date={today}
+          weightKg={weight}
+          onClose={() => setCardioEdit(null)}
+          onSaved={() => {
+            setCardioEdit(null)
+            cardioDay.reload()
+          }}
+        />
       )}
 
       {training.data && routines.length === 0 && (

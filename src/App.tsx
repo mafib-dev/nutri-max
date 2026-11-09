@@ -11,6 +11,7 @@ import Progress from './pages/Progress'
 import Overview from './pages/Overview'
 import Nutrition from './pages/Nutrition'
 import NutritionGoals from './pages/NutritionGoals'
+import Cardio from './pages/Cardio'
 
 const icon = (d: string) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="/rotinas" element={<Routines />} />
         <Route path="/rotinas/:id" element={<RoutineEdit />} />
         <Route path="/exercicios" element={<Exercises />} />
+        <Route path="/cardio" element={<Cardio />} />
         <Route path="/treino" element={<Workout />} />
         <Route path="/historico" element={<History />} />
         <Route path="/progresso" element={<Overview />} />

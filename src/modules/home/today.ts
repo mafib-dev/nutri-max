@@ -60,8 +60,10 @@ export interface DayContext {
   logged: number
   trainedToday: boolean
   trainingKcal: number
-  /** Há rotina marcada para hoje e ainda não foi feita. */
+  /** Há rotina ou cardio marcado para hoje e ainda não foi feito. */
   workoutPending: boolean
+  /** Água a mais na meta de hoje por causa do cardio (feito ou planejado). */
+  cardioWaterMl?: number
   waterMl: number
   waterGoal: number
   week: WeekNutrition
@@ -97,6 +99,9 @@ export function dayTips(c: DayContext): Tip[] {
     if (c.goal === 'lose' && kcalLeft < -150) tips.push({ tone: 'warn', text: `Você passou ${fmt(-kcalLeft)} kcal da meta de hoje. Amanhã é outro dia: mantenha a proteína alta.` })
     if (c.goal === 'gain' && kcalLeft > 500) tips.push({ tone: 'warn', text: `Para ganhar massa ainda faltam ${fmt(kcalLeft)} kcal hoje. Um lanche reforçado resolve.` })
   }
+
+  if (c.cardioWaterMl && c.waterMl < c.waterGoal)
+    tips.push({ tone: 'info', text: `Dia de cardio: a meta de água subiu ${(c.cardioWaterMl / 1000).toLocaleString('pt-BR')} L. Beba um pouco antes e reponha depois.` })
 
   const expected = waterExpected(c.waterGoal, c.hour)
   if (c.waterMl < expected - 500) tips.push({ tone: 'warn', text: `Água abaixo do ritmo: até agora o ideal seria ${(expected / 1000).toLocaleString('pt-BR')} L.` })

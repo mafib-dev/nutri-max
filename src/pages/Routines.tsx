@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { createRoutine, listRoutines, WEEKDAYS } from '../modules/training/data'
+import { listCardioPlans } from '../modules/cardio/data'
+import { daysLabel, describeTarget } from '../modules/cardio/cardio'
 import { useAsync } from '../lib/useAsync'
 
 export default function Routines() {
   const { data, error, loading } = useAsync(listRoutines)
+  const cardio = useAsync(listCardioPlans)
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
@@ -54,6 +57,27 @@ export default function Routines() {
           <div className="grow">
             <div className="title">{r.name}</div>
             <div className="muted small">{r.weekday == null ? 'Sem dia fixo' : WEEKDAYS[r.weekday]}</div>
+          </div>
+          <span className="chev">›</span>
+        </Link>
+      ))}
+
+      <div className="spread">
+        <h2>Cardio</h2>
+        <Link to="/cardio" className="btn ghost small">
+          {cardio.data?.length ? 'Abrir' : '+ Planejar'}
+        </Link>
+      </div>
+      {cardio.error && <p className="error">{cardio.error}</p>}
+      {cardio.data?.length === 0 && <p className="muted small">Corrida, caminhada, bike, natação: planeje os dias, a distância e os intervalos, e registre o que fez.</p>}
+      {cardio.data?.map(p => (
+        <Link key={p.id} to="/cardio" className="list-item" style={{ padding: 14 }}>
+          <span className="day-badge">{p.weekdays.length === 1 ? WEEKDAYS[p.weekdays[0]].slice(0, 3) : p.weekdays.length ? `${p.weekdays.length}×` : '—'}</span>
+          <div className="grow">
+            <div className="title">{p.name}</div>
+            <div className="muted small ellipsis">
+              {daysLabel(p.weekdays)} · {describeTarget(p.distance_m, p.duration_sec, p.intensity, p.intervals)}
+            </div>
           </div>
           <span className="chev">›</span>
         </Link>
