@@ -78,7 +78,7 @@ export default function History() {
                     </Link>
                     <div className="muted small">
                       {e.sets
-                        .map(s => `${s.phase === 'warmup' ? 'A ' : ''}${s.w.toLocaleString('pt-BR')}×${s.r}${s.rir != null ? ` (RIR ${s.rir})` : ''}`)
+                        .map(s => `${s.phase === 'warmup' ? 'A ' : ''}${s.sec && !s.r ? `${s.sec} s${s.w ? ` · ${s.w.toLocaleString('pt-BR')} kg` : ''}` : `${s.w.toLocaleString('pt-BR')}×${s.r}`}${s.rir != null ? ` (RIR ${s.rir})` : ''}`)
                         .join(' · ')}
                     </div>
                   </div>

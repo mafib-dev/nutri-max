@@ -164,6 +164,9 @@ export interface LogStart {
   plan: CardioPlan
   distance_m: number | null
   duration_sec: number | null
+  /** Meta da sessão quando difere do plano (semana leve). */
+  intensity?: Intensity
+  intervals?: Intervals | null
 }
 
 /** Registrar ou editar uma atividade. `from` preenche com a meta de um plano. */
@@ -175,8 +178,8 @@ export function CardioLogModal(props: { log?: CardioLog; from?: LogStart; date: 
   const [date, setDate] = useState(base?.date ?? props.date)
   const [distance, setDistance] = useState(distanceInput(base?.distance_m ?? props.from?.distance_m ?? null, activity))
   const [duration, setDuration] = useState(base ? formatDuration(base.duration_sec) : plan?.duration_sec ? formatDuration(plan.duration_sec) : '')
-  const [intensity, setIntensity] = useState<Intensity>(base?.intensity ?? plan?.intensity ?? 'easy')
-  const [intervals, setIntervals] = useState(intervalsText(base?.intervals ?? plan?.intervals ?? null))
+  const [intensity, setIntensity] = useState<Intensity>(base?.intensity ?? props.from?.intensity ?? plan?.intensity ?? 'easy')
+  const [intervals, setIntervals] = useState(intervalsText(base?.intervals ?? (props.from && props.from.intervals !== undefined ? props.from.intervals : (plan?.intervals ?? null))))
   const [rpe, setRpe] = useState(base?.rpe ? String(base.rpe) : '')
   const [hr, setHr] = useState(base?.avg_hr ? String(base.avg_hr) : '')
   const [kcal, setKcal] = useState(base?.kcal_from_device ? String(base.kcal) : '')

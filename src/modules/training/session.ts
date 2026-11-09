@@ -17,6 +17,8 @@ export interface SessionSet {
   kind: 'warmup' | 'work'
   weight: number | null
   reps: number | null
+  /** Duração da série, nas séries por tempo. */
+  seconds?: number | null
   rir: number | null
   done: boolean
 }
@@ -30,11 +32,15 @@ export interface SessionEntry {
   sets: SessionSet[]
   /** Séries de trabalho da última vez que o exercício foi feito (ausente em treinos salvos antes). */
   last?: LastPerformance | null
+  /** Série por tempo (prancha): o campo é segundos, não repetições. */
+  timed?: boolean
+  /** Montado na semana leve: menos séries e carga. */
+  light?: boolean
 }
 
 export interface LastPerformance {
   date: string
-  sets: { w: number; r: number }[]
+  sets: { w: number; r: number; sec?: number }[]
 }
 
 export interface Session {
@@ -53,7 +59,7 @@ export function lastPerformance(state: TrainingState, exerciseId: string): LastP
     for (const entry of state.workouts[i].entries) {
       if (entry.id !== exerciseId) continue
       const work = entry.sets.filter(s => s.done && s.phase !== 'warmup')
-      if (work.length) return { date: state.workouts[i].d, sets: work.map(s => ({ w: s.w, r: s.r })) }
+      if (work.length) return { date: state.workouts[i].d, sets: work.map(s => ({ w: s.w, r: s.r, ...(s.sec ? { sec: s.sec } : {}) })) }
     }
   }
   return null
@@ -68,6 +74,14 @@ export function buildEntry(
   const suggestion = suggestNext(state, cfg)
   const count = suggestion.sets ?? cfg.sets
   const last = lastPerformance(state, cfg.id)
+  const restSec = row.rest_sec ?? DEFAULT_REST_SEC
+  if (cfg.mode === 'time') {
+    // Peso corporal por padrão; carga só se a pessoa usou da última vez (prancha com anilha).
+    const weight = suggestion.weight ?? (last && last.sets.some(s => s.w > 0) ? Math.max(...last.sets.map(s => s.w)) : null)
+    const seconds = suggestion.sec ?? cfg.sec ?? 45
+    const sets: SessionSet[] = Array.from({ length: count }, () => ({ kind: 'work', weight, reps: null, seconds, rir: null, done: false }))
+    return { exerciseId: cfg.id, name, cfg, suggestion, restSec, sets, last, timed: true }
+  }
   // Sem sugestão da progressão, começa com a maior carga da última vez.
   const weight = suggestion.weight ?? (last ? Math.max(...last.sets.map(s => s.w)) : null)
   const sets: SessionSet[] = Array.from({ length: count }, (_, i) => ({
@@ -119,8 +133,8 @@ export function sessionToRows(session: Session, userId: string, endedAt: Date, b
         set_index: index,
         kind: s.kind,
         weight_kg: s.weight ?? 0,
-        reps: s.reps ?? 0,
-        duration_sec: null,
+        reps: entry.timed ? null : (s.reps ?? 0),
+        duration_sec: entry.timed ? (s.seconds ?? 0) : null,
         rir: s.rir,
         side: null,
         done: true,

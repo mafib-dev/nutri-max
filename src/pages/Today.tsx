@@ -11,6 +11,8 @@ import { dayTips, daysBetween, greeting, waterExpected, weekNutrition } from '..
 import { startRoutine } from '../modules/training/start'
 import { dayCardio, describeTarget, logSummary, type CardioLog } from '../modules/cardio/cardio'
 import { loadCardioDay } from '../modules/cardio/data'
+import { lightWeekStatus } from '../modules/training/lightWeek'
+import { loadLightWeek } from '../modules/training/data'
 import { CardioLogModal, type LogStart } from '../components/CardioForms'
 import { useActiveSession } from '../modules/training/activeSession'
 import { useAsync } from '../lib/useAsync'
@@ -36,6 +38,8 @@ export default function Today() {
   const body = useAsync(() => Promise.all([loadFirstName(), loadNutritionProfile(), listBodyWeights(60)]))
   const food = useAsync(() => Promise.all([listLogs(today), getWater(today), listLogTotals(shift(today, -7), today)]))
   const cardioDay = useAsync(() => loadCardioDay(today))
+  const lightSettings = useAsync(loadLightWeek)
+  const light = lightSettings.data ? lightWeekStatus(lightSettings.data, today) : null
   const [cardioEdit, setCardioEdit] = useState<{ log?: CardioLog; from?: LogStart } | null>(null)
   const [starting, setStarting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -50,7 +54,7 @@ export default function Today() {
   const todays = routines.filter(r => r.weekday === weekday)
   const others = routines.filter(r => r.weekday !== weekday)
   const strengthDone = minutesToday.length > 0
-  const cardio = cardioDay.data ? dayCardio(cardioDay.data.plans, weekday, cardioDay.data.logs, cardioDay.data.last) : null
+  const cardio = cardioDay.data ? dayCardio(cardioDay.data.plans, weekday, cardioDay.data.logs, cardioDay.data.last, light?.active) : null
   const cardioPending = cardio?.plans.some(p => !p.done) ?? false
   const trainedToday = strengthDone || (cardioDay.data?.logs.length ?? 0) > 0
 
@@ -175,7 +179,15 @@ export default function Today() {
         todays.map(r => <RoutineCard key={r.id} name={r.name} hint="Programado para hoje" starting={starting === r.id} onStart={() => start(r.id)} highlight />)
       )}
 
-      {cardio?.plans.map(({ plan, distance_m, duration_sec, done }) =>
+      {light?.active && (
+        <Link to="/rotinas" className="card" style={{ textDecoration: 'none', color: 'inherit', borderColor: 'var(--accent)' }}>
+          <span className="eyebrow">Semana leve até {new Date(light.until + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}</span>
+          <div className="small" style={{ marginTop: 4 }}>
+            Menos séries e 10% a menos de carga na musculação, cardio só leve e sem tiros. A proteína e a comida continuam iguais.
+          </div>
+        </Link>
+      )}
+      {cardio?.plans.map(({ plan, done, ...target }) =>
         done ? (
           <button key={plan.id} type="button" className="card spread" style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => setCardioEdit({ log: done })}>
             <div style={{ minWidth: 0 }}>
@@ -191,10 +203,10 @@ export default function Today() {
               <div className="title ellipsis" style={{ fontWeight: 700, marginTop: 2 }}>
                 {plan.name}
               </div>
-              <div className="muted small">{describeTarget(distance_m, plan.duration_sec, plan.intensity, plan.intervals)}</div>
+              <div className="muted small">{describeTarget(target.distance_m, plan.duration_sec, target.intensity, target.intervals)}</div>
               {plan.notes && <div className="muted tiny">{plan.notes}</div>}
             </div>
-            <button type="button" className="btn small" onClick={() => setCardioEdit({ from: { plan, distance_m, duration_sec } })}>
+            <button type="button" className="btn small" onClick={() => setCardioEdit({ from: { plan, ...target } })}>
               Registrar
             </button>
           </div>

@@ -30,6 +30,8 @@ export default function Workout() {
   const navigate = useNavigate()
   const [session, setSession] = useActiveSession()
   const [restUntil, setRestUntil] = useState<number | null>(null)
+  // Cronômetro de uma série por tempo: termina em `until` e marca a série como feita.
+  const [hold, setHold] = useState<{ ei: number; si: number; until: number } | null>(null)
   const [picking, setPicking] = useState(false)
   const [viewing, setViewing] = useState<number | null>(null)
   const catalogue = useAsync(loadCatalogue)
@@ -46,6 +48,15 @@ export default function Workout() {
       setRestUntil(null)
     }
   }, [restUntil, restLeft])
+  const holdLeft = hold ? Math.max(0, Math.ceil((hold.until - now) / 1000)) : 0
+  useEffect(() => {
+    if (!hold || holdLeft > 0) return
+    navigator.vibrate?.([300, 100, 300])
+    const rest = session?.entries[hold.ei]?.restSec ?? 0
+    setSession(s => s && { ...s, entries: s.entries.map((e, i) => (i === hold.ei ? { ...e, sets: e.sets.map((x, j) => (j === hold.si ? { ...x, done: true } : x)) } : e)) })
+    setHold(null)
+    if (rest) setRestUntil(Date.now() + rest * 1000)
+  }, [hold, holdLeft, session, setSession])
 
   if (summary) return <Summary {...summary} onClose={() => navigate('/')} />
 
@@ -88,8 +99,10 @@ export default function Workout() {
           const lastWork = [...e.sets].reverse().find(x => x.kind === 'work')
           const set: SessionSet =
             kind === 'warmup'
-              ? { kind, weight: lastWork?.weight != null ? Math.round(lastWork.weight * 0.5 * 2) / 2 : null, reps: 10, rir: null, done: false }
-              : { kind, weight: lastWork?.weight ?? null, reps: lastWork?.reps ?? null, rir: null, done: false }
+              ? e.timed
+                ? { kind, weight: null, reps: null, seconds: Math.max(10, Math.round((lastWork?.seconds ?? 30) / 2)), rir: null, done: false }
+                : { kind, weight: lastWork?.weight != null ? Math.round(lastWork.weight * 0.5 * 2) / 2 : null, reps: 10, rir: null, done: false }
+              : { kind, weight: lastWork?.weight ?? null, reps: lastWork?.reps ?? null, seconds: lastWork?.seconds, rir: null, done: false }
           return { ...e, sets: kind === 'warmup' ? [set, ...e.sets] : [...e.sets, set] }
         }),
       }
@@ -202,7 +215,7 @@ export default function Workout() {
             <div className="set-grid">
               <span className="head">#</span>
               <span className="head">kg</span>
-              <span className="head">reps</span>
+              <span className="head">{entry.timed ? 'seg' : 'reps'}</span>
               <span className="head">feita</span>
               {entry.sets.map((set, si) => {
                 const workIndex = entry.sets.slice(0, si + 1).filter(x => x.kind === 'work').length
@@ -229,14 +242,26 @@ export default function Workout() {
                       placeholder="–"
                       onChange={e => editSet(ei, si, { weight: parseNum(e.target.value) })}
                     />
-                    <input
-                      className="input"
-                      inputMode="numeric"
-                      aria-label={`Repetições da série ${si + 1}`}
-                      value={set.reps ?? ''}
-                      placeholder="–"
-                      onChange={e => editSet(ei, si, { reps: parseNum(e.target.value) })}
-                    />
+                    {entry.timed ? (
+                      <input
+                        className="input"
+                        inputMode="numeric"
+                        aria-label={`Segundos da série ${si + 1}`}
+                        value={hold && hold.ei === ei && hold.si === si ? holdLeft : (set.seconds ?? '')}
+                        placeholder="–"
+                        readOnly={!!hold && hold.ei === ei && hold.si === si}
+                        onChange={e => editSet(ei, si, { seconds: parseNum(e.target.value) })}
+                      />
+                    ) : (
+                      <input
+                        className="input"
+                        inputMode="numeric"
+                        aria-label={`Repetições da série ${si + 1}`}
+                        value={set.reps ?? ''}
+                        placeholder="–"
+                        onChange={e => editSet(ei, si, { reps: parseNum(e.target.value) })}
+                      />
+                    )}
                     <button
                       type="button"
                       className={`check ${set.done ? 'on' : ''}`}
@@ -250,13 +275,36 @@ export default function Workout() {
                 )
               })}
             </div>
-            <div className="row">
-              <button type="button" className="btn small" onClick={() => addSet(ei, 'work')}>
+            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+              <button type="button" className="btn small" style={{ whiteSpace: 'nowrap' }} onClick={() => addSet(ei, 'work')}>
                 + Série
               </button>
-              <button type="button" className="btn small ghost" onClick={() => addSet(ei, 'warmup')}>
+              <button type="button" className="btn small ghost" style={{ whiteSpace: 'nowrap' }} onClick={() => addSet(ei, 'warmup')}>
                 + Aquecimento
               </button>
+              {entry.timed &&
+                (() => {
+                  const next = entry.sets.findIndex(x => !x.done && (x.seconds ?? 0) > 0)
+                  if (hold && hold.ei === ei)
+                    return (
+                      <button type="button" className="btn small primary" onClick={() => setHold(null)}>
+                        Parar ({formatClock(holdLeft)})
+                      </button>
+                    )
+                  return next >= 0 ? (
+                    <button
+                      type="button"
+                      className="btn small primary"
+                      disabled={!!hold}
+                      onClick={() => {
+                        setRestUntil(null)
+                        setHold({ ei, si: next, until: Date.now() + (entry.sets[next].seconds ?? 0) * 1000 })
+                      }}
+                    >
+                      ▶ Cronometrar
+                    </button>
+                  ) : null
+                })()}
             </div>
           </section>
         )
@@ -326,7 +374,8 @@ const kg = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }
 /** Meta do exercício, descanso e o que foi feito da última vez. */
 function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: ExerciseRow | undefined }) {
   const { cfg } = entry
-  const reps = cfg.repsMin != null && cfg.reps != null && cfg.repsMin !== cfg.reps ? `${cfg.repsMin}–${cfg.reps}` : `${cfg.reps ?? '–'}`
+  const target = entry.timed ? `${entry.sets.find(s => s.kind === 'work')?.seconds ?? cfg.sec ?? '–'} s` : null
+  const reps = target ?? (cfg.repsMin != null && cfg.reps != null && cfg.repsMin !== cfg.reps ? `${cfg.repsMin}–${cfg.reps}` : `${cfg.reps ?? '–'}`)
   const last = entry.last
   return (
     <div className="ex-meta">
@@ -336,6 +385,11 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
       <span>
         Descanso <b>{formatClock(entry.restSec)}</b>
       </span>
+      {entry.light && (
+        <span>
+          <b>Semana leve</b> · menos séries e carga
+        </span>
+      )}
       {exercise && (
         <span>
           <b>{exercise.primary_muscles.map(muscleName).join(', ')}</b> · {equipmentName(exercise.equipment)}
@@ -344,7 +398,7 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
       {last && (
         <span style={{ flexBasis: '100%' }}>
           Última vez ({new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}):{' '}
-          <b>{last.sets.map(s => `${kg(s.w)}×${s.r}`).join(' · ')}</b>
+          <b>{last.sets.map(s => (s.sec ? `${s.sec} s${s.w ? ` · ${kg(s.w)} kg` : ''}` : `${kg(s.w)}×${s.r}`)).join(' · ')}</b>
         </span>
       )}
     </div>

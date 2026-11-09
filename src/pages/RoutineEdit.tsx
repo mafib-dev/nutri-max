@@ -27,16 +27,17 @@ const POLICIES: { value: string; label: string; hint: string }[] = [
   { value: 'off', label: 'Manual', hint: 'Você escolhe a carga.' },
 ]
 
-const newItem = (ex: ExerciseRow): Item => ({
-  exercise_id: ex.id,
-  sets: 3,
-  rep_min: 8,
-  rep_max: 12,
-  rest_sec: 90,
-  superset_group: null,
-  backup_exercise_id: null,
-  progression: { policy: 'double' },
-})
+/** Séries por tempo (prancha): o openGym só progride o tempo ou nada. */
+const TIME_POLICIES: { value: string; label: string; hint: string }[] = [
+  { value: 'time', label: 'Por tempo', hint: 'Segurou todas as séries o tempo todo, a meta sobe (5 s por padrão).' },
+  { value: 'off', label: 'Manual', hint: 'Você escolhe o tempo.' },
+]
+
+const newItem = (ex: ExerciseRow): Item =>
+  // Prancha e outras isometrias do catálogo começam por tempo.
+  ex.force === 'static'
+    ? { exercise_id: ex.id, sets: 3, rep_min: null, rep_max: null, rest_sec: 60, superset_group: null, backup_exercise_id: null, progression: { policy: 'time' }, mode: 'time', target_sec: 30 }
+    : { exercise_id: ex.id, sets: 3, rep_min: 8, rep_max: 12, rest_sec: 90, superset_group: null, backup_exercise_id: null, progression: { policy: 'double' }, mode: 'reps', target_sec: null }
 
 const numberOrNull = (v: string) => (v === '' ? null : Math.max(0, Number(v)))
 
@@ -144,7 +145,9 @@ export default function RoutineEdit() {
       )}
       {items.map((it, i) => {
         const ex = byId.get(it.exercise_id)
-        const policy = it.progression.policy ?? 'double'
+        const timed = it.mode === 'time'
+        const policies = timed ? TIME_POLICIES : POLICIES
+        const policy = policies.some(p => p.value === it.progression.policy) ? it.progression.policy! : policies[0].value
         return (
           <div key={`${it.exercise_id}-${i}`} className="card stack" style={{ gap: 14 }}>
             <div className="row">
@@ -167,19 +170,44 @@ export default function RoutineEdit() {
                 </button>
               </div>
             </div>
+            <div className="chips">
+              <button
+                type="button"
+                className={`chip ${!timed ? 'on' : ''}`}
+                onClick={() => patch(i, { mode: 'reps', target_sec: null, rep_min: it.rep_min ?? 8, rep_max: it.rep_max ?? 12, progression: { ...it.progression, policy: 'double' } })}
+              >
+                Repetições
+              </button>
+              <button
+                type="button"
+                className={`chip ${timed ? 'on' : ''}`}
+                onClick={() => patch(i, { mode: 'time', target_sec: it.target_sec ?? 30, rep_min: null, rep_max: null, progression: { ...it.progression, policy: 'time', increment: undefined } })}
+              >
+                Tempo
+              </button>
+            </div>
             <div className="grid-3">
               <label className="field">
                 <span>Séries</span>
                 <input className="input" type="number" inputMode="numeric" min={1} value={it.sets} onChange={e => patch(i, { sets: Math.max(1, Number(e.target.value) || 1) })} />
               </label>
-              <label className="field">
-                <span>Reps mín.</span>
-                <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_min ?? ''} onChange={e => patch(i, { rep_min: numberOrNull(e.target.value) })} />
-              </label>
-              <label className="field">
-                <span>Reps máx.</span>
-                <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_max ?? ''} onChange={e => patch(i, { rep_max: numberOrNull(e.target.value) })} />
-              </label>
+              {timed ? (
+                <label className="field" style={{ gridColumn: 'span 2' }}>
+                  <span>Segundos por série</span>
+                  <input className="input" type="number" inputMode="numeric" min={5} step={5} value={it.target_sec ?? ''} onChange={e => patch(i, { target_sec: numberOrNull(e.target.value) })} />
+                </label>
+              ) : (
+                <>
+                  <label className="field">
+                    <span>Reps mín.</span>
+                    <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_min ?? ''} onChange={e => patch(i, { rep_min: numberOrNull(e.target.value) })} />
+                  </label>
+                  <label className="field">
+                    <span>Reps máx.</span>
+                    <input className="input" type="number" inputMode="numeric" min={1} value={it.rep_max ?? ''} onChange={e => patch(i, { rep_max: numberOrNull(e.target.value) })} />
+                  </label>
+                </>
+              )}
             </div>
             <div className="grid-3">
               <label className="field">
@@ -187,13 +215,13 @@ export default function RoutineEdit() {
                 <input className="input" type="number" inputMode="numeric" min={0} step={15} value={it.rest_sec ?? ''} onChange={e => patch(i, { rest_sec: numberOrNull(e.target.value) })} />
               </label>
               <label className="field">
-                <span>Incremento (kg)</span>
+                <span>{timed ? 'Incremento (s)' : 'Incremento (kg)'}</span>
                 <input
                   className="input"
                   type="number"
                   inputMode="decimal"
                   min={0}
-                  step={0.5}
+                  step={timed ? 5 : 0.5}
                   placeholder="auto"
                   value={it.progression.increment ?? ''}
                   onChange={e => patch(i, { progression: { ...it.progression, increment: e.target.value === '' ? undefined : Number(e.target.value) } })}
@@ -202,7 +230,7 @@ export default function RoutineEdit() {
               <label className="field">
                 <span>Progressão</span>
                 <select className="input" value={policy} onChange={e => patch(i, { progression: { ...it.progression, policy: e.target.value } })}>
-                  {POLICIES.map(p => (
+                  {policies.map(p => (
                     <option key={p.value} value={p.value}>
                       {p.label}
                     </option>
@@ -211,7 +239,7 @@ export default function RoutineEdit() {
               </label>
             </div>
             <div className="spread">
-              <span className="muted small">{POLICIES.find(p => p.value === policy)?.hint}</span>
+              <span className="muted small">{policies.find(p => p.value === policy)?.hint}</span>
               <button type="button" className="btn ghost small danger" onClick={() => setItems(list => list.filter((_, j) => j !== i))}>
                 Remover
               </button>

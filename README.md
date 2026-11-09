@@ -90,6 +90,8 @@ scripts/import-foods.ts       importação dos alimentos da TACO e das medidas c
 | `cardio_plans` | Planos de cardio: dias, distância, tempo, intensidade, intervalos e progressão |
 | `cardio_logs` | Cada atividade de cardio feita, com ritmo, esforço e calorias |
 | `meal_plans` | Planos alimentares gerados, com o cardápio congelado como foi gerado (um por tipo de dia, ligados por `batch_id`) |
+| (em `routine_exercises`) | `mode` = `time` para séries por tempo (prancha), com a meta em `target_sec` |
+| (em `profiles`) | Semana leve: `light_week_every`, `light_week_start`, `light_week_until` |
 | `ai_insights` | Sugestões da IA, aprovadas ou recusadas pelo usuário |
 
 Views: `last_sets` (última série de cada exercício, usada pela progressão) e

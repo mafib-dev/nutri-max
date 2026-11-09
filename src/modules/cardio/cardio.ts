@@ -189,6 +189,25 @@ export function nextDistance(plan: Pick<CardioPlan, 'distance_m' | 'progression'
   return Math.min(max, Math.max(base, lastDoneM + step))
 }
 
+export interface SessionTarget {
+  distance_m: number | null
+  duration_sec: number | null
+  intensity: Intensity
+  intervals: Intervals | null
+}
+
+/**
+ * Meta da próxima sessão de um plano. Na semana leve: sem progressão, sem tiros e em ritmo leve.
+ */
+export function sessionTarget(plan: CardioPlan, lastDoneM: number | null, light = false): SessionTarget {
+  if (light) {
+    const distance_m = plan.distance_m
+    return { distance_m, duration_sec: plannedDurationSec(plan, distance_m), intensity: 'easy', intervals: null }
+  }
+  const distance_m = nextDistance(plan, lastDoneM)
+  return { distance_m, duration_sec: plannedDurationSec(plan, distance_m), intensity: plan.intensity, intervals: plan.intervals }
+}
+
 /** Duração prevista: a do plano ou a distância no ritmo típico da atividade. */
 export function plannedDurationSec(plan: Pick<CardioPlan, 'activity' | 'duration_sec'>, distanceM: number | null): number | null {
   if (plan.duration_sec) return plan.duration_sec
@@ -225,7 +244,7 @@ export function cardioWaterMl(doneSec: number[], pendingSec: number[]): number {
 
 export interface DayCardio {
   /** Planos de hoje com a meta da próxima sessão e o registro de hoje, se já foi feito. */
-  plans: { plan: CardioPlan; distance_m: number | null; duration_sec: number | null; done: CardioLog | null }[]
+  plans: ({ plan: CardioPlan; done: CardioLog | null } & SessionTarget)[]
   /** Registros de hoje sem plano. */
   extra: CardioLog[]
   /** Gasto que entra na meta de calorias. */
@@ -237,13 +256,12 @@ export interface DayCardio {
  * Junta os planos do dia com o que foi registrado. `lastByPlan` é a distância da última sessão
  * feita de cada plano antes de hoje, para a progressão.
  */
-export function dayCardio(plans: CardioPlan[], weekday: number, todayLogs: CardioLog[], lastByPlan: Map<string, number | null>): DayCardio {
+export function dayCardio(plans: CardioPlan[], weekday: number, todayLogs: CardioLog[], lastByPlan: Map<string, number | null>, light = false): DayCardio {
   const used = new Set<string>()
   const list = plannedFor(plans, weekday).map(plan => {
     const done = todayLogs.find(l => l.plan_id === plan.id && !used.has(l.id)) ?? null
     if (done) used.add(done.id)
-    const distance_m = nextDistance(plan, lastByPlan.get(plan.id) ?? null)
-    return { plan, distance_m, duration_sec: plannedDurationSec(plan, distance_m), done }
+    return { plan, done, ...sessionTarget(plan, lastByPlan.get(plan.id) ?? null, light) }
   })
   const extra = todayLogs.filter(l => !used.has(l.id))
   const pending = list.filter(p => !p.done).map(p => p.duration_sec ?? 0)

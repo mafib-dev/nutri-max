@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CardioLogModal, CardioPlanModal, type LogStart } from '../components/CardioForms'
 import { Icon } from '../components/ui'
-import { ACTIVITIES, daysLabel, describeTarget, formatDistance, formatDuration, logSummary, nextDistance, plannedDurationSec, totalsByActivity, type CardioLog, type CardioPlan } from '../modules/cardio/cardio'
+import { ACTIVITIES, daysLabel, describeTarget, formatDistance, formatDuration, logSummary, sessionTarget, totalsByActivity, type CardioLog, type CardioPlan } from '../modules/cardio/cardio'
 import { lastDistanceByPlan, listCardioLogs, listCardioPlans } from '../modules/cardio/data'
-import { listBodyWeights } from '../modules/training/data'
+import { listBodyWeights, loadLightWeek } from '../modules/training/data'
+import { lightWeekStatus } from '../modules/training/lightWeek'
 import { todayIso } from '../modules/nutrition/data'
 import { useAsync } from '../lib/useAsync'
 
@@ -20,16 +21,16 @@ type Editing = { kind: 'plan'; plan?: CardioPlan } | { kind: 'log'; log?: Cardio
 export default function Cardio() {
   const navigate = useNavigate()
   const today = todayIso()
-  const data = useAsync(() => Promise.all([listCardioPlans(), listCardioLogs(null, null, 60), lastDistanceByPlan(today), listBodyWeights(1)]))
+  const data = useAsync(() => Promise.all([listCardioPlans(), listCardioLogs(null, null, 60), lastDistanceByPlan(today), listBodyWeights(1), loadLightWeek()]))
   const [editing, setEditing] = useState<Editing>(null)
 
-  const [plans, logs, last, weights] = data.data ?? [[], [], new Map<string, number | null>(), []]
+  const [plans, logs, last, weights, lightSettings] = data.data ?? [[], [], new Map<string, number | null>(), [], null]
+  const light = lightSettings ? lightWeekStatus(lightSettings, today).active : false
   const weight = weights.at(-1)?.weight_kg ?? null
   const week = totalsByActivity(logs.filter(l => l.date >= weekStart(today)))
 
   function startFrom(plan: CardioPlan) {
-    const distance_m = nextDistance(plan, last.get(plan.id) ?? null)
-    setEditing({ kind: 'log', from: { plan, distance_m, duration_sec: plannedDurationSec(plan, distance_m) } })
+    setEditing({ kind: 'log', from: { plan, ...sessionTarget(plan, last.get(plan.id) ?? null, light) } })
   }
 
   const saved = () => {
@@ -84,7 +85,7 @@ export default function Cardio() {
         </div>
       )}
       {plans.map(p => {
-        const distance = nextDistance(p, last.get(p.id) ?? null)
+        const t = sessionTarget(p, last.get(p.id) ?? null, light)
         return (
           <div key={p.id} className="card spread" style={{ gap: 10 }}>
             <button type="button" className="grow" style={{ minWidth: 0, padding: 0, border: 0, background: 'none', textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => setEditing({ kind: 'plan', plan: p })}>
@@ -93,7 +94,7 @@ export default function Cardio() {
               </div>
               <div className="muted small ellipsis">
                 {daysLabel(p.weekdays)}
-                {p.time ? ` · ${p.time}` : ''} · {describeTarget(distance, p.duration_sec, p.intensity, p.intervals)}
+                {p.time ? ` · ${p.time}` : ''} · {describeTarget(t.distance_m, p.duration_sec, t.intensity, t.intervals)}
               </div>
               {p.progression.step_m && (
                 <div className="muted tiny">

@@ -4,6 +4,7 @@ import type { ExerciseRow } from './catalogue'
 import { registerCatalogue } from './opengym/exercises.js'
 import { loadTrainingState, type RoutineExerciseRow } from './state'
 import { sessionToRows, type NewRecord, type Session } from './session'
+import type { LightWeekSettings } from './lightWeek'
 
 export interface Routine {
   id: string
@@ -177,6 +178,19 @@ export async function listWorkouts(limit = 50): Promise<WorkoutSummary[]> {
 export async function deleteWorkout(id: string) {
   const { error } = await supabase.from('workouts').delete().eq('id', id)
   fail('Falha ao apagar o treino', error)
+}
+
+const LIGHT_COLUMNS = 'light_week_every, light_week_start, light_week_until'
+
+export async function loadLightWeek(): Promise<LightWeekSettings> {
+  const { data, error } = await supabase.from('profiles').select(LIGHT_COLUMNS).eq('id', await userId()).single()
+  fail('Falha ao carregar a semana leve', error)
+  return data as LightWeekSettings
+}
+
+export async function saveLightWeek(patch: Partial<LightWeekSettings>) {
+  const { error } = await supabase.from('profiles').update(patch).eq('id', await userId())
+  fail('Falha ao salvar a semana leve', error)
 }
 
 export interface BodyWeight {

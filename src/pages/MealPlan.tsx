@@ -46,7 +46,9 @@ interface PlanRequest {
 
 /** Os tipos de dia de um plano salvo, para refazer com outra semente ou metas novas. */
 function daysOf(saved: SavedPlan[]): DayType[] {
+  const shared = JSON.stringify(saved[0]?.settings.slots)
   return saved.map((p, i) => ({
+    ...(JSON.stringify(p.settings.slots) !== shared ? { slots: p.settings.slots } : {}),
     id: `d${i + 1}`,
     name: p.day_name ?? 'Todos os dias',
     weekdays: p.weekdays,
@@ -106,7 +108,7 @@ export default function MealPlanPage() {
       const days = req.days.filter(d => d.weekdays.length)
       const entries = days.map(day => {
         const goals = forDay(day)
-        const settings: PlanSettings = { slots: req.slots, training_time: null, training_times: day.training_times, excluded: req.excluded, seed: req.seed, extra_kcal: day.extra_kcal }
+        const settings: PlanSettings = { slots: day.slots ?? req.slots, training_time: null, training_times: day.training_times, excluded: req.excluded, seed: req.seed, extra_kcal: day.extra_kcal }
         const plan = generatePlan({ targets: goals.targets!, weightKg: weight, goal: profile.goal ?? 'maintain', fiberTarget: fiber, waterMl: goals.water_ml, settings, foods })
         return { day_name: days.length > 1 ? day.name : null, weekdays: day.weekdays, settings, plan }
       })
@@ -427,7 +429,8 @@ function SettingsForm(props: {
   const [excluded, setExcluded] = useState(new Set(props.initial.excluded))
   const byDay = days.length > 1
   const choices = planFoodChoices()
-  const validTimes = slots.every(s => /^\d{2}:\d{2}$/.test(s.time)) && days.every(d => d.training_times.every(t => /^\d{2}:\d{2}$/.test(t)))
+  const okTime = (t: string) => /^\d{2}:\d{2}$/.test(t)
+  const validTimes = slots.every(s => okTime(s.time)) && days.every(d => d.training_times.every(okTime) && (d.slots ?? []).every(s => okTime(s.time)))
   const uncovered = [0, 1, 2, 3, 4, 5, 6].filter(w => !dayTypeOf(w, days))
 
   const toggle = (id: string) =>
@@ -461,7 +464,7 @@ function SettingsForm(props: {
       }}
     >
       <div className="field">
-        <span>Refeições por dia</span>
+        <span>{byDay ? 'Refeições (padrão para todos os dias)' : 'Refeições por dia'}</span>
         <div className="chips wrap">
           {[3, 4, 5, 6].map(n => (
             <button key={n} type="button" className={`chip ${slots.length === n ? 'on' : ''}`} onClick={() => setSlots(MEAL_PRESETS[n])}>
@@ -471,22 +474,7 @@ function SettingsForm(props: {
         </div>
       </div>
 
-      <div className="card stack" style={{ gap: 10 }}>
-        {slots.map((s, i) => (
-          <label key={i} className="spread">
-            <span className="small" style={{ fontWeight: 600 }}>
-              {s.label}
-            </span>
-            <input
-              className="input time"
-              type="time"
-              value={s.time}
-              onChange={e => setSlots(slots.map((x, j) => (j === i ? { ...x, time: e.target.value } : x)))}
-              aria-label={`Horário do ${s.label}`}
-            />
-          </label>
-        ))}
-      </div>
+      <SlotTimes slots={slots} onChange={setSlots} />
 
       <div className="field">
         <span>Cardápio</span>
@@ -564,6 +552,28 @@ function SettingsForm(props: {
   )
 }
 
+/** Horário de cada refeição. */
+function SlotTimes({ slots, onChange }: { slots: PlanSlot[]; onChange: (slots: PlanSlot[]) => void }) {
+  return (
+    <div className="card stack" style={{ gap: 10 }}>
+      {slots.map((s, i) => (
+        <label key={i} className="spread">
+          <span className="small" style={{ fontWeight: 600 }}>
+            {s.label}
+          </span>
+          <input
+            className="input time"
+            type="time"
+            value={s.time}
+            onChange={e => onChange(slots.map((x, j) => (j === i ? { ...x, time: e.target.value } : x)))}
+            aria-label={`Horário do ${s.label}`}
+          />
+        </label>
+      ))}
+    </div>
+  )
+}
+
 /** Um tipo de dia no formulário: nome, dias da semana, horários de treino e ajuste de calorias. */
 function DayCard(props: {
   day: DayType
@@ -576,7 +586,8 @@ function DayCard(props: {
 }) {
   const { day, goals } = props
   const [newTime, setNewTime] = useState('')
-  const preview = arrangeSlots(props.slots, day.training_times)
+  const ownSlots = day.slots
+  const preview = arrangeSlots(ownSlots ?? props.slots, day.training_times)
   const around = preview.filter(s => s.kind === 'pre_workout' || s.kind === 'post_workout')
   const extraText = day.extra_kcal ? String(day.extra_kcal) : ''
 
@@ -631,6 +642,28 @@ function DayCard(props: {
           </small>
         )}
       </div>
+      {props.byDay && (
+        <div className="field">
+          <label className="row" style={{ gap: 10, cursor: 'pointer' }}>
+            <input type="checkbox" checked={!!ownSlots} onChange={e => props.onChange({ slots: e.target.checked ? props.slots.map(s => ({ ...s })) : undefined })} />
+            <span className="small" style={{ fontWeight: 600 }}>
+              Refeições e horários próprios neste dia
+            </span>
+          </label>
+          {ownSlots && (
+            <>
+              <div className="chips wrap" style={{ marginTop: 6 }}>
+                {[3, 4, 5, 6].map(n => (
+                  <button key={n} type="button" className={`chip ${ownSlots.length === n ? 'on' : ''}`} onClick={() => props.onChange({ slots: MEAL_PRESETS[n].map(s => ({ ...s })) })}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+              <SlotTimes slots={ownSlots} onChange={slots => props.onChange({ slots })} />
+            </>
+          )}
+        </div>
+      )}
       <label className="field">
         <span>Ajuste de calorias neste dia (opcional)</span>
         <input

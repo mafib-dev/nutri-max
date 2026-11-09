@@ -2,6 +2,7 @@
 // Os tipos são sugeridos a partir das rotinas e do cardio da pessoa, e ela pode mudar tudo.
 import { ACTIVITIES, cardioWaterMl, creditedKcal, daysLabel, estimateKcal, nextDistance, plannedDurationSec, type Activity, type CardioPlan } from '../cardio/cardio'
 import { workoutKcal } from './targets'
+import type { PlanSlot } from './mealPlan'
 
 export interface Session {
   kind: 'strength' | Activity
@@ -27,6 +28,8 @@ export interface DayType {
   training_times: string[]
   /** Ajuste manual de calorias neste tipo de dia, além do gasto dos treinos. */
   extra_kcal: number
+  /** Refeições e horários próprios deste dia; sem isso, usa os do plano. */
+  slots?: PlanSlot[]
 }
 
 const minutes = (t: string) => {
