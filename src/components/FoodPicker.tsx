@@ -4,6 +4,7 @@ import BarcodeScanner from './BarcodeScanner'
 import { formatGrams, macrosFor, MEALS, searchFoods, type Food, type Meal } from '../modules/nutrition/foods'
 import { addLog, addQuickLog, createFood, deleteSavedMeal, findFoodByBarcode, listSavedMeals, loadFoods, logSavedMeal, recentFoodIds, type NewFood, type SavedMeal } from '../modules/nutrition/data'
 import { fetchOffProduct } from '../modules/nutrition/off'
+import { measureText, portionsOf, roundCount } from '../modules/nutrition/portions'
 import { useAsync } from '../lib/useAsync'
 
 const QUICK_GRAMS = [50, 100, 150, 200]
@@ -243,7 +244,7 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
           <div className="grow">
             <div className="title clamp-2">{f.name}</div>
             <div className="muted tiny">
-              {f.source === 'custom' && f.serving_g ? `${f.serving_name || 'porção'} (${formatGrams(f.serving_g)}) · ` : ''}
+              {f.source === 'custom' && f.serving_g ? `${f.serving_name || 'porção'} (${formatGrams(f.serving_g)}) · ` : f.portions?.[0] ? `1 ${f.portions[0].name} (${formatGrams(f.portions[0].g)}) · ` : ''}
               {Math.round(f.kcal)} kcal · {f.protein_g.toLocaleString('pt-BR')} g prot. em 100 g
             </div>
           </div>
@@ -256,12 +257,17 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
 
 function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void }) {
   const { food } = props
-  const [grams, setGrams] = useState(String(food.serving_g ?? 100))
+  const portions = useMemo(() => portionsOf(food), [food])
+  // Começa pela medida caseira quando o alimento tem uma; senão, em gramas.
+  const [unit, setUnit] = useState(portions.length ? 0 : -1)
+  const [amount, setAmount] = useState(portions.length ? '1' : '100')
   const [meal, setMeal] = useState<Meal>(props.meal)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const g = Number(grams.replace(',', '.'))
-  const valid = Number.isFinite(g) && g > 0 && g <= 5000
+  const portion = unit >= 0 ? portions[unit] : null
+  const n = Number(amount.replace(',', '.'))
+  const g = portion ? Math.round(n * portion.g * 10) / 10 : n
+  const valid = Number.isFinite(n) && n > 0 && g > 0 && g <= 5000
   const m = macrosFor(food, valid ? g : 0)
 
   async function submit(e: FormEvent) {
@@ -270,7 +276,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
     setBusy(true)
     setError(null)
     try {
-      await addLog(props.date, meal, food, Math.round(g * 10) / 10)
+      await addLog(props.date, meal, food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null)
       props.onAdded(food.name)
     } catch (err) {
       setError((err as Error).message)
@@ -278,7 +284,18 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
     }
   }
 
-  const quick = [...(food.serving_g ? [food.serving_g] : []), ...QUICK_GRAMS.filter(q => q !== food.serving_g)]
+  function pickUnit(i: number) {
+    if (i === unit) return
+    // Troca de unidade mantendo a quantidade: 2 conchas viram 160 g, e 160 g viram 2 conchas.
+    const grams = valid ? g : null
+    setUnit(i)
+    if (grams == null) return setAmount(i >= 0 ? '1' : '100')
+    if (i < 0) return setAmount(String(Math.round(grams)))
+    const count = Math.max(portions[i].whole ? 1 : 0.5, roundCount(portions[i], grams / portions[i].g))
+    setAmount(String(count).replace('.', ','))
+  }
+
+  const quick = portion ? (portion.whole ? [1, 2, 3, 4] : [0.5, 1, 1.5, 2, 3]) : QUICK_GRAMS
 
   return (
     <form className="stack" style={{ gap: 14 }} onSubmit={submit}>
@@ -289,17 +306,37 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
         <h3 style={{ fontSize: '1.5rem' }}>{food.name}</h3>
         {food.category && <span className="muted small">{food.category}</span>}
       </div>
+      {portions.length > 0 && (
+        <div className="field">
+          <span>Medida</span>
+          <div className="chips wrap">
+            {portions.map((p, i) => (
+              <button key={p.name + p.g} type="button" className={`chip ${unit === i ? 'on' : ''}`} onClick={() => pickUnit(i)}>
+                {p.name} · {formatGrams(p.g)}
+              </button>
+            ))}
+            <button type="button" className={`chip ${unit === -1 ? 'on' : ''}`} onClick={() => pickUnit(-1)}>
+              gramas
+            </button>
+          </div>
+        </div>
+      )}
       <label className="field">
-        <span>Quantidade (g)</span>
-        <input className="input" inputMode="decimal" autoFocus value={grams} onChange={e => setGrams(e.target.value)} />
+        <span>{portion ? `Quantidade (${portion.plural})` : 'Quantidade (g)'}</span>
+        <input className="input" inputMode="decimal" autoFocus value={amount} onChange={e => setAmount(e.target.value)} />
       </label>
       <div className="chips wrap">
         {quick.map(q => (
-          <button key={q} type="button" className={`chip ${g === q ? 'on' : ''}`} onClick={() => setGrams(String(q))}>
-            {q === food.serving_g && food.serving_name ? `${food.serving_name} · ${q} g` : `${q} g`}
+          <button key={q} type="button" className={`chip ${n === q ? 'on' : ''}`} onClick={() => setAmount(String(q).replace('.', ','))}>
+            {portion ? measureText(portion, q) : `${q} g`}
           </button>
         ))}
       </div>
+      {portion && valid && (
+        <p className="muted small" style={{ margin: '-4px 0 0' }}>
+          {measureText(portion, n)} = {formatGrams(g)}
+        </p>
+      )}
       <div className="card macro-grid">
         <div className="stat">
           <span>Calorias</span>
