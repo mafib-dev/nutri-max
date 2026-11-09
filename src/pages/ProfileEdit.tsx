@@ -1,9 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RotateCcw } from 'lucide-react'
 import { Buddy3D } from '../components/Buddy3D'
 import { Icon, Modal } from '../components/ui'
-import { loadSetup, saveSetup } from '../modules/profile/data'
+import { loadSetup, resetAllData, saveSetup } from '../modules/profile/data'
 import { isAdmin } from '../modules/nutrition/data'
 import { EXPERIENCE, parseNumber, readLook, stepError, toNutritionProfile, type Experience, type ProfileSetup, type Step } from '../modules/profile/setup'
 import { DEFAULT_LOOK } from '../modules/profile/look'
@@ -41,6 +41,7 @@ export default function ProfileEdit() {
   const setup = useAsync(loadSetup)
   const admin = useAsync(isAdmin)
   const [editing, setEditing] = useState<Field | null>(null)
+  const [resetting, setResetting] = useState(false)
   const [today] = useState(() => todayIso())
 
   if (setup.error) return <p className="page error">{setup.error}</p>
@@ -143,6 +144,22 @@ export default function ProfileEdit() {
           </div>
         </section>
       )}
+
+      <section>
+        <h2>Recomeçar</h2>
+        <div className="panel">
+          <button type="button" className="panel-row profile-row danger-row" onClick={() => setResetting(true)}>
+            <RotateCcw size={18} strokeWidth={1.75} aria-hidden="true" />
+            <span className="grow">
+              <span className="profile-value">Recomeçar do zero</span>
+              <span className="muted tiny">Apaga todos os seus dados e volta para o primeiro cadastro. Seu login continua.</span>
+            </span>
+            <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" className="muted" />
+          </button>
+        </div>
+      </section>
+
+      {resetting && <ResetDialog onClose={() => setResetting(false)} />}
 
       {editing && (
         <FieldEditor
@@ -275,6 +292,71 @@ function FieldEditor(props: { field: Field; initial: ProfileSetup; today: string
             v => set({ level: v }),
             'Experiência na musculação',
           )}
+        {error && (
+          <p className="error small" role="alert" style={{ margin: 0 }}>
+            {error}
+          </p>
+        )}
+      </form>
+    </Modal>
+  )
+}
+
+const WORD = 'APAGAR'
+
+function ResetDialog({ onClose }: { onClose: () => void }) {
+  const [typed, setTyped] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const ok = typed.trim().toUpperCase() === WORD
+
+  async function reset(e?: FormEvent) {
+    e?.preventDefault()
+    if (!ok) return
+    setBusy(true)
+    setError(null)
+    try {
+      await resetAllData()
+      // Recarrega do zero para não sobrar nada guardado na memória do app.
+      window.location.assign('/')
+    } catch (err) {
+      setError(`${(err as Error).message}. Parte dos dados pode já ter sido apagada; tente de novo para terminar.`)
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Recomeçar do zero?"
+      onClose={busy ? () => {} : onClose}
+      footer={
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" className="btn ghost" onClick={onClose} disabled={busy}>
+            Cancelar
+          </button>
+          <button type="submit" form="reset-all" className="btn danger-solid" disabled={!ok || busy}>
+            {busy ? 'Apagando…' : 'Apagar tudo'}
+          </button>
+        </div>
+      }
+    >
+      <form id="reset-all" className="stack" style={{ gap: 12 }} onSubmit={reset}>
+        <p className="small" style={{ margin: 0 }}>Isso apaga para sempre:</p>
+        <ul className="small reset-list">
+          <li>seu perfil, metas e o plano alimentar com as preferências;</li>
+          <li>o diário de alimentação, a água e as refeições salvas;</li>
+          <li>treinos, rotinas, recordes e pesagens;</li>
+          <li>a conversa com a nutricionista e os alimentos e exercícios que você criou.</li>
+        </ul>
+        <p className="muted small" style={{ margin: 0 }}>
+          Seu login continua, e você volta para o cadastro do primeiro acesso. Os alimentos do catálogo, que valem para todos, não são apagados.
+        </p>
+        <label className="field">
+          <span>
+            Para confirmar, digite <b>{WORD}</b>
+          </span>
+          <input className="input" value={typed} onChange={e => setTyped(e.target.value)} autoComplete="off" autoCapitalize="characters" aria-label={`Digite ${WORD} para confirmar`} />
+        </label>
         {error && (
           <p className="error small" role="alert" style={{ margin: 0 }}>
             {error}

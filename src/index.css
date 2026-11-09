@@ -2866,3 +2866,29 @@ a.panel-row:hover {
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+/* Recomeçar do zero */
+.danger-row {
+  color: var(--danger);
+}
+
+.danger-row .profile-value {
+  color: var(--danger);
+}
+
+.btn.danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.btn.danger-solid:disabled {
+  opacity: 0.45;
+}
+
+.reset-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}

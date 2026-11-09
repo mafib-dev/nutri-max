@@ -40,3 +40,64 @@ export async function saveSetup(p: ProfileSetup, look: AvatarLook, previousWeigh
   const meta = await supabase.auth.updateUser({ data: { avatar: look } })
   if (meta.error) throw new Error(`Falha ao salvar o boneco: ${meta.error.message}`)
 }
+
+// Do que depende para o que é dependido: as séries antes dos treinos, as rotinas antes dos
+// exercícios criados, os registros antes dos alimentos.
+const RESET_TABLES: [table: string, column: string][] = [
+  ['food_logs', 'user_id'],
+  ['saved_meals', 'user_id'],
+  ['water_logs', 'user_id'],
+  ['coach_messages', 'user_id'],
+  ['ai_insights', 'user_id'],
+  ['personal_records', 'user_id'],
+  ['workout_sets', 'user_id'],
+  ['workouts', 'user_id'],
+  ['routine_exercises', 'user_id'],
+  ['routines', 'user_id'],
+  ['body_metrics', 'user_id'],
+  ['exercises', 'owner_id'],
+  ['foods', 'owner_id'],
+]
+
+/** O perfil volta a ficar em branco: o app mostra o cadastro do primeiro login de novo. */
+export const BLANK_PROFILE = {
+  display_name: null,
+  goal: null,
+  level: null,
+  display_unit: 'kg',
+  sex: null,
+  birth_date: null,
+  height_cm: null,
+  activity_level: null,
+  kcal_target: null,
+  protein_target_g: null,
+  carbs_target_g: null,
+  fat_target_g: null,
+  target_weight_kg: null,
+  weekly_rate_kg: null,
+  add_workout_kcal: false,
+  meal_plan: null,
+}
+
+/**
+ * Apaga tudo o que é da pessoa (diário, treinos, rotinas, pesagens, plano, conversa, alimentos e
+ * exercícios criados) e deixa o perfil em branco. O login continua, e o catálogo de todos não muda.
+ * O perfil é o último: se algo falhar no meio, nada some sem a pessoa ver o erro, e dá para repetir.
+ */
+export async function resetAllData() {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) throw new Error('Faça login de novo.')
+  const id = auth.user.id
+  for (const [table, column] of RESET_TABLES) {
+    const { error } = await supabase.from(table).delete().eq(column, id)
+    if (error) throw new Error(`Falha ao apagar (${table}): ${error.message}`)
+  }
+  const { error } = await supabase.from('profiles').update(BLANK_PROFILE).eq('id', id)
+  if (error) throw new Error(`Falha ao limpar o perfil: ${error.message}`)
+  await supabase.auth.updateUser({ data: { avatar: null } })
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith('nutrimax.')) localStorage.removeItem(k)
+  } catch {
+    // Sem armazenamento local: nada para limpar.
+  }
+}
