@@ -287,6 +287,13 @@ export async function createMealPlans(days: NewDayPlan[]): Promise<SavedPlan[]> 
   return (data as SavedPlan[]).sort((a, b) => a.position - b.position)
 }
 
+/** Apaga o plano alimentar (todos os cardápios, inclusive os antigos guardados como histórico). */
+export async function deleteMealPlans() {
+  const uid = await userId()
+  const { error } = await supabase.from('meal_plans').delete().eq('user_id', uid)
+  fail('Falha ao excluir o plano', error)
+}
+
 /** Atualiza o plano depois de uma troca de alimento. */
 export async function updateMealPlan(id: string, plan: MealPlan) {
   const { error } = await supabase.from('meal_plans').update({ plan, updated_at: new Date().toISOString() }).eq('id', id)

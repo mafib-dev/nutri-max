@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Icon } from '../components/ui'
-import { createMealPlans, loadFirstName, loadFoods, loadMealPlans, loadNutritionProfile, logPlanMeal, todayIso, updateMealPlan, type SavedPlan } from '../modules/nutrition/data'
+import { createMealPlans, deleteMealPlans, loadFirstName, loadFoods, loadMealPlans, loadNutritionProfile, logPlanMeal, todayIso, updateMealPlan, type SavedPlan } from '../modules/nutrition/data'
 import { formatGrams } from '../modules/nutrition/foods'
 import {
   arrangeSlots,
@@ -116,6 +116,21 @@ export default function MealPlanPage() {
       setTab(null)
       setEditing(false)
       window.scrollTo({ top: 0 })
+    } catch (err) {
+      setError((err as Error).message)
+    }
+    setBusy(false)
+  }
+
+  async function remove() {
+    if (!window.confirm('Excluir o plano alimentar? Os cardápios de todos os tipos de dia serão apagados.')) return
+    setBusy(true)
+    setError(null)
+    try {
+      await deleteMealPlans()
+      setSaved([])
+      setTab(null)
+      setEditing(false)
     } catch (err) {
       setError((err as Error).message)
     }
@@ -293,6 +308,9 @@ export default function MealPlanPage() {
         <p className="muted tiny" style={{ margin: 0 }}>
           Orientação geral calculada pelo NutriMax com a tabela TACO. Não substitui a consulta com um nutricionista, principalmente se você tiver alguma condição de saúde.
         </p>
+        <button type="button" className="btn ghost danger block" disabled={busy} onClick={remove}>
+          Excluir plano
+        </button>
       </main>
       <PlanPrint plans={saved} shopping={shopping} name={firstName} />
     </>
