@@ -45,6 +45,17 @@ const newItem = (ex: ExerciseRow): Item =>
 
 const numberOrNull = (v: string) => (v === '' ? null : Math.max(0, Number(v)))
 
+/** A pirâmide tem no máximo 10 séries, como no openGym. */
+const MAX_PER_SET = 10
+
+/** Pirâmide inicial: do topo da faixa para baixo, 2 repetições a menos por série (12-10-8). */
+const startTargets = (sets: number, top: number | null) =>
+  Array.from({ length: Math.min(MAX_PER_SET, Math.max(1, sets)) }, (_, i) => Math.max(1, (top ?? 12) - 2 * i))
+
+/** Muda o número de séries mantendo as metas que já existem; as novas copiam a última. */
+const resizeTargets = (list: number[], sets: number) =>
+  Array.from({ length: Math.min(MAX_PER_SET, Math.max(1, sets)) }, (_, i) => list[i] ?? list[list.length - 1] ?? 10)
+
 export default function RoutineEdit() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
@@ -88,7 +99,12 @@ export default function RoutineEdit() {
       await updateRoutine(id, { name: name.trim() || 'Treino', weekdays, time: time || null })
       await saveRoutineExercises(
         id,
-        items.map(it => ({ ...it, rep_max: it.rep_max != null && it.rep_min != null && it.rep_max < it.rep_min ? it.rep_min : it.rep_max })),
+        items.map(({ rep_targets, ...it }) => ({
+          ...it,
+          rep_max: it.rep_max != null && it.rep_min != null && it.rep_max < it.rep_min ? it.rep_min : it.rep_max,
+          // Só manda a coluna quando há pirâmide: sem ela, a linha nova já nasce com nulo.
+          ...(it.mode !== 'time' && rep_targets?.length ? { rep_targets: rep_targets.map(r => Math.max(1, Math.round(r) || 1)) } : {}),
+        })),
       )
       setStatus({ text: 'Rotina salva.', error: false })
     } catch (err) {
@@ -156,6 +172,7 @@ export default function RoutineEdit() {
         {items.map((it, i) => {
           const ex = byId.get(it.exercise_id)
           const timed = it.mode === 'time'
+          const perSet = !timed && !!it.rep_targets?.length
           const policies = timed ? TIME_POLICIES : POLICIES
           const policy = policies.some(p => p.value === it.progression.policy) ? it.progression.policy! : policies[0].value
           return (
@@ -183,15 +200,42 @@ export default function RoutineEdit() {
               <div className="chips">
                 <button
                   type="button"
-                  className={`chip ${!timed ? 'on' : ''}`}
-                  onClick={() => patch(i, { mode: 'reps', target_sec: null, rep_min: it.rep_min ?? 8, rep_max: it.rep_max ?? 12, progression: { ...it.progression, policy: 'double' } })}
+                  className={`chip ${!timed && !perSet ? 'on' : ''}`}
+                  onClick={() =>
+                    patch(i, {
+                      mode: 'reps',
+                      target_sec: null,
+                      rep_targets: null,
+                      rep_min: it.rep_min ?? 8,
+                      rep_max: it.rep_max ?? 12,
+                      progression: { ...it.progression, policy: timed ? 'double' : it.progression.policy },
+                    })
+                  }
                 >
                   Repetições
                 </button>
                 <button
                   type="button"
+                  className={`chip ${perSet ? 'on' : ''}`}
+                  onClick={() =>
+                    !perSet &&
+                    patch(i, {
+                      mode: 'reps',
+                      target_sec: null,
+                      rep_targets: startTargets(it.sets, it.rep_max),
+                      sets: Math.min(MAX_PER_SET, it.sets),
+                      rep_min: it.rep_min ?? 8,
+                      rep_max: it.rep_max ?? 12,
+                      progression: { ...it.progression, policy: timed ? 'double' : it.progression.policy },
+                    })
+                  }
+                >
+                  Reps por série
+                </button>
+                <button
+                  type="button"
                   className={`chip ${timed ? 'on' : ''}`}
-                  onClick={() => patch(i, { mode: 'time', target_sec: it.target_sec ?? 30, rep_min: null, rep_max: null, progression: { ...it.progression, policy: 'time', increment: undefined } })}
+                  onClick={() => patch(i, { mode: 'time', target_sec: it.target_sec ?? 30, rep_min: null, rep_max: null, rep_targets: null, progression: { ...it.progression, policy: 'time', increment: undefined } })}
                 >
                   Tempo
                 </button>
@@ -199,9 +243,39 @@ export default function RoutineEdit() {
               <div className="grid-3">
                 <label className="field">
                   <span>Séries</span>
-                  <input className="input" type="number" inputMode="numeric" min={1} value={it.sets} onChange={e => patch(i, { sets: Math.max(1, Number(e.target.value) || 1) })} />
+                  <input
+                    className="input"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={perSet ? MAX_PER_SET : undefined}
+                    value={it.sets}
+                    onChange={e => {
+                      const sets = Math.max(1, Number(e.target.value) || 1)
+                      patch(i, perSet ? { sets: Math.min(MAX_PER_SET, sets), rep_targets: resizeTargets(it.rep_targets!, sets) } : { sets })
+                    }}
+                  />
                 </label>
-                {timed ? (
+                {perSet ? (
+                  <div className="field" style={{ gridColumn: 'span 2' }}>
+                    <span>Reps de cada série</span>
+                    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                      {it.rep_targets!.map((r, k) => (
+                        <input
+                          key={k}
+                          className="input"
+                          style={{ width: 56, textAlign: 'center', padding: '0 4px' }}
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          aria-label={`Repetições da série ${k + 1}`}
+                          value={r || ''}
+                          onChange={e => patch(i, { rep_targets: it.rep_targets!.map((x, j) => (j === k ? Math.max(0, Number(e.target.value) || 0) : x)) })}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : timed ? (
                   <label className="field" style={{ gridColumn: 'span 2' }}>
                     <span>Segundos por série</span>
                     <input className="input" type="number" inputMode="numeric" min={5} step={5} value={it.target_sec ?? ''} onChange={e => patch(i, { target_sec: numberOrNull(e.target.value) })} />
@@ -219,11 +293,12 @@ export default function RoutineEdit() {
                   </>
                 )}
               </div>
-              <div className="grid-3">
+              <div className={perSet ? 'grid-2' : 'grid-3'}>
                 <label className="field">
                   <span>Descanso (s)</span>
                   <input className="input" type="number" inputMode="numeric" min={0} step={15} value={it.rest_sec ?? ''} onChange={e => patch(i, { rest_sec: numberOrNull(e.target.value) })} />
                 </label>
+                {!perSet && (
                 <label className="field">
                   <span>{timed ? 'Incremento (s)' : 'Incremento (kg)'}</span>
                   <input
@@ -237,6 +312,13 @@ export default function RoutineEdit() {
                     onChange={e => patch(i, { progression: { ...it.progression, increment: e.target.value === '' ? undefined : Number(e.target.value) } })}
                   />
                 </label>
+                )}
+                {perSet ? (
+                  <div className="field">
+                    <span>Progressão</span>
+                    <input className="input" value="Manual" disabled />
+                  </div>
+                ) : (
                 <label className="field">
                   <span>Progressão</span>
                   <select className="input" value={policy} onChange={e => patch(i, { progression: { ...it.progression, policy: e.target.value } })}>
@@ -247,9 +329,12 @@ export default function RoutineEdit() {
                     ))}
                   </select>
                 </label>
+                )}
               </div>
               <div className="spread">
-                <span className="muted small">{policies.find(p => p.value === policy)?.hint}</span>
+                <span className="muted small">
+                  {perSet ? 'Cada série com a sua meta. Você escolhe a carga; o treino começa com a que cada série usou da última vez.' : policies.find(p => p.value === policy)?.hint}
+                </span>
                 <button type="button" className="btn ghost small danger" onClick={() => setItems(list => list.filter((_, j) => j !== i))}>
                   Remover
                 </button>

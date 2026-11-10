@@ -84,6 +84,11 @@ export function buildEntry(
   }
   // Sem sugestão da progressão, começa com a maior carga da última vez.
   const weight = suggestion.weight ?? (last ? Math.max(...last.sets.map(s => s.w)) : null)
+  if (cfg.pyramid) {
+    // Pirâmide: cada série com a sua meta e a carga que essa mesma série usou da última vez.
+    const sets: SessionSet[] = cfg.pyramid.map((reps, i) => ({ kind: 'work', weight: last?.sets[i]?.w ?? weight, reps, rir: null, done: false }))
+    return { exerciseId: cfg.id, name, cfg, suggestion, restSec, sets, last }
+  }
   const sets: SessionSet[] = Array.from({ length: count }, (_, i) => ({
     kind: 'work',
     weight,

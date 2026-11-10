@@ -44,6 +44,8 @@ export interface RoutineExerciseRow {
   /** 'time' = série por tempo (prancha); a meta fica em target_sec. */
   mode?: 'reps' | 'time'
   target_sec?: number | null
+  /** Repetições de cada série, em ordem (pirâmide 12-10-8); nulo = mesma faixa em todas. */
+  rep_targets?: number[] | null
 }
 
 /** Uma série no formato do openGym. */
@@ -96,6 +98,8 @@ export interface ExerciseConfig {
   mode?: 'reps' | 'time'
   /** Meta em segundos das séries por tempo. */
   sec?: number
+  /** Repetições de cada série (pirâmide do openGym): sem progressão, a carga é da pessoa. */
+  pyramid?: number[]
 }
 
 export interface Prescription {
@@ -210,6 +214,11 @@ export function toExerciseConfig(row: RoutineExerciseRow): ExerciseConfig {
     cfg.mode = 'time'
     cfg.sec = row.target_sec ?? 45
     delete cfg.reps
+    delete cfg.repsMin
+  } else if (row.rep_targets?.length) {
+    cfg.pyramid = [...row.rep_targets]
+    cfg.sets = row.rep_targets.length
+    cfg.reps = row.rep_targets[0]
     delete cfg.repsMin
   }
   return cfg

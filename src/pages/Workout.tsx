@@ -382,13 +382,13 @@ const kg = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 1 }
 function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: ExerciseRow | undefined }) {
   const { cfg } = entry
   const target = entry.timed ? `${entry.sets.find(s => s.kind === 'work')?.seconds ?? cfg.sec ?? '–'} s` : null
-  const reps = target ?? (cfg.repsMin != null && cfg.reps != null && cfg.repsMin !== cfg.reps ? `${cfg.repsMin}–${cfg.reps}` : `${cfg.reps ?? '–'}`)
+  const reps = target ?? (cfg.pyramid ? null : cfg.repsMin != null && cfg.reps != null && cfg.repsMin !== cfg.reps ? `${cfg.repsMin}–${cfg.reps}` : `${cfg.reps ?? '–'}`)
   const last = entry.last
   return (
     <div className="ex-meta">
       <div className="meta-chips">
         <span className="meta-chip">
-          Meta <b>{cfg.sets} × {reps}</b>
+          Meta <b>{reps ? `${cfg.sets} × ${reps}` : `${cfg.pyramid!.join(' · ')} reps`}</b>
         </span>
         <span className="meta-chip">
           Descanso <b>{formatClock(entry.restSec)}</b>

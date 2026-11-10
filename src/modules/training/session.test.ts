@@ -73,4 +73,19 @@ describe('buildEntry', () => {
     const s = buildSession(history, { id: 'r1', name: 'Peito' }, [{ row, name: 'Supino reto' }])
     expect(s.entries[0].last).toEqual({ date: '2026-10-20', sets: [{ w: 60, r: 5 }, { w: 60, r: 5 }, { w: 60, r: 5 }] })
   })
+
+  it('monta a pirâmide com as reps de cada série e a carga que cada uma usou', () => {
+    const pyramid = toTrainingState(
+      [{ id: 'w1', routine_id: 'r1', name: 'Peito', started_at: '2026-10-20T10:00:00Z', ended_at: null, body_weight_kg: null, exclude_from_progression: false }],
+      [50, 55, 60].map((w, i) => ({
+        workout_id: 'w1', exercise_id: BENCH, entry_position: 0, set_index: i, kind: 'work' as const,
+        weight_kg: w, reps: 12 - 2 * i, duration_sec: null, rir: null, side: null, done: true,
+      })),
+    )
+    const s = buildSession(pyramid, { id: 'r1', name: 'Peito' }, [{ row: { ...row, rep_targets: [12, 10, 8, 6] }, name: 'Supino reto' }])
+    const e = s.entries[0]
+    expect(e.cfg).toMatchObject({ sets: 4, pyramid: [12, 10, 8, 6] })
+    expect(e.suggestion.kind).toBe('off')
+    expect(e.sets.map(x => [x.weight, x.reps])).toEqual([[50, 12], [55, 10], [60, 8], [60, 6]])
+  })
 })
