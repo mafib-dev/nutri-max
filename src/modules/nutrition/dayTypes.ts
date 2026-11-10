@@ -2,7 +2,6 @@
 // Os tipos são sugeridos a partir das rotinas e do cardio da pessoa, e ela pode mudar tudo.
 import { ACTIVITIES, cardioWaterMl, creditedKcal, daysLabel, estimateKcal, nextDistance, plannedDurationSec, type Activity, type CardioPlan } from '../cardio/cardio'
 import { workoutKcal } from './targets'
-import type { PlanSlot } from './mealPlan'
 
 export interface Session {
   kind: 'strength' | Activity
@@ -28,8 +27,6 @@ export interface DayType {
   training_times: string[]
   /** Ajuste manual de calorias neste tipo de dia, além do gasto dos treinos. */
   extra_kcal: number
-  /** Refeições e horários próprios deste dia; sem isso, usa os do plano. */
-  slots?: PlanSlot[]
 }
 
 const minutes = (t: string) => {
@@ -108,7 +105,7 @@ export function typicalStrengthMin(durationsMin: number[]): number {
  * Com `countKcal` desligado (o nível de atividade já inclui os treinos), o gasto fica 0.
  */
 export function weekSchedule(input: {
-  routines: { name: string; weekday: number | null; time: string | null }[]
+  routines: { name: string; weekdays: number[]; time: string | null }[]
   cardio: CardioPlan[]
   lastCardioByPlan: Map<string, number | null>
   strengthMin: number
@@ -118,7 +115,7 @@ export function weekSchedule(input: {
   const w = input.weightKg
   return [0, 1, 2, 3, 4, 5, 6].map(weekday => {
     const sessions: Session[] = []
-    for (const r of input.routines.filter(r => r.weekday === weekday))
+    for (const r of input.routines.filter(r => r.weekdays.includes(weekday)))
       sessions.push({ kind: 'strength', name: r.name, time: r.time, kcal: input.countKcal && w ? workoutKcal(input.strengthMin, w) : 0, water_ml: 0 })
     for (const p of input.cardio.filter(p => p.weekdays.includes(weekday))) {
       const distance = nextDistance(p, input.lastCardioByPlan.get(p.id) ?? null)

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { assignWeekday, dayActivity, dayName, dayTypeOf, suggestDayTypes, typicalStrengthMin, weekSchedule, type DaySchedule, type Session } from './dayTypes'
-import { arrangeSlots, MEAL_PRESETS } from './mealPlan'
 import type { CardioPlan } from '../cardio/cardio'
 
 const gym = (time: string | null = '07:00', kcal = 250): Session => ({ kind: 'strength', name: 'Treino', time, kcal, water_ml: 0 })
@@ -69,7 +68,7 @@ describe('tipos de dia', () => {
       position: 0,
     }
     const s = weekSchedule({
-      routines: [{ name: 'Perna', weekday: 1, time: '07:00' }],
+      routines: [{ name: 'Perna', weekdays: [1], time: '07:00' }],
       cardio: [plan],
       lastCardioByPlan: new Map([['c1', 6000]]),
       strengthMin: 60,
@@ -80,35 +79,12 @@ describe('tipos de dia', () => {
     // 6,5 km no ritmo típico (6 min/km) ≈ 39 min.
     expect(s[6].sessions[0]).toMatchObject({ kind: 'run', time: '19:00', water_ml: 250 })
     expect(s[6].sessions[0].kcal).toBeGreaterThan(300)
-    const off = weekSchedule({ routines: [{ name: 'Perna', weekday: 1, time: null }], cardio: [], lastCardioByPlan: new Map(), strengthMin: 60, weightKg: 77, countKcal: false })
+    const off = weekSchedule({ routines: [{ name: 'Perna', weekdays: [1], time: null }], cardio: [], lastCardioByPlan: new Map(), strengthMin: 60, weightKg: 77, countKcal: false })
     expect(off[1].sessions[0].kcal).toBe(0)
   })
 
   it('duração típica da musculação é a mediana dos treinos', () => {
     expect(typicalStrengthMin([])).toBe(60)
     expect(typicalStrengthMin([50, 70, 65, 300])).toBe(65)
-  })
-})
-
-describe('refeições em volta de dois treinos', () => {
-  it('põe pré-treino antes da corrida e pós-treino depois da musculação cedo', () => {
-    const slots = arrangeSlots(MEAL_PRESETS[5], ['07:00', '19:00'])
-    expect(slots.map(s => `${s.time} ${s.label}`)).toEqual([
-      '07:30 Café da manhã',
-      '10:00 Lanche da manhã',
-      '12:30 Almoço',
-      '18:00 Pré-treino',
-      '20:00 Jantar',
-    ])
-  })
-
-  it('transforma o lanche logo depois do treino em pós-treino', () => {
-    const slots = arrangeSlots(MEAL_PRESETS[5], ['14:30'])
-    expect(slots.find(s => s.time === '16:00')?.kind).toBe('post_workout')
-  })
-
-  it('cria um pós-treino quando não há refeição depois', () => {
-    const slots = arrangeSlots(MEAL_PRESETS[4], ['21:00'])
-    expect(slots.at(-1)).toEqual({ kind: 'post_workout', label: 'Pós-treino', time: '22:15' })
   })
 })

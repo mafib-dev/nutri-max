@@ -1,8 +1,8 @@
 // Leitura e escrita do módulo de nutrição no Supabase.
 import { supabase } from '../../lib/supabase'
 import { macrosFor, microsFor, type Food, type FoodLog, type Meal } from './foods'
-import type { MealPlan, PlanItem, PlanSettings } from './mealPlan'
 import type { NutritionProfile } from './targets'
+import type { PlanMeal, SavedPlan } from './plan'
 
 const fail = (what: string, error: { message: string } | null) => {
   if (error) throw new Error(`${what}: ${error.message}`)
@@ -63,6 +63,45 @@ export async function findFoodByBarcode(barcode: string): Promise<Food | null> {
 export async function deleteFood(id: string) {
   const { error } = await supabase.from('foods').delete().eq('id', id)
   fail('Falha ao apagar o alimento', error)
+  foods = null
+}
+
+/** Quem pode mexer no catálogo de todo mundo (a página /admin/alimentos). */
+export async function isAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) return false
+  return data === true
+}
+
+/** Alimentos que o administrador acrescentou ao catálogo, os mais novos primeiro. */
+export async function listCatalogueFoods(): Promise<Food[]> {
+  const { data, error } = await supabase.from('foods').select('*').eq('source', 'nutrimax').order('created_at', { ascending: false })
+  fail('Falha ao carregar o catálogo', error)
+  return (data ?? []).map(r => numbers<Food>(r))
+}
+
+export type CatalogueFood = NewFood & { fiber_g: number | null; sodium_mg: number | null; barcode: string | null; category: string | null }
+
+const catalogueError = (error: { message: string; code?: string } | null) => {
+  if (error?.code === '23505') throw new Error('Esse código de barras já está no catálogo.')
+  if (error?.code === '42501') throw new Error('Só o administrador pode mexer no catálogo.')
+  fail('Falha ao salvar no catálogo', error)
+}
+
+/** Cria (sem id) ou atualiza um alimento do catálogo. Valores sempre por 100 g. */
+export async function saveCatalogueFood(food: CatalogueFood, id?: string): Promise<Food> {
+  const query = id
+    ? supabase.from('foods').update({ ...food, updated_at: new Date().toISOString() }).eq('id', id).eq('source', 'nutrimax')
+    : supabase.from('foods').insert({ ...food, owner_id: null, source: 'nutrimax' })
+  const { data, error } = await query.select().single()
+  catalogueError(error)
+  foods = null
+  return numbers<Food>(data!)
+}
+
+export async function deleteCatalogueFood(id: string) {
+  const { error } = await supabase.from('foods').delete().eq('id', id).eq('source', 'nutrimax')
+  catalogueError(error)
   foods = null
 }
 
@@ -242,83 +281,50 @@ export async function loadFirstName(): Promise<string | null> {
   return name ? name[0].toUpperCase() + name.slice(1) : null
 }
 
-export interface SavedPlan {
-  id: string
-  settings: PlanSettings
-  plan: MealPlan
-  created_at: string
-  batch_id: string | null
-  /** Nome do tipo de dia ("Musculação + Corrida"); nulo nos planos de um cardápio só. */
-  day_name: string | null
-  weekdays: number[]
-  position: number
+export async function loadMealPlan(): Promise<SavedPlan | null> {
+  const { data, error } = await supabase.from('profiles').select('meal_plan').eq('id', await userId()).single()
+  fail('Falha ao carregar o plano alimentar', error)
+  return (data?.meal_plan as SavedPlan | null) ?? null
 }
 
-const PLAN_COLUMNS = 'id, settings, plan, created_at, batch_id, day_name, weekdays, position'
-
-/** Os cardápios do plano mais recente (um por tipo de dia), ou [] se ainda não houver. */
-export async function loadMealPlans(): Promise<SavedPlan[]> {
-  const { data, error } = await supabase.from('meal_plans').select(PLAN_COLUMNS).order('created_at', { ascending: false }).limit(1).maybeSingle()
-  fail('Falha ao carregar o plano', error)
-  const latest = data as SavedPlan | null
-  if (!latest) return []
-  if (!latest.batch_id) return [latest]
-  const batch = await supabase.from('meal_plans').select(PLAN_COLUMNS).eq('batch_id', latest.batch_id).order('position')
-  fail('Falha ao carregar o plano', batch.error)
-  return batch.data as SavedPlan[]
+export async function saveMealPlan(plan: SavedPlan | null) {
+  const { error } = await supabase.from('profiles').update({ meal_plan: plan, updated_at: new Date().toISOString() }).eq('id', await userId())
+  fail('Falha ao salvar o plano alimentar', error)
 }
 
-export interface NewDayPlan {
-  day_name: string | null
-  weekdays: number[]
-  settings: PlanSettings
-  plan: MealPlan
-}
-
-/** Grava um plano novo, com um cardápio por tipo de dia; os anteriores ficam guardados como histórico. */
-export async function createMealPlans(days: NewDayPlan[]): Promise<SavedPlan[]> {
-  const uid = await userId()
-  const batch_id = crypto.randomUUID()
-  const { data, error } = await supabase
-    .from('meal_plans')
-    .insert(days.map((d, position) => ({ user_id: uid, batch_id, position, ...d })))
-    .select(PLAN_COLUMNS)
-  fail('Falha ao salvar o plano', error)
-  return (data as SavedPlan[]).sort((a, b) => a.position - b.position)
-}
-
-/** Apaga o plano alimentar (todos os cardápios, inclusive os antigos guardados como histórico). */
-export async function deleteMealPlans() {
-  const uid = await userId()
-  const { error } = await supabase.from('meal_plans').delete().eq('user_id', uid)
-  fail('Falha ao excluir o plano', error)
-}
-
-/** Atualiza o plano depois de uma troca de alimento. */
-export async function updateMealPlan(id: string, plan: MealPlan) {
-  const { error } = await supabase.from('meal_plans').update({ plan, updated_at: new Date().toISOString() }).eq('id', id)
-  fail('Falha ao salvar o plano', error)
-}
-
-/** Lança uma refeição do plano no diário, com a medida caseira de cada alimento. */
-export async function logPlanMeal(date: string, meal: Meal, items: PlanItem[]) {
-  const [uid, foods] = await Promise.all([userId(), loadFoods()])
-  const known = new Set(foods.map(f => f.id))
-  const rows = items.map(i => ({
-    user_id: uid,
-    date,
-    meal,
-    food_id: known.has(i.food_id) ? i.food_id : null,
-    name: i.name,
-    grams: i.grams,
-    measure: i.measure,
-    kcal: i.kcal,
-    protein_g: i.protein_g,
-    carbs_g: i.carbs_g,
-    fat_g: i.fat_g,
-    fiber_g: i.fiber_g,
-    sodium_mg: i.sodium_mg,
-  }))
+/** Lança no diário os alimentos de uma refeição do plano, com as gramas do plano. */
+export async function logPlanMeal(date: string, meal: PlanMeal) {
+  const [uid, catalogue] = await Promise.all([userId(), loadFoods()])
+  const byId = new Map(catalogue.map(f => [f.id, f]))
+  const rows = meal.items.map(i => {
+    const food = byId.get(i.food.id)
+    if (food) return { user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
+    // Fora do catálogo (o whey padrão): entra com os valores do plano.
+    const k = i.grams / 100
+    const r = (n: number) => Math.round(n * k * 10) / 10
+    return { user_id: uid, date, meal: meal.log, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
+  })
   const { error } = await supabase.from('food_logs').insert(rows)
-  fail('Falha ao lançar a refeição', error)
+  fail('Falha ao lançar a refeição do plano', error)
+}
+
+/** Pede à IA (função food-review) a avaliação de um alimento das preferências. Ela só opina. */
+export async function askFoodReview(context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('food-review', { body: { context } })
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
+}
+
+/** Pede à IA (função plan-ai no Supabase, que chama o Claude) um ajuste do plano. */
+export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })
+  if (error) {
+    // A função devolve { error } com a explicação; sem ela, a mensagem genérica do cliente.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
 }

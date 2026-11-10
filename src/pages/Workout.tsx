@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import ExerciseBrowser from '../components/ExerciseBrowser'
 import { ExerciseDetail, equipmentName, muscleName } from '../components/ExerciseDetail'
+import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
+import { listItem, stableKeys } from '../lib/motion'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import { useActiveSession } from '../modules/training/activeSession'
 import { exerciseName, imageUrl, loadCatalogue, loadState, saveWorkout } from '../modules/training/data'
@@ -36,6 +38,7 @@ export default function Workout() {
   const [viewing, setViewing] = useState<number | null>(null)
   const catalogue = useAsync(loadCatalogue)
   const byId = new Map((catalogue.data ?? []).map(e => [e.id, e]))
+  const entryKeys = stableKeys(session?.entries ?? [], e => e.exerciseId)
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<{ volume: number; sets: number; records: NewRecord[]; minutes: number } | null>(null)
@@ -62,7 +65,7 @@ export default function Workout() {
 
   if (!session) {
     return (
-      <main className="page stack">
+      <main className="page narrow stack">
         <h1>Nenhum treino em andamento</h1>
         <Link to="/" className="btn primary">
           Escolher um treino
@@ -183,76 +186,78 @@ export default function Workout() {
       </div>
       {error && <p className="error">{error}</p>}
 
-      {session.entries.map((entry, ei) => {
-        const why = explain(entry.suggestion.why)
-        return (
-          <section key={`${entry.exerciseId}-${ei}`} className="card stack" style={{ gap: 12 }}>
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
-                {byId.get(entry.exerciseId)?.images[0] ? (
-                  <img className="thumb" src={imageUrl(byId.get(entry.exerciseId)!.images[0])} alt="" />
-                ) : (
-                  <div className="thumb" />
-                )}
-                <div className="grow">
-                  <span className="eyebrow">
-                    {ei + 1} de {session.entries.length}
-                  </span>
-                  <div className="clamp-2" style={{ fontWeight: 700, fontSize: '1.05rem' }}>
-                    {entry.name}
+      <div className="grid-list wide-items">
+        <AnimatePresence initial={false}>
+        {session.entries.map((entry, ei) => {
+          const why = explain(entry.suggestion.why)
+          return (
+            <motion.section key={entryKeys[ei]} {...listItem} className="card stack" style={{ gap: 12 }}>
+              <div className="row" style={{ alignItems: 'flex-start' }}>
+                <button type="button" className="ex-head" onClick={() => setViewing(ei)} aria-label={`Ver detalhes de ${entry.name}`}>
+                  {byId.get(entry.exerciseId)?.images[0] ? (
+                    <img className="thumb" src={imageUrl(byId.get(entry.exerciseId)!.images[0])} alt="" />
+                  ) : (
+                    <div className="thumb" />
+                  )}
+                  <div className="grow">
+                    <span className="eyebrow">
+                      {ei + 1} de {session.entries.length}
+                    </span>
+                    <div className="clamp-2" style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                      {entry.name}
+                    </div>
+                    <div className="muted tiny row" style={{ gap: 4 }}>
+                      <Icon.info /> Como fazer
+                    </div>
                   </div>
-                  <div className="muted tiny row" style={{ gap: 4 }}>
-                    <Icon.info /> Como fazer
-                  </div>
-                </div>
-              </button>
-              <button type="button" className="btn ghost icon" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
-                <Icon.close />
-              </button>
-            </div>
-            <EntryMeta entry={entry} exercise={byId.get(entry.exerciseId)} />
-            {why && <p className="why">{why}</p>}
-            <div className="set-grid">
-              <span className="head">#</span>
-              <span className="head">kg</span>
-              <span className="head">{entry.timed ? 'seg' : 'reps'}</span>
-              <span className="head">feita</span>
-              {entry.sets.map((set, si) => {
-                const workIndex = entry.sets.slice(0, si + 1).filter(x => x.kind === 'work').length
-                return (
-                  <div key={si} className={set.done ? 'set-done' : ''} style={{ display: 'contents' }}>
-                    <button
-                      type="button"
-                      className="idx btn ghost small"
-                      style={{ padding: 0, minHeight: 44 }}
-                      title="Toque e segure para remover"
-                      onContextMenu={e => {
-                        e.preventDefault()
-                        removeSet(ei, si)
-                      }}
-                      onDoubleClick={() => removeSet(ei, si)}
-                    >
-                      {set.kind === 'warmup' ? 'A' : workIndex}
-                    </button>
-                    <input
-                      className="input"
-                      inputMode="decimal"
-                      aria-label={`Carga da série ${si + 1}`}
-                      value={set.weight ?? ''}
-                      placeholder="–"
-                      onChange={e => editSet(ei, si, { weight: parseNum(e.target.value) })}
-                    />
-                    {entry.timed ? (
+                </button>
+                <button type="button" className="btn ghost icon" onClick={() => removeEntry(ei)} aria-label={`Tirar ${entry.name}`}>
+                  <Icon.close />
+                </button>
+              </div>
+              <EntryMeta entry={entry} exercise={byId.get(entry.exerciseId)} />
+              {why && <p className="why">{why}</p>}
+              <div className="set-grid">
+                <span className="head">#</span>
+                <span className="head">kg</span>
+                <span className="head">{entry.timed ? 'seg' : 'reps'}</span>
+                <span className="head">feita</span>
+                {entry.sets.map((set, si) => {
+                  const workIndex = entry.sets.slice(0, si + 1).filter(x => x.kind === 'work').length
+                  return (
+                    <div key={si} className={set.done ? 'set-done' : ''} style={{ display: 'contents' }}>
+                      <button
+                        type="button"
+                        className="idx btn ghost small"
+                        style={{ padding: 0, minHeight: 44 }}
+                        title="Toque e segure para remover"
+                        onContextMenu={e => {
+                          e.preventDefault()
+                          removeSet(ei, si)
+                        }}
+                        onDoubleClick={() => removeSet(ei, si)}
+                      >
+                        {set.kind === 'warmup' ? 'A' : workIndex}
+                      </button>
                       <input
                         className="input"
-                        inputMode="numeric"
-                        aria-label={`Segundos da série ${si + 1}`}
-                        value={hold && hold.ei === ei && hold.si === si ? holdLeft : (set.seconds ?? '')}
+                        inputMode="decimal"
+                        aria-label={`Carga da série ${si + 1}`}
+                        value={set.weight ?? ''}
                         placeholder="–"
-                        readOnly={!!hold && hold.ei === ei && hold.si === si}
-                        onChange={e => editSet(ei, si, { seconds: parseNum(e.target.value) })}
+                        onChange={e => editSet(ei, si, { weight: parseNum(e.target.value) })}
                       />
-                    ) : (
+                      {entry.timed ? (
+                        <input
+                          className="input"
+                          inputMode="numeric"
+                          aria-label={`Segundos da série ${si + 1}`}
+                          value={hold && hold.ei === ei && hold.si === si ? holdLeft : (set.seconds ?? '')}
+                          placeholder="–"
+                          readOnly={!!hold && hold.ei === ei && hold.si === si}
+                          onChange={e => editSet(ei, si, { seconds: parseNum(e.target.value) })}
+                        />
+                      ) : (
                       <input
                         className="input"
                         inputMode="numeric"
@@ -261,54 +266,56 @@ export default function Workout() {
                         placeholder="–"
                         onChange={e => editSet(ei, si, { reps: parseNum(e.target.value) })}
                       />
-                    )}
-                    <button
-                      type="button"
-                      className={`check ${set.done ? 'on' : ''}`}
-                      aria-pressed={set.done}
-                      aria-label={`Série ${si + 1} feita`}
-                      onClick={() => toggleDone(ei, si)}
-                    >
-                      <Icon.check />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-            <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
-              <button type="button" className="btn small" style={{ whiteSpace: 'nowrap' }} onClick={() => addSet(ei, 'work')}>
-                + Série
-              </button>
-              <button type="button" className="btn small ghost" style={{ whiteSpace: 'nowrap' }} onClick={() => addSet(ei, 'warmup')}>
-                + Aquecimento
-              </button>
-              {entry.timed &&
-                (() => {
-                  const next = entry.sets.findIndex(x => !x.done && (x.seconds ?? 0) > 0)
-                  if (hold && hold.ei === ei)
-                    return (
-                      <button type="button" className="btn small primary" onClick={() => setHold(null)}>
-                        Parar ({formatClock(holdLeft)})
+                      )}
+                      <button
+                        type="button"
+                        className={`check ${set.done ? 'on' : ''}`}
+                        aria-pressed={set.done}
+                        aria-label={`Série ${si + 1} feita`}
+                        onClick={() => toggleDone(ei, si)}
+                      >
+                        <Icon.check />
                       </button>
-                    )
-                  return next >= 0 ? (
-                    <button
-                      type="button"
-                      className="btn small primary"
-                      disabled={!!hold}
-                      onClick={() => {
-                        setRestUntil(null)
-                        setHold({ ei, si: next, until: Date.now() + (entry.sets[next].seconds ?? 0) * 1000 })
-                      }}
-                    >
-                      ▶ Cronometrar
-                    </button>
-                  ) : null
-                })()}
-            </div>
-          </section>
-        )
-      })}
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+                <button type="button" className="btn small" onClick={() => addSet(ei, 'work')}>
+                  + Série
+                </button>
+                <button type="button" className="btn small ghost" onClick={() => addSet(ei, 'warmup')}>
+                  + Aquecimento
+                </button>
+                {entry.timed &&
+                  (() => {
+                    const next = entry.sets.findIndex(x => !x.done && (x.seconds ?? 0) > 0)
+                    if (hold && hold.ei === ei)
+                      return (
+                        <button type="button" className="btn small primary" onClick={() => setHold(null)}>
+                          Parar ({formatClock(holdLeft)})
+                        </button>
+                      )
+                    return next >= 0 ? (
+                      <button
+                        type="button"
+                        className="btn small primary"
+                        disabled={!!hold}
+                        onClick={() => {
+                          setRestUntil(null)
+                          setHold({ ei, si: next, until: Date.now() + (entry.sets[next].seconds ?? 0) * 1000 })
+                        }}
+                      >
+                        ▶ Cronometrar
+                      </button>
+                    ) : null
+                  })()}
+              </div>
+            </motion.section>
+          )
+        })}
+        </AnimatePresence>
+      </div>
       <p className="muted small" style={{ margin: 0 }}>
         Toque duas vezes no número da série para removê-la. "A" é série de aquecimento.
       </p>
@@ -379,27 +386,36 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
   const last = entry.last
   return (
     <div className="ex-meta">
-      <span>
-        Meta <b>{cfg.sets} × {reps}</b>
-      </span>
-      <span>
-        Descanso <b>{formatClock(entry.restSec)}</b>
-      </span>
-      {entry.light && (
-        <span>
-          <b>Semana leve</b> · menos séries e carga
+      <div className="meta-chips">
+        <span className="meta-chip">
+          Meta <b>{cfg.sets} × {reps}</b>
         </span>
-      )}
-      {exercise && (
-        <span>
-          <b>{exercise.primary_muscles.map(muscleName).join(', ')}</b> · {equipmentName(exercise.equipment)}
+        <span className="meta-chip">
+          Descanso <b>{formatClock(entry.restSec)}</b>
         </span>
-      )}
+        {entry.light && (
+          <span className="meta-chip">
+            <b>Semana leve</b> · menos séries e carga
+          </span>
+        )}
+        {[...new Set(exercise?.primary_muscles.map(muscleName))].map(m => (
+          <span key={m} className="meta-chip">
+            {m}
+          </span>
+        ))}
+        {exercise && <span className="meta-chip">{equipmentName(exercise.equipment)}</span>}
+      </div>
       {last && (
-        <span style={{ flexBasis: '100%' }}>
-          Última vez ({new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}):{' '}
-          <b>{last.sets.map(s => (s.sec ? `${s.sec} s${s.w ? ` · ${kg(s.w)} kg` : ''}` : `${kg(s.w)}×${s.r}`)).join(' · ')}</b>
-        </span>
+        <div className="small">
+          <span className="muted">Última vez, {new Date(last.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
+          <div className="set-pills">
+            {last.sets.map((s, i) => (
+              <span key={i} className="set-pill">
+                {s.sec ? `${s.sec} s${s.w ? ` · ${kg(s.w)} kg` : ''}` : `${kg(s.w)} kg × ${s.r}`}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -407,7 +423,7 @@ function EntryMeta({ entry, exercise }: { entry: SessionEntry; exercise: Exercis
 
 function Summary(props: { volume: number; sets: number; records: NewRecord[]; minutes: number; onClose: () => void }) {
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <span className="eyebrow">Mandou bem</span>
       <h1>Treino salvo!</h1>
       <div className="grid-3">

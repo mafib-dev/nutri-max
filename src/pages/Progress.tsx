@@ -26,7 +26,7 @@ export default function Progress() {
   )
 
   return (
-    <main className="page stack">
+    <main className="page narrow stack">
       <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={() => navigate(-1)}>
         ‹ Voltar
       </button>
@@ -56,7 +56,13 @@ export default function Progress() {
           {sessions.map(s => (
             <div key={s.id} className="card">
               <div className="muted small">{formatDay(s.d + 'T12:00:00')}</div>
-              <div>{s.sets.map(x => `${x.w.toLocaleString('pt-BR')}×${x.r}`).join(' · ')}</div>
+              <div className="set-pills">
+                {s.sets.map((x, i) => (
+                  <span key={i} className="set-pill">
+                    {x.w.toLocaleString('pt-BR')} kg × {x.r}
+                  </span>
+                ))}
+              </div>
             </div>
           ))}
         </>

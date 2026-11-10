@@ -1,15 +1,21 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import FoodPicker, { MacroInputs, parseMacroInputs } from '../components/FoodPicker'
+import { AnimatePresence, motion } from 'motion/react'
 import { Icon, Modal } from '../components/ui'
+import { listItem } from '../lib/motion'
+import { Kcal, Macros } from '../components/FoodRow'
 import NutritionSummary from '../components/NutritionSummary'
-import { deleteLog, getWater, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
+import { deleteLog, getWater, logPlanMeal, listLogs, loadNutritionProfile, saveMeal, setWater, todayIso, updateLogGrams, updateQuickLog, workoutMinutesOn } from '../modules/nutrition/data'
 import { formatGrams, mealForHour, MEALS, sumMacros, sumMicros, type FoodLog, type Meal } from '../modules/nutrition/foods'
 import { dayCardio } from '../modules/cardio/cardio'
 import { loadCardioDay } from '../modules/cardio/data'
 import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarget, workoutKcal } from '../modules/nutrition/targets'
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
+import { useDataChanged } from '../lib/events'
+import { loadPlanContext } from '../modules/nutrition/planContext'
+import type { PlanMeal } from '../modules/nutrition/plan'
 
 const shift = (iso: string, days: number) => {
   const d = new Date(iso + 'T12:00:00')
@@ -31,7 +37,15 @@ export default function Nutrition() {
   const setup = useAsync(() => Promise.all([loadNutritionProfile(), listBodyWeights(1)]))
   const logs = useAsync(() => listLogs(date), [date])
   const day = useAsync(() => Promise.all([workoutMinutesOn(date), getWater(date), loadCardioDay(date)]), [date])
+  const planCtx = useAsync(loadPlanContext)
+  useDataChanged(() => {
+    setup.reload()
+    logs.reload()
+    day.reload()
+    planCtx.reload()
+  })
   const [adding, setAdding] = useState<Meal | null>(null)
+  const [planBusy, setPlanBusy] = useState<string | null>(null)
   const [editing, setEditing] = useState<FoodLog | null>(null)
   const [saving, setSaving] = useState<{ meal: string; items: FoodLog[] } | null>(null)
   const [water, setWaterState] = useState<{ date: string; ml: number } | null>(null)
@@ -61,6 +75,18 @@ export default function Nutrition() {
       await setWater(date, next)
     } catch {
       setWaterState({ date, ml: waterMl })
+    }
+  }
+
+  async function followPlan(m: PlanMeal) {
+    setPlanBusy(m.key)
+    try {
+      await logPlanMeal(date, m)
+      logs.reload()
+    } catch (err) {
+      alert((err as Error).message)
+    } finally {
+      setPlanBusy(null)
     }
   }
 
@@ -106,114 +132,123 @@ export default function Nutrition() {
         </div>
       )}
 
-      <NutritionSummary total={total} targets={targets} trainingKcal={trainingKcal} />
-      {lowKcal && (
-        <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
-          Sua meta está abaixo de {fmt(kcalFloor(profile!.sex))} kcal. Fica difícil bater vitaminas e minerais; considere um ritmo mais leve em Metas.
-        </p>
-      )}
+      <div className="cols">
+        <div className="col sticky-col">
+          <NutritionSummary total={total} targets={targets} trainingKcal={trainingKcal} />
+          {lowKcal && (
+            <p className="small" style={{ margin: 0, color: 'var(--warn)' }}>
+              Sua meta está abaixo de {fmt(kcalFloor(profile!.sex))} kcal. Fica difícil bater vitaminas e minerais; considere um ritmo mais leve em Metas.
+            </p>
+          )}
 
-      <div className="card day-extras">
-        <div>
-          <div className="spread small">
-            <span style={{ fontWeight: 600 }}>Água</span>
-            <span className="muted">
-              {(waterMl / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} / {(waterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} L
-            </span>
-          </div>
-          <div className="meter">
-            <span className="macro w" style={{ width: `${Math.min((waterMl / waterGoal) * 100, 100)}%` }} />
-          </div>
-          <div className="row" style={{ gap: 6, marginTop: 10 }}>
-            <button type="button" className="btn small" onClick={() => addWater(250)} disabled={!day.data}>
-              + Copo 250 ml
-            </button>
-            <button type="button" className="btn small" onClick={() => addWater(500)} disabled={!day.data}>
-              + Garrafa 500 ml
-            </button>
-            <button type="button" className="btn ghost small" onClick={() => addWater(-250)} disabled={!day.data || waterMl === 0} aria-label="Tirar um copo">
-              −
-            </button>
-          </div>
-        </div>
-        <div className="micros">
-          <div>
-            <div className="spread small">
-              <span style={{ fontWeight: 600 }}>Fibra</span>
-              <span className="muted">
-                {fmt(micros.fiber_g)} / {fiberGoal} g
-              </span>
-            </div>
-            <div className="meter">
-              <span className="macro c" style={{ width: `${Math.min((micros.fiber_g / fiberGoal) * 100, 100)}%` }} />
-            </div>
-          </div>
-          <div>
-            <div className="spread small">
-              <span style={{ fontWeight: 600 }}>Sódio</span>
-              <span className={micros.sodium_mg > SODIUM_LIMIT_MG ? 'small' : 'muted'} style={micros.sodium_mg > SODIUM_LIMIT_MG ? { color: 'var(--warn)' } : undefined}>
-                {fmt(micros.sodium_mg)} / {fmt(SODIUM_LIMIT_MG)} mg
-              </span>
-            </div>
-            <div className="meter">
-              <span className={`macro ${micros.sodium_mg > SODIUM_LIMIT_MG ? 'f' : 'p'}`} style={{ width: `${Math.min((micros.sodium_mg / SODIUM_LIMIT_MG) * 100, 100)}%` }} />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {MEALS.map(meal => {
-        const mealItems = items.filter(i => i.meal === meal.key)
-        const mealTotal = sumMacros(mealItems)
-        return (
-          <section key={meal.key} className="card meal">
-            <div className="spread">
-              <div>
-                <h3>{meal.label}</h3>
-                {mealItems.length > 0 && (
-                  <span className="muted tiny">
-                    {fmt(mealTotal.kcal)} kcal · P {fmt(mealTotal.protein_g)} · C {fmt(mealTotal.carbs_g)} · G {fmt(mealTotal.fat_g)}
-                  </span>
-                )}
+          <div className="card day-extras">
+            <div>
+              <div className="spread small">
+                <span style={{ fontWeight: 600 }}>Água</span>
+                <span className="muted">
+                  {(waterMl / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} / {(waterGoal / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} L
+                </span>
               </div>
-              <button type="button" className="btn small" onClick={() => setAdding(meal.key)} aria-label={`Adicionar ao ${meal.label}`}>
-                <Icon.plus /> Adicionar
-              </button>
-            </div>
-            {mealItems.length > 0 && (
-              <div className="meal-items">
-                {mealItems.map(i => (
-                  <button key={i.id} type="button" className="meal-item" onClick={() => setEditing(i)}>
-                    <span className="grow ellipsis">{i.name}</span>
-                    <span className="muted small">{i.grams == null ? 'rápido' : (i.measure ?? formatGrams(i.grams))}</span>
-                    <strong className="small">{fmt(i.kcal)} kcal</strong>
-                  </button>
-                ))}
-                <button type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: meal.label, items: mealItems })}>
-                  Salvar como refeição
+              <div className="meter">
+                <span className="macro w" style={{ width: `${Math.min((waterMl / waterGoal) * 100, 100)}%` }} />
+              </div>
+              <div className="row" style={{ gap: 6, marginTop: 10 }}>
+                <button type="button" className="btn small" onClick={() => addWater(250)} disabled={!day.data}>
+                  + Copo 250 ml
+                </button>
+                <button type="button" className="btn small" onClick={() => addWater(500)} disabled={!day.data}>
+                  + Garrafa 500 ml
+                </button>
+                <button type="button" className="btn ghost small" onClick={() => addWater(-250)} disabled={!day.data || waterMl === 0} aria-label="Tirar um copo">
+                  −
                 </button>
               </div>
-            )}
-          </section>
-        )
-      })}
-
-      {logs.data && items.length === 0 && isToday && targets && (
-        <Link to="/nutricao/plano" className="card plan-cta">
-          <div className="grow">
-            <div style={{ fontWeight: 700 }}>Não sabe o que comer?</div>
-            <div className="muted tiny">Monte um cardápio que bate as suas metas, com medidas caseiras, trocas e lista de compras.</div>
+            </div>
+            <div className="micros">
+              <div>
+                <div className="spread small">
+                  <span style={{ fontWeight: 600 }}>Fibra</span>
+                  <span className="muted">
+                    {fmt(micros.fiber_g)} / {fiberGoal} g
+                  </span>
+                </div>
+                <div className="meter">
+                  <span className="macro c" style={{ width: `${Math.min((micros.fiber_g / fiberGoal) * 100, 100)}%` }} />
+                </div>
+              </div>
+              <div>
+                <div className="spread small">
+                  <span style={{ fontWeight: 600 }}>Sódio</span>
+                  <span className={micros.sodium_mg > SODIUM_LIMIT_MG ? 'small' : 'muted'} style={micros.sodium_mg > SODIUM_LIMIT_MG ? { color: 'var(--warn)' } : undefined}>
+                    {fmt(micros.sodium_mg)} / {fmt(SODIUM_LIMIT_MG)} mg
+                  </span>
+                </div>
+                <div className="meter">
+                  <span className={`macro ${micros.sodium_mg > SODIUM_LIMIT_MG ? 'f' : 'p'}`} style={{ width: `${Math.min((micros.sodium_mg / SODIUM_LIMIT_MG) * 100, 100)}%` }} />
+                </div>
+              </div>
+            </div>
           </div>
-          <span className="chev">›</span>
-        </Link>
-      )}
 
-      {logs.data && items.length === 0 && isToday && (
-        <button type="button" className="btn primary big block" onClick={() => setAdding(mealForHour(new Date().getHours()))}>
-          <Icon.plus /> Registrar o que comi
-        </button>
-      )}
+        </div>
+        <div className="col">
+          {MEALS.map(meal => {
+            const mealItems = items.filter(i => i.meal === meal.key)
+            const mealTotal = sumMacros(mealItems)
+            return (
+              <section key={meal.key} className="card meal">
+                <div className="spread">
+                  <h3>{meal.label}</h3>
+                  <button type="button" className="btn small" onClick={() => setAdding(meal.key)} aria-label={`Adicionar ao ${meal.label}`}>
+                    <Icon.plus /> Adicionar
+                  </button>
+                </div>
+                {mealItems.length > 0 && (
+                  <div className="meal-sub">
+                    <span className="meal-head-kcal">
+                      <b>{fmt(mealTotal.kcal)}</b> kcal
+                    </span>
+                    <Macros p={mealTotal.protein_g} c={mealTotal.carbs_g} f={mealTotal.fat_g} />
+                  </div>
+                )}
+                {mealItems.length === 0 &&
+                  (planCtx.data?.plan?.meals ?? [])
+                    .filter(m => m.log === meal.key)
+                    .map(m => (
+                      <button key={m.key} type="button" className="btn ghost small follow-plan" onClick={() => followPlan(m)} disabled={planBusy != null}>
+                        {planBusy === m.key ? 'Lançando…' : `Seguir o plano: ${m.label} · ${fmt(m.total.kcal)} kcal`}
+                      </button>
+                    ))}
+                {mealItems.length > 0 && (
+                  <div className="meal-items">
+                    <AnimatePresence initial={false}>
+                      {mealItems.map(i => (
+                        <motion.button key={i.id} {...listItem} type="button" className="meal-item" onClick={() => setEditing(i)}>
+                          <span className="food-main grow">
+                            <span className="food-name">{i.name}</span>
+                            <span className="food-detail">{i.grams == null ? 'Lançamento rápido' : (i.measure ?? formatGrams(i.grams))}</span>
+                          </span>
+                          <Kcal value={i.kcal} />
+                        </motion.button>
+                      ))}
+                    </AnimatePresence>
+                    <motion.button layout="position" type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: meal.label, items: mealItems })}>
+                      Salvar como refeição
+                    </motion.button>
+                  </div>
+                )}
+              </section>
+            )
+          })}
 
+          {logs.data && items.length === 0 && isToday && (
+            <button type="button" className="btn primary big block" onClick={() => setAdding(mealForHour(new Date().getHours()))}>
+              <Icon.plus /> Registrar o que comi
+            </button>
+          )}
+
+        </div>
+      </div>
       {adding && <FoodPicker date={date} meal={adding} onClose={() => setAdding(null)} onAdded={logs.reload} />}
       {saving && <SaveMeal {...saving} onClose={() => setSaving(null)} />}
       {editing && (
@@ -344,7 +379,15 @@ function SaveMeal({ meal, items, onClose }: { meal: string; items: FoodLog[]; on
         </label>
         {error && <p className="error small">{error}</p>}
         <button className="btn primary big block" disabled={busy || done || !name.trim()}>
-          {done ? 'Salva ✓' : busy ? 'Salvando…' : 'Salvar'}
+          {done ? (
+            <>
+              <Icon.check /> Salva
+            </>
+          ) : busy ? (
+            'Salvando…'
+          ) : (
+            'Salvar'
+          )}
         </button>
       </form>
     </Modal>
