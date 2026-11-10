@@ -30,6 +30,36 @@ function dayLabel(iso: string) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
+const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5))
+
+interface Section {
+  key: string
+  label: string
+  time: string | null
+  log: Meal
+  plan: PlanMeal | null
+  items: FoodLog[]
+}
+
+/**
+ * Seções do diário: com plano no dia, exatamente as refeições dele, na ordem dos horários; o que
+ * foi lançado sem refeição do plano (ou de outro plano) cai na primeira refeição do mesmo tipo,
+ * e o que não couber em nenhuma vai para "Outros". Sem plano, as quatro de sempre.
+ */
+export function diarySections(meals: PlanMeal[], logs: FoodLog[]): Section[] {
+  if (!meals.length) return MEALS.map(m => ({ key: m.key, label: m.label, time: null, log: m.key, plan: null, items: logs.filter(l => l.meal === m.key) }))
+  const sections: Section[] = meals.map(m => ({ key: m.key, label: m.label, time: m.time, log: m.log, plan: m, items: [] }))
+  const byKey = new Map(sections.map(x => [x.key, x]))
+  const others: FoodLog[] = []
+  for (const l of logs) {
+    const sec = (l.plan_meal && byKey.get(l.plan_meal)) || sections.find(x => x.log === l.meal)
+    if (sec) sec.items.push(l)
+    else others.push(l)
+  }
+  if (others.length) sections.push({ key: 'outros', label: 'Outros', time: null, log: 'snack', plan: null, items: others })
+  return sections
+}
+
 const WEEKDAY_NAMES = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
 
 const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
@@ -46,7 +76,7 @@ export default function Nutrition() {
     day.reload()
     planCtx.reload()
   })
-  const [adding, setAdding] = useState<Meal | null>(null)
+  const [adding, setAdding] = useState<{ meal: Meal; planMeal: string | null; title?: string } | null>(null)
   const [planBusy, setPlanBusy] = useState<string | null>(null)
   const [editing, setEditing] = useState<FoodLog | null>(null)
   const [saving, setSaving] = useState<{ meal: string; items: FoodLog[] } | null>(null)
@@ -67,6 +97,13 @@ export default function Nutrition() {
   const isToday = date === todayIso()
   // O cardápio do dia aberto (cada dia da semana pode ter o seu).
   const dayPlan = planCtx.data ? planForWeekday(planCtx.data, on.getDay()) : null
+  const sections = diarySections(dayPlan?.plan.meals ?? [], items)
+  // "Registrar o que comi" vai para a refeição do plano mais perto da hora (ou a seção da hora).
+  const addNow = () => {
+    const now = new Date().getHours() * 60 + new Date().getMinutes()
+    const near = sections.filter(x => x.plan && x.time).sort((a, b) => Math.abs(toMin(a.time!) - now) - Math.abs(toMin(b.time!) - now))[0]
+    return near ? { meal: near.log, planMeal: near.plan!.key, title: `Adicionar em ${near.label}` } : { meal: mealForHour(new Date().getHours()), planMeal: null }
+  }
   const waterMl = water?.date === date ? water.ml : (day.data?.[1] ?? 0)
   const waterGoal = waterTarget(weight) + (cardio?.waterMl ?? 0)
   const fiberGoal = fiberTarget(profile?.sex ?? null, profile?.birth_date ? ageOn(profile.birth_date, on) : null)
@@ -206,14 +243,17 @@ export default function Nutrition() {
               <div className="muted small">{dayPlan.plan.meals.map(m => `${m.time} ${m.label}`).join(' · ')}</div>
             </Link>
           )}
-          {MEALS.map(meal => {
-            const mealItems = items.filter(i => i.meal === meal.key)
+          {sections.map(sec => {
+            const mealItems = sec.items
             const mealTotal = sumMacros(mealItems)
             return (
-              <section key={meal.key} className="card meal">
+              <section key={sec.key} className="card meal">
                 <div className="spread">
-                  <h3>{meal.label}</h3>
-                  <button type="button" className="btn small" onClick={() => setAdding(meal.key)} aria-label={`Adicionar ao ${meal.label}`}>
+                  <div>
+                    {sec.time && <span className="time-badge">{sec.time}</span>}
+                    <h3>{sec.label}</h3>
+                  </div>
+                  <button type="button" className="btn small" onClick={() => setAdding({ meal: sec.log, planMeal: sec.plan?.key ?? null, title: `Adicionar em ${sec.label}` })} aria-label={`Adicionar em ${sec.label}`}>
                     <Icon.plus /> Adicionar
                   </button>
                 </div>
@@ -225,14 +265,11 @@ export default function Nutrition() {
                     <Macros p={mealTotal.protein_g} c={mealTotal.carbs_g} f={mealTotal.fat_g} />
                   </div>
                 )}
-                {mealItems.length === 0 &&
-                  (dayPlan?.plan.meals ?? [])
-                    .filter(m => m.log === meal.key)
-                    .map(m => (
-                      <button key={m.key} type="button" className="btn ghost small follow-plan" onClick={() => followPlan(m)} disabled={planBusy != null}>
-                        {planBusy === m.key ? 'Lançando…' : `Seguir o plano: ${m.label} · ${fmt(m.total.kcal)} kcal`}
-                      </button>
-                    ))}
+                {mealItems.length === 0 && sec.plan && (
+                  <button type="button" className="btn ghost small follow-plan" onClick={() => followPlan(sec.plan!)} disabled={planBusy != null}>
+                    {planBusy === sec.plan.key ? 'Lançando…' : `Seguir o plano · ${sec.plan.items.length} ${sec.plan.items.length === 1 ? 'alimento' : 'alimentos'} · ${fmt(sec.plan.total.kcal)} kcal`}
+                  </button>
+                )}
                 {mealItems.length > 0 && (
                   <div className="meal-items">
                     <AnimatePresence initial={false}>
@@ -246,7 +283,7 @@ export default function Nutrition() {
                         </motion.button>
                       ))}
                     </AnimatePresence>
-                    <motion.button layout="position" type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: meal.label, items: mealItems })}>
+                    <motion.button layout="position" type="button" className="btn ghost small save-meal" onClick={() => setSaving({ meal: sec.label, items: mealItems })}>
                       Salvar como refeição
                     </motion.button>
                   </div>
@@ -256,14 +293,14 @@ export default function Nutrition() {
           })}
 
           {logs.data && items.length === 0 && isToday && (
-            <button type="button" className="btn primary big block" onClick={() => setAdding(mealForHour(new Date().getHours()))}>
+            <button type="button" className="btn primary big block" onClick={() => setAdding(addNow())}>
               <Icon.plus /> Registrar o que comi
             </button>
           )}
 
         </div>
       </div>
-      {adding && <FoodPicker date={date} meal={adding} onClose={() => setAdding(null)} onAdded={logs.reload} />}
+      {adding && <FoodPicker date={date} meal={adding.meal} planMeal={adding.planMeal} title={adding.title} onClose={() => setAdding(null)} onAdded={logs.reload} />}
       {saving && <SaveMeal {...saving} onClose={() => setSaving(null)} />}
       {editing && (
         <EditLog

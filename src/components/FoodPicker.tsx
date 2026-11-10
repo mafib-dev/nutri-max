@@ -15,7 +15,7 @@ const QUICK_GRAMS = [50, 100, 150, 200]
  * Busca de alimentos. Sem `onPick`, lança no diário; com `onPick`, só devolve o alimento e a
  * quantidade escolhidos (para montar o plano alimentar).
  */
-export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void; onPick?: (food: Food, grams: number, measure: string | null) => void; title?: string }) {
+export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void; onPick?: (food: Food, grams: number, measure: string | null) => void; title?: string; planMeal?: string | null }) {
   const picking = !!props.onPick
   const data = useAsync(() => Promise.all([loadFoods(), recentFoodIds(), listSavedMeals()]))
   const [query, setQuery] = useState('')
@@ -68,7 +68,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
     setMealBusy(m.id)
     setMealError(null)
     try {
-      await logSavedMeal(props.date, props.meal, m)
+      await logSavedMeal(props.date, props.meal, m, props.planMeal ?? null)
       logged(m.name)
     } catch (err) {
       setMealError((err as Error).message)
@@ -129,6 +129,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
           food={picked}
           date={props.date}
           meal={props.meal}
+          planMeal={props.planMeal ?? null}
           onPick={props.onPick}
           onBack={() => {
             setPicked(null)
@@ -147,7 +148,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
           }}
         />
       ) : mode === 'quick' ? (
-        <QuickAdd date={props.date} meal={props.meal} onBack={backToSearch} onAdded={logged} />
+        <QuickAdd date={props.date} meal={props.meal} planMeal={props.planMeal ?? null} onBack={backToSearch} onAdded={logged} />
       ) : mode === 'scan' ? (
         <div className="stack" style={{ gap: 12 }}>
           <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={backToSearch}>
@@ -273,7 +274,7 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
   )
 }
 
-function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void; onPick?: (food: Food, grams: number, measure: string | null) => void }) {
+function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void; onPick?: (food: Food, grams: number, measure: string | null) => void; planMeal?: string | null }) {
   const { food } = props
   const portions = useMemo(() => portionsOf(food), [food])
   // Começa pela medida caseira quando o alimento tem uma; senão, em gramas.
@@ -299,7 +300,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
     setBusy(true)
     setError(null)
     try {
-      await addLog(props.date, meal, food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null)
+      await addLog(props.date, meal, food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null, props.planMeal ?? null)
       props.onAdded(food.name)
     } catch (err) {
       setError((err as Error).message)
@@ -378,7 +379,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
           <strong>{m.fat_g.toLocaleString('pt-BR')}</strong>
         </div>
       </div>
-      {!props.onPick && (
+      {!props.onPick && !props.planMeal && (
       <div className="field">
         <span>Refeição</span>
         <div className="chips wrap">
@@ -511,7 +512,7 @@ export function MacroInputs({ values, onChange }: { values: MacroValues; onChang
   )
 }
 
-function QuickAdd(props: { date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void }) {
+function QuickAdd(props: { date: string; meal: Meal; planMeal?: string | null; onBack: () => void; onAdded: (name: string) => void }) {
   const [name, setName] = useState('')
   const [values, setValues] = useState<MacroValues>({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' })
   const [meal, setMeal] = useState<Meal>(props.meal)
@@ -526,7 +527,7 @@ function QuickAdd(props: { date: string; meal: Meal; onBack: () => void; onAdded
     setError(null)
     const title = name.trim() || 'Adição rápida'
     try {
-      await addQuickLog(props.date, meal, { name: title, ...parsed })
+      await addQuickLog(props.date, meal, { name: title, ...parsed }, props.planMeal ?? null)
       props.onAdded(title)
     } catch (err) {
       setError((err as Error).message)

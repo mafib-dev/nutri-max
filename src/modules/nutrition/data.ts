@@ -125,11 +125,12 @@ export async function recentFoodIds(limit = 12): Promise<string[]> {
   return [...new Set((data ?? []).map(r => r.food_id as string))].slice(0, limit)
 }
 
-export async function addLog(date: string, meal: Meal, food: Food, grams: number, measure: string | null = null) {
+export async function addLog(date: string, meal: Meal, food: Food, grams: number, measure: string | null = null, planMeal: string | null = null) {
   const { error } = await supabase.from('food_logs').insert({
     user_id: await userId(),
     date,
     meal,
+    plan_meal: planMeal,
     food_id: food.id,
     name: food.name,
     grams,
@@ -141,8 +142,8 @@ export async function addLog(date: string, meal: Meal, food: Food, grams: number
 }
 
 /** Adição rápida: só as calorias (e os macros, se souber), sem procurar alimento. */
-export async function addQuickLog(date: string, meal: Meal, entry: { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }) {
-  const { error } = await supabase.from('food_logs').insert({ user_id: await userId(), date, meal, food_id: null, grams: null, ...entry })
+export async function addQuickLog(date: string, meal: Meal, entry: { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }, planMeal: string | null = null) {
+  const { error } = await supabase.from('food_logs').insert({ user_id: await userId(), date, meal, plan_meal: planMeal, food_id: null, grams: null, ...entry })
   fail('Falha ao adicionar', error)
 }
 
@@ -253,11 +254,11 @@ export async function deleteSavedMeal(id: string) {
   fail('Falha ao apagar a refeição salva', error)
 }
 
-export async function logSavedMeal(date: string, meal: Meal, saved: SavedMeal) {
+export async function logSavedMeal(date: string, meal: Meal, saved: SavedMeal, planMeal: string | null = null) {
   const [uid, foods] = await Promise.all([userId(), loadFoods()])
   // Um alimento apagado depois de salvar a refeição não pode quebrar o lançamento.
   const known = new Set(foods.map(f => f.id))
-  const rows = saved.items.map(i => ({ ...i, food_id: i.food_id && known.has(i.food_id) ? i.food_id : null, user_id: uid, date, meal }))
+  const rows = saved.items.map(i => ({ ...i, food_id: i.food_id && known.has(i.food_id) ? i.food_id : null, user_id: uid, date, meal, plan_meal: planMeal }))
   const { error } = await supabase.from('food_logs').insert(rows)
   fail('Falha ao lançar a refeição', error)
 }
@@ -298,11 +299,11 @@ export async function logPlanMeal(date: string, meal: PlanMeal) {
   const byId = new Map(catalogue.map(f => [f.id, f]))
   const rows = meal.items.map(i => {
     const food = byId.get(i.food.id)
-    if (food) return { user_id: uid, date, meal: meal.log, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
+    if (food) return { user_id: uid, date, meal: meal.log, plan_meal: meal.key, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
     // Fora do catálogo (o whey padrão): entra com os valores do plano.
     const k = i.grams / 100
     const r = (n: number) => Math.round(n * k * 10) / 10
-    return { user_id: uid, date, meal: meal.log, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
+    return { user_id: uid, date, meal: meal.log, plan_meal: meal.key, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
   })
   const { error } = await supabase.from('food_logs').insert(rows)
   fail('Falha ao lançar a refeição do plano', error)

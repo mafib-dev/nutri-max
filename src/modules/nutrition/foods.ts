@@ -49,6 +49,8 @@ export interface FoodLog extends Macros {
   measure: string | null
   fiber_g: number | null
   sodium_mg: number | null
+  /** Refeição do plano do dia em que foi lançado. */
+  plan_meal?: string | null
 }
 
 /** Fibra e sódio da porção; nulos quando o alimento não informa. */
