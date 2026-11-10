@@ -14,7 +14,7 @@ import { ageOn, dailyTargets, fiberTarget, kcalFloor, SODIUM_LIMIT_MG, waterTarg
 import { listBodyWeights } from '../modules/training/data'
 import { useAsync } from '../lib/useAsync'
 import { useDataChanged } from '../lib/events'
-import { loadPlanContext } from '../modules/nutrition/planContext'
+import { loadPlanContext, planForWeekday } from '../modules/nutrition/planContext'
 import type { PlanMeal } from '../modules/nutrition/plan'
 
 const shift = (iso: string, days: number) => {
@@ -29,6 +29,8 @@ function dayLabel(iso: string) {
   if (iso === shift(today, -1)) return 'Ontem'
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' })
 }
+
+const WEEKDAY_NAMES = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
 
 const fmt = (n: number) => n.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
 
@@ -63,6 +65,8 @@ export default function Nutrition() {
   const total = sumMacros(items)
   const micros = sumMicros(items)
   const isToday = date === todayIso()
+  // O cardápio do dia aberto (cada dia da semana pode ter o seu).
+  const dayPlan = planCtx.data ? planForWeekday(planCtx.data, on.getDay()) : null
   const waterMl = water?.date === date ? water.ml : (day.data?.[1] ?? 0)
   const waterGoal = waterTarget(weight) + (cardio?.waterMl ?? 0)
   const fiberGoal = fiberTarget(profile?.sex ?? null, profile?.birth_date ? ageOn(profile.birth_date, on) : null)
@@ -192,6 +196,16 @@ export default function Nutrition() {
 
         </div>
         <div className="col">
+          {dayPlan && dayPlan.plan.meals.length > 0 && (
+            <Link to="/nutricao/plano" className="card stack" style={{ gap: 6, textDecoration: 'none', color: 'inherit' }}>
+              <div className="spread">
+                <span className="eyebrow">{isToday ? 'Plano de hoje' : `Plano de ${WEEKDAY_NAMES[on.getDay()]}`}</span>
+                <span className="muted small">{fmt(dayPlan.plan.total.kcal)} kcal</span>
+              </div>
+              {dayPlan.name && <strong>{dayPlan.name}</strong>}
+              <div className="muted small">{dayPlan.plan.meals.map(m => `${m.time} ${m.label}`).join(' · ')}</div>
+            </Link>
+          )}
           {MEALS.map(meal => {
             const mealItems = items.filter(i => i.meal === meal.key)
             const mealTotal = sumMacros(mealItems)
@@ -212,7 +226,7 @@ export default function Nutrition() {
                   </div>
                 )}
                 {mealItems.length === 0 &&
-                  (planCtx.data?.plan?.meals ?? [])
+                  (dayPlan?.plan.meals ?? [])
                     .filter(m => m.log === meal.key)
                     .map(m => (
                       <button key={m.key} type="button" className="btn ghost small follow-plan" onClick={() => followPlan(m)} disabled={planBusy != null}>

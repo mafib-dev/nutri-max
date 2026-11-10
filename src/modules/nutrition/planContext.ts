@@ -95,3 +95,15 @@ export async function loadPlanContext(): Promise<PlanContext> {
   const plan = manual ? manualToMealPlan(manual) : (todayDay?.plan ?? (targets && saved ? buildPlan(targets, saved) : null))
   return { profile, weight, saved, targets, days, today: todayDay, plan }
 }
+
+/** O cardápio de um dia da semana: o nome dele (quando há mais de um) e as refeições. */
+export function planForWeekday(ctx: PlanContext, weekday: number): { name: string | null; plan: MealPlan } | null {
+  const saved = ctx.saved
+  if (saved?.mode === 'manual' && saved.manual) {
+    const day = manualDayFor(saved.manual, weekday)
+    return day ? { name: saved.manual.days.length > 1 ? day.name : null, plan: manualToMealPlan(day) } : null
+  }
+  const day = ctx.days.find(d => d.weekdays.includes(weekday))
+  if (day?.plan) return { name: ctx.days.length > 1 ? day.name : null, plan: day.plan }
+  return ctx.plan ? { name: null, plan: ctx.plan } : null
+}
