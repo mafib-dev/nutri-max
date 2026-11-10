@@ -41,6 +41,9 @@ export interface RoutineExerciseRow {
   rep_max: number | null
   rest_sec: number | null
   progression: { policy?: string; increment?: number; deloadFactor?: number }
+  /** 'time' = série por tempo (prancha); a meta fica em target_sec. */
+  mode?: 'reps' | 'time'
+  target_sec?: number | null
 }
 
 /** Uma série no formato do openGym. */
@@ -90,6 +93,9 @@ export interface ExerciseConfig {
   inc?: number
   deloadFactor?: number
   rest?: number
+  mode?: 'reps' | 'time'
+  /** Meta em segundos das séries por tempo. */
+  sec?: number
 }
 
 export interface Prescription {
@@ -200,6 +206,12 @@ export function toExerciseConfig(row: RoutineExerciseRow): ExerciseConfig {
   if (row.progression.increment) cfg.inc = row.progression.increment
   if (row.progression.deloadFactor) cfg.deloadFactor = row.progression.deloadFactor
   if (row.rest_sec != null) cfg.rest = row.rest_sec
+  if (row.mode === 'time') {
+    cfg.mode = 'time'
+    cfg.sec = row.target_sec ?? 45
+    delete cfg.reps
+    delete cfg.repsMin
+  }
   return cfg
 }
 

@@ -10,6 +10,17 @@ O **módulo de nutrição** tem o diário de refeições com os 597 alimentos da
 alimentos próprios (copiados do rótulo ou lidos pelo código de barras no Open Food Facts),
 adição rápida de calorias, refeições salvas, água, fibra e sódio, e metas de calorias e macros
 calculadas pelo perfil, com peso-alvo, ritmo semanal e opção de somar as calorias dos treinos.
+Os alimentos mais comuns têm medidas caseiras (concha, colher, fatia, unidade), e o **plano
+alimentar** monta um cardápio do dia que bate as metas, com trocas equivalentes, orientações,
+lista de compras de 7 dias e versão para imprimir ou salvar em PDF.
+O plano pode ter um cardápio para cada **tipo de dia** (ex.: "Musculação", "Musculação + Corrida",
+"Descanso"), sugeridos a partir das rotinas e do cardio da semana, com pré e pós-treino nos
+horários de cada treino e mais calorias e água nos dias de maior gasto.
+
+O **cardio** (corrida, caminhada, bicicleta, natação, remo, elíptico, trilha, corda) tem planos
+por dia da semana com distância, tempo, intensidade, intervalos e progressão por sessão, e o
+registro do que foi feito com ritmo e gasto estimado. As calorias do cardio entram na meta do dia
+(com "somar as calorias dos treinos" ligado) e a meta de água sobe nos dias de cardio.
 
 ## Stack
 
@@ -26,7 +37,7 @@ npm install
 npx supabase start          # sobe o Supabase local e aplica as migrations
 cp .env.example .env        # preencha as chaves que o comando acima mostrou
 npm run import:exercises    # carrega os 876 exercícios e as fotos
-npm run import:foods        # carrega os 597 alimentos da TACO
+npm run import:foods        # carrega os 597 alimentos da TACO e as medidas caseiras
 npm run dev
 ```
 
@@ -48,13 +59,18 @@ src/
     data.ts                   leituras e gravações no Supabase
     why.ts                    explicação da sugestão de carga em português
     opengym/                  lógica de treino portada do openGym (AGPL-3.0)
+  modules/cardio/             cardio
+    cardio.ts                 atividades, ritmo, gasto (MET/ACSM), progressão e água
+    data.ts                   leituras e gravações no Supabase
   modules/nutrition/          módulo de nutrição
     targets.ts                gasto calórico (Mifflin-St Jeor) e divisão dos macros
     foods.ts                  macros por porção, totais e busca de alimentos
+    portions.ts               medidas caseiras ("2 conchas") a partir dos gramas
+    mealPlan.ts               plano alimentar: cardápio, trocas, orientações e lista de compras
     data.ts                   leituras e gravações no Supabase
 supabase/migrations/          schema do banco (tabelas, RLS, views)
 scripts/import-exercises.ts   importação do catálogo de exercícios
-scripts/import-foods.ts       importação dos alimentos da TACO
+scripts/import-foods.ts       importação dos alimentos da TACO e das medidas caseiras
 ```
 
 ## Banco de dados
@@ -71,6 +87,11 @@ scripts/import-foods.ts       importação dos alimentos da TACO
 | `food_logs` | O que foi comido, por dia e refeição, com os macros copiados na hora |
 | `saved_meals` | Refeições salvas para lançar de novo com um toque |
 | `water_logs` | Água bebida por dia |
+| `cardio_plans` | Planos de cardio: dias, distância, tempo, intensidade, intervalos e progressão |
+| `cardio_logs` | Cada atividade de cardio feita, com ritmo, esforço e calorias |
+| `meal_plans` | Planos alimentares gerados, com o cardápio congelado como foi gerado (um por tipo de dia, ligados por `batch_id`) |
+| (em `routine_exercises`) | `mode` = `time` para séries por tempo (prancha), com a meta em `target_sec` |
+| (em `profiles`) | Semana leve: `light_week_every`, `light_week_start`, `light_week_until` |
 | `ai_insights` | Sugestões da IA, aprovadas ou recusadas pelo usuário |
 
 Views: `last_sets` (última série de cada exercício, usada pela progressão) e

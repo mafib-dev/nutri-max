@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import type { ExerciseRow } from '../modules/training/catalogue'
 import { exerciseName, imageUrl } from '../modules/training/data'
-import { MUSCLE_NAME_PT, type Muscle } from '../modules/training/muscles'
+import { MUSCLE_NAME_PT, toMuscle, type Muscle } from '../modules/training/muscles'
 import { Modal } from './ui'
 
 const EQUIPMENT_PT: Record<string, string> = {
@@ -24,7 +24,7 @@ const MECHANIC_PT = { compound: 'Multiarticular', isolation: 'Isolado' } as cons
 const FORCE_PT = { push: 'Empurrar', pull: 'Puxar', static: 'Isométrico' } as const
 
 export const equipmentName = (eq: string | null) => (eq ? EQUIPMENT_PT[eq] ?? eq : 'Sem equipamento')
-export const muscleName = (m: string) => MUSCLE_NAME_PT[m as Muscle] ?? m
+export const muscleName = (m: string) => MUSCLE_NAME_PT[(toMuscle(m) ?? m) as Muscle] ?? m
 
 /** As duas fotos do exercício se alternando, como uma animação do movimento. Toque pausa. */
 export function ExerciseDemo({ exercise }: { exercise: ExerciseRow }) {

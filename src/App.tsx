@@ -11,28 +11,45 @@ import Progress from './pages/Progress'
 import Overview from './pages/Overview'
 import Nutrition from './pages/Nutrition'
 import NutritionGoals from './pages/NutritionGoals'
+import MealPlan from './pages/MealPlan'
+import Coach from './pages/Coach'
+import CatalogueAdmin from './pages/CatalogueAdmin'
+import Onboarding from './pages/Onboarding'
+import ProfileEdit from './pages/ProfileEdit'
+import { CoachDock } from './components/CoachDock'
+import { TabPill } from './components/ui'
+import { loadSetup } from './modules/profile/data'
+import { isComplete, readLook } from './modules/profile/setup'
+import { DEFAULT_LOOK } from './modules/profile/look'
+import { useAsync } from './lib/useAsync'
+import { ChartLine, Dumbbell, History as HistoryIcon, House, Utensils, type LucideIcon } from 'lucide-react'
+import Cardio from './pages/Cardio'
 
-const icon = (d: string) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d={d} />
-  </svg>
-)
+const icon = (Glyph: LucideIcon) => <Glyph strokeWidth={1.75} aria-hidden="true" />
 
 const TABS = [
-  { to: '/', label: 'Hoje', icon: icon('M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z') },
-  { to: '/rotinas', label: 'Treinos', icon: icon('M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01') },
-  { to: '/nutricao', label: 'Nutrição', icon: icon('M7 3v7a2 2 0 0 0 4 0V3M9 3v18M17 21V3c-2.2 1-3.5 3.6-3.5 7 0 2 1.2 3 3.5 3') },
-  { to: '/historico', label: 'Histórico', icon: icon('M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5') },
-  { to: '/progresso', label: 'Progresso', icon: icon('M3 3v18h18M7 15l4-4 3 3 5-6') },
+  { to: '/', label: 'Hoje', icon: icon(House) },
+  { to: '/rotinas', label: 'Treinos', icon: icon(Dumbbell) },
+  { to: '/nutricao', label: 'Nutrição', icon: icon(Utensils) },
+  { to: '/historico', label: 'Histórico', icon: icon(HistoryIcon) },
+  { to: '/progresso', label: 'Progresso', icon: icon(ChartLine) },
 ]
 
 function TabBar() {
   return (
     <nav className="tabbar" aria-label="Navegação">
+      <div className="nav-brand" aria-hidden="true">
+        Nutri<span>Max</span>
+      </div>
       {TABS.map(t => (
         <NavLink key={t.to} to={t.to} end={t.to === '/'}>
-          {t.icon}
-          {t.label}
+          {({ isActive }) => (
+            <>
+              {isActive && <TabPill id="nav-pill" />}
+              {t.icon}
+              <span>{t.label}</span>
+            </>
+          )}
         </NavLink>
       ))}
     </nav>
@@ -41,30 +58,47 @@ function TabBar() {
 
 export default function App() {
   const { session, loading } = useAuth()
-  const location = useLocation()
 
   if (loading) return <div className="center muted">Carregando…</div>
   if (!session) return <Login />
+  return <Main key={session.user.id} />
+}
+
+function Main() {
+  const { session } = useAuth()
+  const location = useLocation()
+  // No primeiro login a pessoa completa o perfil antes de ver o app.
+  const setup = useAsync(loadSetup)
+
+  if (setup.loading && !setup.data) return <div className="center muted">Carregando…</div>
+  if (setup.data && !isComplete(setup.data))
+    return <Onboarding initial={setup.data} initialLook={readLook(session?.user.user_metadata) ?? DEFAULT_LOOK} onDone={setup.reload} />
 
   // Durante o treino a barra de baixo dá lugar ao cronômetro de descanso.
   const inWorkout = location.pathname.startsWith('/treino')
 
   return (
-    <>
+    <div className={inWorkout ? 'shell' : 'shell has-nav'}>
       <Routes>
         <Route path="/" element={<Today />} />
         <Route path="/rotinas" element={<Routines />} />
         <Route path="/rotinas/:id" element={<RoutineEdit />} />
         <Route path="/exercicios" element={<Exercises />} />
+        <Route path="/cardio" element={<Cardio />} />
         <Route path="/treino" element={<Workout />} />
         <Route path="/historico" element={<History />} />
         <Route path="/progresso" element={<Overview />} />
         <Route path="/nutricao" element={<Nutrition />} />
         <Route path="/nutricao/metas" element={<NutritionGoals />} />
+        <Route path="/nutricao/plano" element={<MealPlan />} />
+        <Route path="/nutricionista" element={<Coach />} />
+        <Route path="/perfil" element={<ProfileEdit />} />
+        <Route path="/admin/alimentos" element={<CatalogueAdmin />} />
         <Route path="/progresso/:exerciseId" element={<Progress />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       {!inWorkout && <TabBar />}
-    </>
+      <CoachDock />
+    </div>
   )
 }

@@ -1,4 +1,5 @@
 // Alimentos: conta dos macros por porção, busca e totais do dia.
+import type { Portion } from './portions'
 
 export interface Food {
   id: string
@@ -13,8 +14,11 @@ export interface Food {
   sodium_mg: number | null
   serving_name: string | null
   serving_g: number | null
+  /** Medidas caseiras (concha, colher, unidade). */
+  portions: Portion[]
   barcode: string | null
-  source: 'taco' | 'custom'
+  /** taco: tabela oficial; nutrimax: acrescentado ao catálogo pelo administrador; custom: só da pessoa. */
+  source: 'taco' | 'custom' | 'nutrimax'
 }
 
 export type Meal = 'breakfast' | 'lunch' | 'snack' | 'dinner'
@@ -41,8 +45,12 @@ export interface FoodLog extends Macros {
   name: string
   /** Nulo na adição rápida, que tem só as calorias e os macros. */
   grams: number | null
+  /** A quantidade em medida caseira, quando foi registrada assim ("2 conchas"). */
+  measure: string | null
   fiber_g: number | null
   sodium_mg: number | null
+  /** Refeição do plano do dia em que foi lançado. */
+  plan_meal?: string | null
 }
 
 /** Fibra e sódio da porção; nulos quando o alimento não informa. */

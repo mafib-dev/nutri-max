@@ -1,15 +1,22 @@
 import { useCallback, useMemo, useState, type FormEvent } from 'react'
 import { Icon, Modal } from './ui'
+import { Kcal, Macros } from './FoodRow'
 import BarcodeScanner from './BarcodeScanner'
 import { formatGrams, macrosFor, MEALS, searchFoods, type Food, type Meal } from '../modules/nutrition/foods'
 import { addLog, addQuickLog, createFood, deleteSavedMeal, findFoodByBarcode, listSavedMeals, loadFoods, logSavedMeal, recentFoodIds, type NewFood, type SavedMeal } from '../modules/nutrition/data'
 import { fetchOffProduct } from '../modules/nutrition/off'
+import { measureText, portionsOf, roundCount } from '../modules/nutrition/portions'
 import { useAsync } from '../lib/useAsync'
 
 const QUICK_GRAMS = [50, 100, 150, 200]
 
 /** Janela para buscar um alimento, escolher a quantidade e lançar na refeição. */
-export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void }) {
+/**
+ * Busca de alimentos. Sem `onPick`, lança no diário; com `onPick`, só devolve o alimento e a
+ * quantidade escolhidos (para montar o plano alimentar).
+ */
+export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void; onPick?: (food: Food, grams: number, measure: string | null) => void; title?: string; planMeal?: string | null }) {
+  const picking = !!props.onPick
   const data = useAsync(() => Promise.all([loadFoods(), recentFoodIds(), listSavedMeals()]))
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<Food | null>(null)
@@ -61,7 +68,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
     setMealBusy(m.id)
     setMealError(null)
     try {
-      await logSavedMeal(props.date, props.meal, m)
+      await logSavedMeal(props.date, props.meal, m, props.planMeal ?? null)
       logged(m.name)
     } catch (err) {
       setMealError((err as Error).message)
@@ -86,14 +93,16 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
 
   const mealLabel = MEALS.find(m => m.key === props.meal)!.label.toLowerCase()
   const title = picked
-    ? 'Quanto você comeu?'
+    ? picking
+      ? 'Quanto?'
+      : 'Quanto você comeu?'
     : mode === 'create'
       ? 'Criar alimento'
       : mode === 'scan'
         ? 'Ler código de barras'
         : mode === 'quick'
           ? 'Adição rápida'
-          : `Adicionar ao ${mealLabel}`
+          : (props.title ?? `Adicionar ao ${mealLabel}`)
 
   return (
     <Modal
@@ -120,6 +129,8 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
           food={picked}
           date={props.date}
           meal={props.meal}
+          planMeal={props.planMeal ?? null}
+          onPick={props.onPick}
           onBack={() => {
             setPicked(null)
             backToSearch()
@@ -137,7 +148,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
           }}
         />
       ) : mode === 'quick' ? (
-        <QuickAdd date={props.date} meal={props.meal} onBack={backToSearch} onAdded={logged} />
+        <QuickAdd date={props.date} meal={props.meal} planMeal={props.planMeal ?? null} onBack={backToSearch} onAdded={logged} />
       ) : mode === 'scan' ? (
         <div className="stack" style={{ gap: 12 }}>
           <button type="button" className="btn ghost small" style={{ justifySelf: 'start', marginLeft: -10 }} onClick={backToSearch}>
@@ -177,18 +188,20 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
             <Icon.search />
             <input className="input" autoFocus placeholder="Buscar: arroz, frango, banana…" value={query} onChange={e => setQuery(e.target.value)} aria-label="Buscar alimento" />
           </label>
-          <div className="grid-2">
+          <div className="grid-2 picker-actions">
             <button type="button" className="btn" onClick={() => setMode('scan')}>
               <Icon.barcode /> Código de barras
             </button>
-            <button type="button" className="btn" onClick={() => setMode('quick')}>
-              <Icon.bolt /> Adição rápida
-            </button>
+            {!picking && (
+              <button type="button" className="btn" onClick={() => setMode('quick')}>
+                <Icon.bolt /> Adição rápida
+              </button>
+            )}
           </div>
           {data.loading && <p className="muted small">Carregando alimentos…</p>}
           {data.error && <p className="error small">{data.error}</p>}
 
-          {!query.trim() && savedMeals.length > 0 && (
+          {!picking && !query.trim() && savedMeals.length > 0 && (
             <>
               <span className="eyebrow">Refeições salvas</span>
               <div className="list">
@@ -198,10 +211,9 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
                     <div key={m.id} className="list-item saved-meal">
                       <button type="button" className="grow" onClick={() => logSaved(m)} disabled={!!mealBusy}>
                         <div className="title ellipsis">{m.name}</div>
-                        <div className="muted tiny ellipsis">
-                          {mealBusy === m.id ? 'Lançando…' : `${kcal} kcal · ${m.items.map(i => i.name.split(',')[0]).join(', ')}`}
-                        </div>
+                        <div className="muted tiny ellipsis">{mealBusy === m.id ? 'Lançando…' : m.items.map(i => i.name.split(',')[0]).join(', ')}</div>
                       </button>
+                      <Kcal value={kcal} />
                       <button type="button" className="btn ghost icon" aria-label={`Apagar ${m.name}`} onClick={() => removeSaved(m)}>
                         <Icon.close />
                       </button>
@@ -240,13 +252,21 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
     <div className="list">
       {foods.map(f => (
         <button key={f.id} type="button" className="list-item" onClick={() => onPick(f)}>
-          <div className="grow">
+          <div className="grow stack" style={{ gap: 6, minWidth: 0 }}>
             <div className="title clamp-2">{f.name}</div>
-            <div className="muted tiny">
-              {f.source === 'custom' && f.serving_g ? `${f.serving_name || 'porção'} (${formatGrams(f.serving_g)}) · ` : ''}
-              {Math.round(f.kcal)} kcal · {f.protein_g.toLocaleString('pt-BR')} g prot. em 100 g
-            </div>
+            <Macros p={f.protein_g} c={f.carbs_g} f={f.fat_g} />
+            {f.source !== 'taco' && f.serving_g ? (
+              <div className="muted tiny">
+                {f.serving_name || 'porção'}: {formatGrams(f.serving_g)}
+              </div>
+            ) : null}
           </div>
+          <span className="food-kcal per100">
+            <span>
+              <b>{Math.round(f.kcal)}</b> kcal
+            </span>
+            <small>em 100 g</small>
+          </span>
           <span className="chev">›</span>
         </button>
       ))}
@@ -254,23 +274,33 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
   )
 }
 
-function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void }) {
+function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void; onPick?: (food: Food, grams: number, measure: string | null) => void; planMeal?: string | null }) {
   const { food } = props
-  const [grams, setGrams] = useState(String(food.serving_g ?? 100))
+  const portions = useMemo(() => portionsOf(food), [food])
+  // Começa pela medida caseira quando o alimento tem uma; senão, em gramas.
+  const [unit, setUnit] = useState(portions.length ? 0 : -1)
+  const [amount, setAmount] = useState(portions.length ? '1' : '100')
   const [meal, setMeal] = useState<Meal>(props.meal)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const g = Number(grams.replace(',', '.'))
-  const valid = Number.isFinite(g) && g > 0 && g <= 5000
+  const portion = unit >= 0 ? portions[unit] : null
+  const n = Number(amount.replace(',', '.'))
+  const g = portion ? Math.round(n * portion.g * 10) / 10 : n
+  const valid = Number.isFinite(n) && n > 0 && g > 0 && g <= 5000
   const m = macrosFor(food, valid ? g : 0)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
+    if (props.onPick) {
+      props.onPick(food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null)
+      props.onAdded(food.name)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
-      await addLog(props.date, meal, food, Math.round(g * 10) / 10)
+      await addLog(props.date, meal, food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null, props.planMeal ?? null)
       props.onAdded(food.name)
     } catch (err) {
       setError((err as Error).message)
@@ -278,7 +308,18 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
     }
   }
 
-  const quick = [...(food.serving_g ? [food.serving_g] : []), ...QUICK_GRAMS.filter(q => q !== food.serving_g)]
+  function pickUnit(i: number) {
+    if (i === unit) return
+    // Troca de unidade mantendo a quantidade: 2 conchas viram 160 g, e 160 g viram 2 conchas.
+    const grams = valid ? g : null
+    setUnit(i)
+    if (grams == null) return setAmount(i >= 0 ? '1' : '100')
+    if (i < 0) return setAmount(String(Math.round(grams)))
+    const count = Math.max(portions[i].whole ? 1 : 0.5, roundCount(portions[i], grams / portions[i].g))
+    setAmount(String(count).replace('.', ','))
+  }
+
+  const quick = portion ? (portion.whole ? [1, 2, 3, 4] : [0.5, 1, 1.5, 2, 3]) : QUICK_GRAMS
 
   return (
     <form className="stack" style={{ gap: 14 }} onSubmit={submit}>
@@ -289,17 +330,37 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
         <h3 style={{ fontSize: '1.5rem' }}>{food.name}</h3>
         {food.category && <span className="muted small">{food.category}</span>}
       </div>
+      {portions.length > 0 && (
+        <div className="field">
+          <span>Medida</span>
+          <div className="chips wrap">
+            {portions.map((p, i) => (
+              <button key={p.name + p.g} type="button" className={`chip ${unit === i ? 'on' : ''}`} onClick={() => pickUnit(i)}>
+                {p.name} · {formatGrams(p.g)}
+              </button>
+            ))}
+            <button type="button" className={`chip ${unit === -1 ? 'on' : ''}`} onClick={() => pickUnit(-1)}>
+              gramas
+            </button>
+          </div>
+        </div>
+      )}
       <label className="field">
-        <span>Quantidade (g)</span>
-        <input className="input" inputMode="decimal" autoFocus value={grams} onChange={e => setGrams(e.target.value)} />
+        <span>{portion ? `Quantidade (${portion.plural})` : 'Quantidade (g)'}</span>
+        <input className="input" inputMode="decimal" autoFocus value={amount} onChange={e => setAmount(e.target.value)} />
       </label>
       <div className="chips wrap">
         {quick.map(q => (
-          <button key={q} type="button" className={`chip ${g === q ? 'on' : ''}`} onClick={() => setGrams(String(q))}>
-            {q === food.serving_g && food.serving_name ? `${food.serving_name} · ${q} g` : `${q} g`}
+          <button key={q} type="button" className={`chip ${n === q ? 'on' : ''}`} onClick={() => setAmount(String(q).replace('.', ','))}>
+            {portion ? measureText(portion, q) : `${q} g`}
           </button>
         ))}
       </div>
+      {portion && valid && (
+        <p className="muted small" style={{ margin: '-4px 0 0' }}>
+          {measureText(portion, n)} = {formatGrams(g)}
+        </p>
+      )}
       <div className="card macro-grid">
         <div className="stat">
           <span>Calorias</span>
@@ -318,6 +379,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
           <strong>{m.fat_g.toLocaleString('pt-BR')}</strong>
         </div>
       </div>
+      {!props.onPick && !props.planMeal && (
       <div className="field">
         <span>Refeição</span>
         <div className="chips wrap">
@@ -328,6 +390,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
           ))}
         </div>
       </div>
+      )}
       {error && <p className="error small">{error}</p>}
       <button className="btn primary big block" disabled={!valid || busy}>
         {busy ? 'Adicionando…' : 'Adicionar'}
@@ -449,7 +512,7 @@ export function MacroInputs({ values, onChange }: { values: MacroValues; onChang
   )
 }
 
-function QuickAdd(props: { date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void }) {
+function QuickAdd(props: { date: string; meal: Meal; planMeal?: string | null; onBack: () => void; onAdded: (name: string) => void }) {
   const [name, setName] = useState('')
   const [values, setValues] = useState<MacroValues>({ kcal: '', protein_g: '', carbs_g: '', fat_g: '' })
   const [meal, setMeal] = useState<Meal>(props.meal)
@@ -464,7 +527,7 @@ function QuickAdd(props: { date: string; meal: Meal; onBack: () => void; onAdded
     setError(null)
     const title = name.trim() || 'Adição rápida'
     try {
-      await addQuickLog(props.date, meal, { name: title, ...parsed })
+      await addQuickLog(props.date, meal, { name: title, ...parsed }, props.planMeal ?? null)
       props.onAdded(title)
     } catch (err) {
       setError((err as Error).message)

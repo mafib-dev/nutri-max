@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabase'
 import { macrosFor, microsFor, type Food, type FoodLog, type Meal } from './foods'
 import type { NutritionProfile } from './targets'
+import type { PlanMeal, SavedPlan } from './plan'
 
 const fail = (what: string, error: { message: string } | null) => {
   if (error) throw new Error(`${what}: ${error.message}`)
@@ -65,6 +66,45 @@ export async function deleteFood(id: string) {
   foods = null
 }
 
+/** Quem pode mexer no catálogo de todo mundo (a página /admin/alimentos). */
+export async function isAdmin(): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) return false
+  return data === true
+}
+
+/** Alimentos que o administrador acrescentou ao catálogo, os mais novos primeiro. */
+export async function listCatalogueFoods(): Promise<Food[]> {
+  const { data, error } = await supabase.from('foods').select('*').eq('source', 'nutrimax').order('created_at', { ascending: false })
+  fail('Falha ao carregar o catálogo', error)
+  return (data ?? []).map(r => numbers<Food>(r))
+}
+
+export type CatalogueFood = NewFood & { fiber_g: number | null; sodium_mg: number | null; barcode: string | null; category: string | null }
+
+const catalogueError = (error: { message: string; code?: string } | null) => {
+  if (error?.code === '23505') throw new Error('Esse código de barras já está no catálogo.')
+  if (error?.code === '42501') throw new Error('Só o administrador pode mexer no catálogo.')
+  fail('Falha ao salvar no catálogo', error)
+}
+
+/** Cria (sem id) ou atualiza um alimento do catálogo. Valores sempre por 100 g. */
+export async function saveCatalogueFood(food: CatalogueFood, id?: string): Promise<Food> {
+  const query = id
+    ? supabase.from('foods').update({ ...food, updated_at: new Date().toISOString() }).eq('id', id).eq('source', 'nutrimax')
+    : supabase.from('foods').insert({ ...food, owner_id: null, source: 'nutrimax' })
+  const { data, error } = await query.select().single()
+  catalogueError(error)
+  foods = null
+  return numbers<Food>(data!)
+}
+
+export async function deleteCatalogueFood(id: string) {
+  const { error } = await supabase.from('foods').delete().eq('id', id).eq('source', 'nutrimax')
+  catalogueError(error)
+  foods = null
+}
+
 export async function listLogs(date: string): Promise<FoodLog[]> {
   const { data, error } = await supabase.from('food_logs').select('*').eq('date', date).order('created_at')
   fail('Falha ao carregar as refeições', error)
@@ -85,14 +125,16 @@ export async function recentFoodIds(limit = 12): Promise<string[]> {
   return [...new Set((data ?? []).map(r => r.food_id as string))].slice(0, limit)
 }
 
-export async function addLog(date: string, meal: Meal, food: Food, grams: number) {
+export async function addLog(date: string, meal: Meal, food: Food, grams: number, measure: string | null = null, planMeal: string | null = null) {
   const { error } = await supabase.from('food_logs').insert({
     user_id: await userId(),
     date,
     meal,
+    plan_meal: planMeal,
     food_id: food.id,
     name: food.name,
     grams,
+    measure,
     ...macrosFor(food, grams),
     ...microsFor(food, grams),
   })
@@ -100,8 +142,8 @@ export async function addLog(date: string, meal: Meal, food: Food, grams: number
 }
 
 /** Adição rápida: só as calorias (e os macros, se souber), sem procurar alimento. */
-export async function addQuickLog(date: string, meal: Meal, entry: { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }) {
-  const { error } = await supabase.from('food_logs').insert({ user_id: await userId(), date, meal, food_id: null, grams: null, ...entry })
+export async function addQuickLog(date: string, meal: Meal, entry: { name: string; kcal: number; protein_g: number; carbs_g: number; fat_g: number }, planMeal: string | null = null) {
+  const { error } = await supabase.from('food_logs').insert({ user_id: await userId(), date, meal, plan_meal: planMeal, food_id: null, grams: null, ...entry })
   fail('Falha ao adicionar', error)
 }
 
@@ -110,7 +152,7 @@ export async function updateQuickLog(id: string, entry: { kcal: number; protein_
   fail('Falha ao salvar', error)
 }
 
-/** Muda a quantidade, refazendo as contas pela proporção do que foi registrado. */
+/** Muda a quantidade, refazendo as contas pela proporção do que foi registrado. A medida caseira sai: agora vale o peso digitado. */
 export async function updateLogGrams(log: FoodLog & { grams: number }, grams: number) {
   const k = grams / log.grams
   const r1 = (n: number) => Math.round(n * k * 10) / 10
@@ -118,6 +160,7 @@ export async function updateLogGrams(log: FoodLog & { grams: number }, grams: nu
     .from('food_logs')
     .update({
       grams,
+      measure: null,
       kcal: Math.round(log.kcal * k),
       protein_g: r1(log.protein_g),
       carbs_g: r1(log.carbs_g),
@@ -167,6 +210,7 @@ export interface SavedMealItem {
   food_id: string | null
   name: string
   grams: number | null
+  measure?: string | null
   kcal: number
   protein_g: number
   carbs_g: number
@@ -193,6 +237,7 @@ export async function saveMeal(name: string, logs: FoodLog[]) {
     food_id: l.food_id,
     name: l.name,
     grams: l.grams,
+    measure: l.measure,
     kcal: l.kcal,
     protein_g: l.protein_g,
     carbs_g: l.carbs_g,
@@ -209,11 +254,11 @@ export async function deleteSavedMeal(id: string) {
   fail('Falha ao apagar a refeição salva', error)
 }
 
-export async function logSavedMeal(date: string, meal: Meal, saved: SavedMeal) {
+export async function logSavedMeal(date: string, meal: Meal, saved: SavedMeal, planMeal: string | null = null) {
   const [uid, foods] = await Promise.all([userId(), loadFoods()])
   // Um alimento apagado depois de salvar a refeição não pode quebrar o lançamento.
   const known = new Set(foods.map(f => f.id))
-  const rows = saved.items.map(i => ({ ...i, food_id: i.food_id && known.has(i.food_id) ? i.food_id : null, user_id: uid, date, meal }))
+  const rows = saved.items.map(i => ({ ...i, food_id: i.food_id && known.has(i.food_id) ? i.food_id : null, user_id: uid, date, meal, plan_meal: planMeal }))
   const { error } = await supabase.from('food_logs').insert(rows)
   fail('Falha ao lançar a refeição', error)
 }
@@ -235,4 +280,52 @@ export async function loadFirstName(): Promise<string | null> {
   const { data } = await supabase.from('profiles').select('display_name').eq('id', auth.user?.id ?? '').maybeSingle()
   const name = (data?.display_name as string | null)?.trim() || auth.user?.email?.split('@')[0]?.split(/[._\d]/)[0] || ''
   return name ? name[0].toUpperCase() + name.slice(1) : null
+}
+
+export async function loadMealPlan(): Promise<SavedPlan | null> {
+  const { data, error } = await supabase.from('profiles').select('meal_plan').eq('id', await userId()).single()
+  fail('Falha ao carregar o plano alimentar', error)
+  return (data?.meal_plan as SavedPlan | null) ?? null
+}
+
+export async function saveMealPlan(plan: SavedPlan | null) {
+  const { error } = await supabase.from('profiles').update({ meal_plan: plan, updated_at: new Date().toISOString() }).eq('id', await userId())
+  fail('Falha ao salvar o plano alimentar', error)
+}
+
+/** Lança no diário os alimentos de uma refeição do plano, com as gramas do plano. */
+export async function logPlanMeal(date: string, meal: PlanMeal) {
+  const [uid, catalogue] = await Promise.all([userId(), loadFoods()])
+  const byId = new Map(catalogue.map(f => [f.id, f]))
+  const rows = meal.items.map(i => {
+    const food = byId.get(i.food.id)
+    if (food) return { user_id: uid, date, meal: meal.log, plan_meal: meal.key, food_id: food.id, name: food.name, grams: i.grams, ...macrosFor(food, i.grams), ...microsFor(food, i.grams) }
+    // Fora do catálogo (o whey padrão): entra com os valores do plano.
+    const k = i.grams / 100
+    const r = (n: number) => Math.round(n * k * 10) / 10
+    return { user_id: uid, date, meal: meal.log, plan_meal: meal.key, food_id: null, name: i.food.name, grams: i.grams, kcal: r(i.food.kcal), protein_g: r(i.food.p), carbs_g: r(i.food.c), fat_g: r(i.food.f), fiber_g: null, sodium_mg: null }
+  })
+  const { error } = await supabase.from('food_logs').insert(rows)
+  fail('Falha ao lançar a refeição do plano', error)
+}
+
+/** Pede à IA (função food-review) a avaliação de um alimento das preferências. Ela só opina. */
+export async function askFoodReview(context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('food-review', { body: { context } })
+  if (error) {
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
+}
+
+/** Pede à IA (função plan-ai no Supabase, que chama o Claude) um ajuste do plano. */
+export async function askPlanAi(request: string, context: unknown): Promise<unknown> {
+  const { data, error } = await supabase.functions.invoke('plan-ai', { body: { request, context } })
+  if (error) {
+    // A função devolve { error } com a explicação; sem ela, a mensagem genérica do cliente.
+    const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+    throw new Error(body?.error ?? 'Não foi possível falar com a IA agora.')
+  }
+  return (data as { result: unknown }).result
 }

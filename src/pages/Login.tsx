@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Eye, EyeOff } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Login() {
@@ -99,11 +100,7 @@ function PasswordInput(props: { value: string; onChange: (v: string) => void; au
         aria-pressed={visible}
         onClick={() => setVisible(v => !v)}
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-          <circle cx="12" cy="12" r="3" />
-          {visible && <path d="M3 3l18 18" />}
-        </svg>
+        {visible ? <EyeOff strokeWidth={1.75} aria-hidden="true" /> : <Eye strokeWidth={1.75} aria-hidden="true" />}
       </button>
     </div>
   )
