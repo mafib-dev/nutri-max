@@ -22,6 +22,8 @@ export interface ManualMeal {
   time: string
   /** Em que refeição do diário ela entra. */
   log: Meal
+  /** A pessoa escolheu `log` à mão; sem isso, ele segue o nome e o horário. */
+  logManual?: boolean
   items: ManualItem[]
 }
 
@@ -70,6 +72,19 @@ export function logForTime(time: string): Meal {
   if (h >= 19) return 'dinner'
   return 'snack'
 }
+
+/** Seção do diário pelo nome ("Jantar", "Lanche da tarde"…) e, sem pista no nome, pelo horário. */
+export function guessLog(name: string, time: string): Meal {
+  const n = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  if (/lanche|ceia|pre.?treino|pos.?treino|snack/.test(n)) return 'snack'
+  if (/jantar|janta/.test(n)) return 'dinner'
+  if (/almoco/.test(n)) return 'lunch'
+  if (/cafe|desjejum/.test(n)) return 'breakfast'
+  return logForTime(time)
+}
+
+/** A seção do diário em que a refeição entra. */
+export const mealLog = (m: Pick<ManualMeal, 'name' | 'time' | 'log' | 'logManual'>): Meal => (m.logManual ? m.log : guessLog(m.name, m.time))
 
 export function itemFromFood(food: Food, grams: number, measure: string | null): ManualItem {
   return {
@@ -143,7 +158,7 @@ export function manualToMealPlan(day: ManualDay): MealPlan {
           unit: ['g', 'g', 100000],
         },
       }))
-      return { key: m.id, kind: KIND_OF[m.log], label: m.name, time: m.time, auto: m.time, log: m.log, items, target: { p: total.p, c: total.c, f: total.f }, total }
+      return { key: m.id, kind: KIND_OF[mealLog(m)], label: m.name, time: m.time, auto: m.time, log: mealLog(m), items, target: { p: total.p, c: total.c, f: total.f }, total }
     })
   return { meals, total: mealTotals(day.meals.flatMap(m => m.items)) }
 }

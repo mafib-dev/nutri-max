@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { itemTotals, logForTime, manualDayFor, manualToMealPlan, mealTotals, moveWeekday, starterPlan, type ManualDay, type ManualItem } from './manualPlan'
+import { guessLog, itemTotals, logForTime, manualDayFor, manualToMealPlan, mealTotals, moveWeekday, starterPlan, type ManualDay, type ManualItem } from './manualPlan'
 
 const item = (grams: number, per100 = { kcal: 130, p: 2.5, c: 28, f: 0.2, fiber: 1.6 }): ManualItem => ({ id: 'i' + grams, food_id: 'arroz', name: 'Arroz', grams, measure: null, per100 })
 
@@ -47,5 +47,14 @@ describe('plano montado pela pessoa', () => {
     expect(plan.meals.map(m => m.label)).toEqual(['Pós-corrida', 'Jantar'])
     expect(plan.meals[0].items[0].food.id).toBe('arroz')
     expect(plan.total.kcal).toBe(390)
+  })
+  it('a seção do diário segue o nome da refeição, e o horário quando o nome não diz', () => {
+    expect(guessLog('Jantar', '22:00')).toBe('dinner')
+    expect(guessLog('Lanche da tarde', '16:00')).toBe('snack')
+    expect(guessLog('Lanche da manhã', '10:00')).toBe('snack')
+    expect(guessLog('Café da manhã', '07:00')).toBe('breakfast')
+    expect(guessLog('Almoço', '13:00')).toBe('lunch')
+    expect(guessLog('Pós-treino', '08:30')).toBe('snack')
+    expect(guessLog('Refeição 3', '20:00')).toBe('dinner')
   })
 })

@@ -5,7 +5,7 @@ import FoodPicker from '../components/FoodPicker'
 import { Kcal, MacroTiles, Macros } from '../components/FoodRow'
 import { Icon } from '../components/ui'
 import { formatGrams, MEALS, type Meal } from '../modules/nutrition/foods'
-import { itemFromFood, itemTotals, logForTime, mealTotals, moveWeekday, newId, type ManualDay, type ManualItem, type ManualMeal, type ManualPlan } from '../modules/nutrition/manualPlan'
+import { itemFromFood, mealLog, itemTotals, logForTime, mealTotals, moveWeekday, newId, type ManualDay, type ManualItem, type ManualMeal, type ManualPlan } from '../modules/nutrition/manualPlan'
 import type { Targets } from '../modules/nutrition/targets'
 import { WEEK_ORDER, WEEKDAYS } from '../modules/training/data'
 import { todayIso } from '../modules/nutrition/data'
@@ -170,7 +170,7 @@ function MealEditor(props: { meal: ManualMeal; onChange: (fn: (m: ManualMeal) =>
         <span>Entra no diário como</span>
         <div className="chips wrap">
           {MEALS.map(x => (
-            <button key={x.key} type="button" className={`chip ${meal.log === x.key ? 'on' : ''}`} onClick={() => props.onChange(m => ({ ...m, log: x.key as Meal }))}>
+            <button key={x.key} type="button" className={`chip ${mealLog(meal) === x.key ? 'on' : ''}`} onClick={() => props.onChange(m => ({ ...m, log: x.key as Meal, logManual: true }))}>
               {x.label}
             </button>
           ))}
