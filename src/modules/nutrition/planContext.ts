@@ -6,6 +6,7 @@ import { lastDistanceByPlan, listCardioPlans } from '../cardio/data'
 import { loadMealPlan, loadNutritionProfile, todayIso } from './data'
 import { buildPlan, dayKey, settingsForDay, type MealPlan, type SavedPlan } from './plan'
 import { dailyTargets, waterTarget, type NutritionProfile, type Targets } from './targets'
+import { manualDayFor, manualToMealPlan } from './manualPlan'
 import { dayActivity, dayTypeOf, suggestDayTypes, typicalStrengthMin, weekSchedule, type DaySchedule } from './dayTypes'
 
 export interface PlanDay {
@@ -89,5 +90,8 @@ export async function loadPlanContext(): Promise<PlanContext> {
   })
   const days = planDays(profile, weight, saved, schedule)
   const todayDay = dayTypeOf(new Date().getDay(), days) ?? null
-  return { profile, weight, saved, targets, days, today: todayDay, plan: todayDay?.plan ?? (targets && saved ? buildPlan(targets, saved) : null) }
+  // Cardápio montado pela pessoa: o de hoje é o do dia da semana, sem ajuste nenhum.
+  const manual = saved?.mode === 'manual' && saved.manual ? manualDayFor(saved.manual, new Date().getDay()) : null
+  const plan = manual ? manualToMealPlan(manual) : (todayDay?.plan ?? (targets && saved ? buildPlan(targets, saved) : null))
+  return { profile, weight, saved, targets, days, today: todayDay, plan }
 }

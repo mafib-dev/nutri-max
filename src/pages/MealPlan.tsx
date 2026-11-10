@@ -37,6 +37,8 @@ import { searchFoods } from '../modules/nutrition/foods'
 import { listItem } from '../lib/motion'
 import { loadPlanContext } from '../modules/nutrition/planContext'
 import { daysLabel } from '../modules/nutrition/dayTypes'
+import { newId, starterPlan, type ManualDay, type ManualPlan } from '../modules/nutrition/manualPlan'
+import ManualPlanEditor from './ManualPlanEditor'
 import { MORE_FOODS, MORE_OPTIONS, RECIPES } from '../modules/nutrition/planFoodsMore'
 import { assessment, CONDITIONS, nextReturn, redFlags, supplementProtocol, type Anamnesis, type Condition, type HabitMeal } from '../modules/nutrition/anamnesis'
 import { ageOn, fiberTarget, waterTarget, type NutritionProfile } from '../modules/nutrition/targets'
@@ -153,13 +155,35 @@ export default function MealPlan() {
         </div>
       )}
 
-      {data && targets && (!current || editing) && (
+      {data && targets && !current && !editing && (
+        <div className="grid-2">
+          <button type="button" className="card stack plan-choice" style={{ gap: 6, textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => persist({ settings: DEFAULT_SETTINGS, picks: {}, mode: 'manual', manual: starterPlan() })}>
+            <h3>Já tenho meu plano</h3>
+            <span className="muted small">Monte as suas refeições, nos seus horários, com os alimentos e as quantidades que você já segue. O app soma tudo e compara com as suas metas.</span>
+          </button>
+          <button type="button" className="card stack plan-choice" style={{ gap: 6, textAlign: 'left', cursor: 'pointer', color: 'inherit' }} onClick={() => setEditing(true)}>
+            <h3>Preciso de ajuda para montar</h3>
+            <span className="muted small">Responda algumas perguntas sobre a sua rotina, o treino e o que você gosta, e o app sugere um cardápio que bate as metas. Depois dá para mudar tudo.</span>
+          </button>
+        </div>
+      )}
+
+      {data && targets && current?.mode === 'manual' && current.manual && !editing && (
+        <ManualPlanEditor
+          plan={current.manual}
+          targetsFor={weekdays => days.find(d => weekdays.some(w => d.weekdays.includes(w)))?.targets ?? baseTargets}
+          onChange={manual => update(p => ({ ...p, manual }))}
+          onHelp={() => setEditing(true)}
+        />
+      )}
+
+      {data && targets && editing && (
         <Consultation
           initial={withDefaults(current?.settings ?? DEFAULT_SETTINGS)}
           powders={(powders.data ?? []).map(f => ({ id: f.id, name: f.name, kcal: f.kcal, p: f.protein_g, c: f.carbs_g, f: f.fat_g }))}
-          onCancel={current ? () => setEditing(false) : undefined}
+          onCancel={() => setEditing(false)}
           onSave={async settings => {
-            const next: SavedPlanWithAi = { ...current, settings, picks: {}, consultedAt: new Date().toISOString() }
+            const next: SavedPlanWithAi = { ...current, settings, picks: {}, consultedAt: new Date().toISOString(), mode: 'guided' }
             await persist(next)
             setEditing(false)
             // Como no consultório: depois da anamnese, o nutricionista personaliza o cardápio e dá o parecer.
@@ -176,7 +200,7 @@ export default function MealPlan() {
         />
       )}
 
-      {data && targets && current && plan && !editing && days.length > 1 && (
+      {data && targets && current && current.mode !== 'manual' && plan && !editing && days.length > 1 && (
         <div className="stack" style={{ gap: 6 }}>
           <div className="chips wrap" role="tablist" aria-label="Tipos de dia">
             {days.map(d => (
@@ -196,7 +220,21 @@ export default function MealPlan() {
         </div>
       )}
 
-      {data && targets && current && plan && !editing && (
+      {data && targets && current && current.mode !== 'manual' && plan && !editing && (
+        <button
+          type="button"
+          className="btn small"
+          style={{ justifySelf: 'start' }}
+          onClick={() =>
+            window.confirm('Passar a montar o cardápio você mesmo? Ele começa com o que está sugerido aqui, e daí em diante só muda quando você mexer.') &&
+            update(p => ({ ...p, mode: 'manual', manual: manualFromSuggestion(days.length > 1 ? days : [{ name: 'Todos os dias', weekdays: [0, 1, 2, 3, 4, 5, 6], plan }]) }))
+          }
+        >
+          Montar eu mesmo a partir desta sugestão
+        </button>
+      )}
+
+      {data && targets && current && current.mode !== 'manual' && plan && !editing && (
         <PlanView
           reading={reading}
           profile={data.profile}
@@ -223,6 +261,33 @@ export default function MealPlan() {
       )}
     </main>
   )
+}
+
+/** Cardápio sugerido virando cardápio da pessoa: as mesmas refeições, horários e quantidades. */
+function manualFromSuggestion(days: { name: string; weekdays: number[]; plan: import('../modules/nutrition/plan').MealPlan | null }[]): ManualPlan {
+  return {
+    days: days.map(
+      (d): ManualDay => ({
+        id: newId(),
+        name: d.name,
+        weekdays: d.weekdays,
+        meals: (d.plan?.meals ?? []).map(m => ({
+          id: newId(),
+          name: m.label,
+          time: m.time,
+          log: m.log,
+          items: m.items.map(i => ({
+            id: newId(),
+            food_id: i.food.id || null,
+            name: i.food.name,
+            grams: i.grams,
+            measure: null,
+            per100: { kcal: i.food.kcal, p: i.food.p, c: i.food.c, f: i.food.f, fiber: i.food.fiber },
+          })),
+        })),
+      }),
+    ),
+  }
 }
 
 // ---------- Consulta ----------

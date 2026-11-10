@@ -10,7 +10,8 @@ import { MUSCLE_NAME_PT } from '../modules/training/muscles'
 import { getWater, listLogs, listLogTotals, loadFirstName, loadMealPlan, loadNutritionProfile, setWater, todayIso, workoutMinutesOn } from '../modules/nutrition/data'
 import { sumMacros } from '../modules/nutrition/foods'
 import { dailyTargets, waterTarget, type Sex, weeksToTarget, weightTrend, workoutKcal } from '../modules/nutrition/targets'
-import { itemMacros, portion, replanDay } from '../modules/nutrition/plan'
+import { itemMacros, nextMeal, portion, replanDay } from '../modules/nutrition/plan'
+import { manualDayFor, manualToMealPlan } from '../modules/nutrition/manualPlan'
 import { FoodRow, Macros } from '../components/FoodRow'
 import { Icon } from '../components/ui'
 import { dayTips, daysBetween, greeting, weekNutrition } from '../modules/home/today'
@@ -85,8 +86,11 @@ export default function Today() {
 
   const baseTargets = profile ? dailyTargets(profile, weight, now) : null
   // O dia real contra o plano: refeição pulada ou comida a mais reajusta as próximas.
+  // Cardápio montado pela pessoa: o app não mexe nas quantidades, só mostra a próxima refeição.
+  const manualDay = mealPlan.data?.mode === 'manual' && mealPlan.data.manual ? manualDayFor(mealPlan.data.manual, weekday) : null
+  const manualNext = manualDay ? nextMeal(manualToMealPlan(manualDay), now.getHours() * 60 + now.getMinutes()) : null
   const day =
-    targets && mealPlan.data && food.data
+    targets && mealPlan.data && food.data && !manualDay
       ? replanDay(
           targets,
           mealPlan.data,
@@ -95,7 +99,7 @@ export default function Today() {
           now.getHours() * 60 + now.getMinutes(),
         )
       : null
-  const upcoming = day?.rest[0] ?? null
+  const upcoming = manualDay ? manualNext : (day?.rest[0] ?? null)
 
   const recovery = state ? recoveryByMuscle(state, now.getTime(), weight ?? undefined) : []
   const tired = recovery.filter(m => m.state !== 'ready').map(m => MUSCLE_NAME_PT[m.muscle])

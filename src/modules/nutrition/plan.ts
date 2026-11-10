@@ -10,6 +10,7 @@ import { clinicalGuidance, DEFAULT_ANAMNESIS, withAnamnesisDefaults, type Anamne
 
 // Tipos e o construtor ficam em planFood.ts para os alimentos extras poderem usar sem import circular.
 export type { PlanFood, Role } from './planFood'
+import type { ManualPlan } from './manualPlan'
 import { food, type PlanFood, type Role } from './planFood'
 import { MORE_FOODS, MORE_OPTIONS, RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
@@ -193,6 +194,9 @@ export interface SavedPlan {
   picks: Record<string, Partial<Record<Role, FoodKey>>>
   /** Quando a consulta foi feita (ISO), para marcar o retorno. */
   consultedAt?: string
+  /** manual = a pessoa montou o próprio cardápio; guided (ou vazio) = montado pela consulta. */
+  mode?: 'manual' | 'guided'
+  manual?: ManualPlan
 }
 
 function allowed(key: FoodKey, s: PlanSettings) {

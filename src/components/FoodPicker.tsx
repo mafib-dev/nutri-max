@@ -11,7 +11,12 @@ import { useAsync } from '../lib/useAsync'
 const QUICK_GRAMS = [50, 100, 150, 200]
 
 /** Janela para buscar um alimento, escolher a quantidade e lançar na refeição. */
-export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void }) {
+/**
+ * Busca de alimentos. Sem `onPick`, lança no diário; com `onPick`, só devolve o alimento e a
+ * quantidade escolhidos (para montar o plano alimentar).
+ */
+export default function FoodPicker(props: { date: string; meal: Meal; onClose: () => void; onAdded: () => void; onPick?: (food: Food, grams: number, measure: string | null) => void; title?: string }) {
+  const picking = !!props.onPick
   const data = useAsync(() => Promise.all([loadFoods(), recentFoodIds(), listSavedMeals()]))
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState<Food | null>(null)
@@ -88,14 +93,16 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
 
   const mealLabel = MEALS.find(m => m.key === props.meal)!.label.toLowerCase()
   const title = picked
-    ? 'Quanto você comeu?'
+    ? picking
+      ? 'Quanto?'
+      : 'Quanto você comeu?'
     : mode === 'create'
       ? 'Criar alimento'
       : mode === 'scan'
         ? 'Ler código de barras'
         : mode === 'quick'
           ? 'Adição rápida'
-          : `Adicionar ao ${mealLabel}`
+          : (props.title ?? `Adicionar ao ${mealLabel}`)
 
   return (
     <Modal
@@ -122,6 +129,7 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
           food={picked}
           date={props.date}
           meal={props.meal}
+          onPick={props.onPick}
           onBack={() => {
             setPicked(null)
             backToSearch()
@@ -183,14 +191,16 @@ export default function FoodPicker(props: { date: string; meal: Meal; onClose: (
             <button type="button" className="btn" onClick={() => setMode('scan')}>
               <Icon.barcode /> Código de barras
             </button>
-            <button type="button" className="btn" onClick={() => setMode('quick')}>
-              <Icon.bolt /> Adição rápida
-            </button>
+            {!picking && (
+              <button type="button" className="btn" onClick={() => setMode('quick')}>
+                <Icon.bolt /> Adição rápida
+              </button>
+            )}
           </div>
           {data.loading && <p className="muted small">Carregando alimentos…</p>}
           {data.error && <p className="error small">{data.error}</p>}
 
-          {!query.trim() && savedMeals.length > 0 && (
+          {!picking && !query.trim() && savedMeals.length > 0 && (
             <>
               <span className="eyebrow">Refeições salvas</span>
               <div className="list">
@@ -263,7 +273,7 @@ function FoodList({ foods, onPick }: { foods: Food[]; onPick: (f: Food) => void 
   )
 }
 
-function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void }) {
+function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () => void; onAdded: (name: string) => void; onPick?: (food: Food, grams: number, measure: string | null) => void }) {
   const { food } = props
   const portions = useMemo(() => portionsOf(food), [food])
   // Começa pela medida caseira quando o alimento tem uma; senão, em gramas.
@@ -281,6 +291,11 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
+    if (props.onPick) {
+      props.onPick(food, Math.round(g * 10) / 10, portion ? measureText(portion, n) : null)
+      props.onAdded(food.name)
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -363,6 +378,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
           <strong>{m.fat_g.toLocaleString('pt-BR')}</strong>
         </div>
       </div>
+      {!props.onPick && (
       <div className="field">
         <span>Refeição</span>
         <div className="chips wrap">
@@ -373,6 +389,7 @@ function PortionStep(props: { food: Food; date: string; meal: Meal; onBack: () =
           ))}
         </div>
       </div>
+      )}
       {error && <p className="error small">{error}</p>}
       <button className="btn primary big block" disabled={!valid || busy}>
         {busy ? 'Adicionando…' : 'Adicionar'}
