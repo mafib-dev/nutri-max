@@ -4,7 +4,7 @@
 import { listBodyWeights, listRoutines, listWorkouts } from '../training/data'
 import { lastDistanceByPlan, listCardioPlans } from '../cardio/data'
 import { loadMealPlan, loadNutritionProfile, todayIso } from './data'
-import { buildPlan, type MealPlan, type SavedPlan } from './plan'
+import { buildPlan, dayKey, settingsForDay, type MealPlan, type SavedPlan } from './plan'
 import { dailyTargets, waterTarget, type NutritionProfile, type Targets } from './targets'
 import { dayActivity, dayTypeOf, suggestDayTypes, typicalStrengthMin, weekSchedule, type DaySchedule } from './dayTypes'
 
@@ -61,7 +61,7 @@ export function planDays(profile: NutritionProfile, weight: number | null, saved
     const targets = dailyTargets(profile, weight, now, activity.kcal)
     if (!targets) return []
     const { train, extraTrains } = trainTimes(schedule, t.weekdays, saved?.settings.train ?? null)
-    const plan = saved ? buildPlan(targets, { ...saved, settings: { ...saved.settings, train, extraTrains } }) : null
+    const plan = saved ? buildPlan(targets, { ...saved, settings: { ...settingsForDay(saved.settings, types.length > 1 ? dayKey(t.weekdays) : null), train, extraTrains } }) : null
     return [{ id: t.id, name: t.name, weekdays: t.weekdays, train, extraTrains, activityKcal: activity.kcal, waterMl: waterTarget(weight) + activity.water_ml, targets, plan }]
   })
 }

@@ -7,8 +7,13 @@ import { GroupDot, GroupLegend, Kcal, MacroTiles, Macros } from '../components/F
 import { askFoodReview, askPlanAi, loadFirstName, loadFoods, logPlanMeal, saveMealPlan, todayIso } from '../modules/nutrition/data'
 import { aiContext, applyAiResult, type SavedPlanWithAi } from '../modules/nutrition/planAi'
 import {
+  ADDABLE,
   buildPlan,
   buyAmount,
+  dayKey,
+  KIND,
+  settingsForDay,
+  type DayOverride,
   DEFAULT_SETTINGS,
   withDefaults,
   type WheyFood,
@@ -71,7 +76,37 @@ export default function MealPlan() {
   const day = days.find(d => d.id === dayId) ?? data?.today ?? null
   const baseTargets = data?.targets ?? null
   const targets = day?.targets ?? baseTargets
-  const plan = targets && current ? buildPlan(targets, day ? { ...current, settings: { ...current.settings, train: day.train, extraTrains: day.extraTrains } } : current) : null
+  // Com mais de um tipo de dia, horários e refeições mudados valem só para o dia aberto.
+  const key = days.length > 1 && day ? dayKey(day.weekdays) : null
+  const effective = current ? (day ? { ...settingsForDay(current.settings, key), train: day.train, extraTrains: day.extraTrains } : current.settings) : null
+  const plan = targets && current && effective ? buildPlan(targets, { ...current, settings: effective }) : null
+
+  function editDay(fn: (o: DayOverride) => DayOverride) {
+    return update(p => {
+      if (!key) {
+        const o = fn({ times: p.settings.times, off: p.settings.off, add: p.settings.add })
+        return { ...p, settings: { ...p.settings, times: o.times ?? {}, off: o.off, add: o.add } }
+      }
+      const base = settingsForDay(p.settings, key)
+      const cur: DayOverride = { off: base.off, add: base.add, ...p.settings.days?.[key] }
+      return { ...p, settings: { ...p.settings, days: { ...p.settings.days, [key]: fn(cur) } } }
+    })
+  }
+
+  function setMeal(kind: SlotKind, on: boolean) {
+    return editDay(o => {
+      const off = new Set(o.off ?? [])
+      const add = new Set(o.add ?? [])
+      if (on) {
+        off.delete(kind)
+        if (ADDABLE.includes(kind) && !plan?.meals.some(m => m.kind === kind)) add.add(kind)
+      } else {
+        off.add(kind)
+        add.delete(kind)
+      }
+      return { ...o, off: [...off], add: [...add] }
+    })
+  }
 
   async function removePlan() {
     if (!window.confirm('Excluir o plano alimentar? A consulta e as trocas que você fez serão apagadas.')) return
@@ -166,7 +201,8 @@ export default function MealPlan() {
           reading={reading}
           profile={data.profile}
           plan={plan}
-          saved={current}
+          saved={{ ...current, settings: effective! }}
+          dayName={key ? day!.name : null}
           targets={targets}
           goal={data.profile.goal}
           weight={data.weight}
@@ -175,7 +211,8 @@ export default function MealPlan() {
           onRedo={() => setEditing(true)}
           onAi={persist}
           onUpdate={update}
-          onTime={(kind, time) => update(p => ({ ...p, settings: { ...p.settings, times: { ...p.settings.times, [kind]: time ?? undefined } } }))}
+          onTime={(kind, time) => editDay(o => ({ ...o, times: { ...o.times, [kind]: time ?? undefined } }))}
+          onMeal={setMeal}
         />
       )}
 
@@ -594,6 +631,8 @@ function PlanView(props: {
   onAi: (next: SavedPlanWithAi) => Promise<void>
   onUpdate: (fn: (p: Plan) => Plan) => Promise<void>
   onTime: (kind: SlotKind, time: string | null) => Promise<void>
+  onMeal: (kind: SlotKind, on: boolean) => Promise<void>
+  dayName: string | null
 }) {
   const { plan, targets, saved } = props
   const [tab, setTab] = useState<'menu' | 'prefs' | 'eval' | 'tips' | 'shop'>('menu')
@@ -702,9 +741,20 @@ function PlanView(props: {
       {tab === 'menu' && (
         <div className="grid-list">
           {plan.meals.map(m => (
-            <PlanMealCard key={m.key} meal={m} settings={saved.settings} warning={warnings[m.key]} onTime={t => props.onTime(m.kind, t)} onPick={(role, key) => props.onPick(m.key, role, key)} />
+            <PlanMealCard
+              key={m.key}
+              meal={m}
+              settings={saved.settings}
+              warning={warnings[m.key]}
+              onTime={t => props.onTime(m.kind, t)}
+              onPick={(role, key) => props.onPick(m.key, role, key)}
+              onRemove={plan.meals.length > 1 ? () => props.onMeal(m.kind, false) : undefined}
+            />
           ))}
         </div>
+      )}
+      {tab === 'menu' && (
+        <MealsEditor meals={plan.meals.map(m => m.kind)} off={saved.settings.off ?? []} dayName={props.dayName} onAdd={k => props.onMeal(k, true)} />
       )}
 
       {tab === 'prefs' && <Preferences saved={saved} targets={targets} goal={props.goal} onUpdate={props.onUpdate} />}
@@ -842,7 +892,40 @@ function EvalRow({ label, value, hint }: { label: string; value: string; hint: s
   )
 }
 
-function PlanMealCard({ meal, settings, warning, onTime, onPick }: { meal: PlanMeal; settings: PlanSettings; warning?: string; onTime: (time: string | null) => Promise<void>; onPick: (role: Role, key: FoodKey) => Promise<void> }) {
+/** Refeições que dá para pôr de volta ou a mais no dia. */
+function MealsEditor({ meals, off, dayName, onAdd }: { meals: SlotKind[]; off: SlotKind[]; dayName: string | null; onAdd: (k: SlotKind) => Promise<void> }) {
+  const options = [...new Set([...off, ...ADDABLE])].filter(k => !meals.includes(k))
+  if (!options.length) return null
+  return (
+    <div className="card stack" style={{ gap: 8 }}>
+      <span className="eyebrow">Pôr mais uma refeição{dayName ? ` em ${dayName}` : ''}</span>
+      <div className="chips wrap">
+        {options.map(k => (
+          <button key={k} type="button" className="chip" onClick={() => onAdd(k)}>
+            + {KIND[k].label}
+          </button>
+        ))}
+      </div>
+      <span className="muted tiny">As porções se redistribuem entre as refeições para manter as metas do dia. Toque no horário de qualquer refeição para mudar.</span>
+    </div>
+  )
+}
+
+function PlanMealCard({
+  meal,
+  settings,
+  warning,
+  onTime,
+  onPick,
+  onRemove,
+}: {
+  meal: PlanMeal
+  settings: PlanSettings
+  warning?: string
+  onTime: (time: string | null) => Promise<void>
+  onPick: (role: Role, key: FoodKey) => Promise<void>
+  onRemove?: () => Promise<void>
+}) {
   const [open, setOpen] = useState<FoodKey | null>(null)
   const [timing, setTiming] = useState(false)
   const manual = meal.time !== meal.auto
@@ -899,6 +982,16 @@ function PlanMealCard({ meal, settings, warning, onTime, onPick }: { meal: PlanM
           <PlanItemRow key={`${i.role}-${i.key}`} item={i} kind={meal.kind} settings={settings} open={open === i.key} onToggle={() => setOpen(o => (o === i.key ? null : i.key))} onPick={k => onPick(i.role, k).then(() => setOpen(null))} />
         ))}
       </div>
+      {onRemove && (
+        <button
+          type="button"
+          className="btn ghost small"
+          style={{ justifySelf: 'start', marginTop: 6 }}
+          onClick={() => window.confirm(`Tirar ${meal.label.toLowerCase()} do dia? As porções vão para as outras refeições.`) && onRemove()}
+        >
+          Tirar do dia
+        </button>
+      )}
       {timing && <TimeEditor meal={meal} onClose={() => setTiming(false)} onSave={t => onTime(t).then(() => setTiming(false))} />}
     </section>
   )

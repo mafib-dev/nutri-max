@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import taco from '../../../scripts/data/taco-foods.json'
-import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, timeWarnings, type PlanSettings } from './plan'
+import { settingsForDay, replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, DEFAULT_SETTINGS, equivalent, guidance, nextMeal, PLAN_FOODS, portion, roundGrams, shoppingList, substitutes, timeWarnings, type PlanSettings } from './plan'
 import { DEFAULT_ANAMNESIS } from './anamnesis'
 import { RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
@@ -82,6 +82,26 @@ describe('buildSlots', () => {
     ])
     expect(slots.map(s => s.kind)).toContain('supper')
     expect(slots).toHaveLength(7)
+  })
+
+  it('a pessoa tira e põe refeições; as chaves das que ficam não mudam', () => {
+    const full = buildSlots({ ...DEFAULT_SETTINGS, meals: 5 })
+    const less = buildSlots({ ...DEFAULT_SETTINGS, meals: 5, off: ['morning_snack'] })
+    expect(less.map(x => x.kind)).not.toContain('morning_snack')
+    expect(less).toHaveLength(full.length - 1)
+    for (const sl of less) expect(full.find(f => f.kind === sl.kind)!.key).toBe(sl.key)
+    const more = buildSlots({ ...DEFAULT_SETTINGS, meals: 3, add: ['supper'] })
+    expect(more.map(x => x.kind)).toContain('supper')
+    expect(buildSlots({ ...DEFAULT_SETTINGS, meals: 3, off: ['breakfast', 'lunch', 'dinner'] })).toHaveLength(3)
+  })
+
+  it('cada tipo de dia pode ter horários e refeições próprios', () => {
+    const s: PlanSettings = { ...DEFAULT_SETTINGS, times: { lunch: '12:00' }, days: { '0,6': { times: { breakfast: '09:30' }, off: ['morning_snack'] } } }
+    const weekend = settingsForDay(s, '0,6')
+    expect(weekend.times).toEqual({ lunch: '12:00', breakfast: '09:30' })
+    expect(weekend.off).toEqual(['morning_snack'])
+    expect(settingsForDay(s, '1,2,3')).toBe(s)
+    expect(plan(weekend).meals.find(m => m.kind === 'breakfast')!.time).toBe('09:30')
   })
 
   it('dois treinos no dia: musculação cedo e corrida à noite, cada um com pré e pós', () => {

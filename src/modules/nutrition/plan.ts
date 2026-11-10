@@ -123,7 +123,32 @@ export interface PlanSettings {
   anamnesis: Anamnesis
   /** Horários que a pessoa escolheu na mão ("HH:MM" por refeição); o resto segue a regra. */
   times: Partial<Record<SlotKind, string>>
+  /** Refeições que a pessoa tirou do dia. */
+  off?: SlotKind[]
+  /** Refeições que a pessoa pôs a mais (lanches e ceia). */
+  add?: SlotKind[]
+  /** Ajustes por tipo de dia (chave: os dias da semana, ex. "1,3,5"): horários e refeições próprios. */
+  days?: Record<string, DayOverride>
 }
+
+export interface DayOverride {
+  times?: Partial<Record<SlotKind, string>>
+  off?: SlotKind[]
+  add?: SlotKind[]
+}
+
+/** Chave de um tipo de dia nos ajustes: os dias da semana dele. */
+export const dayKey = (weekdays: number[]) => [...weekdays].sort((a, b) => a - b).join(',')
+
+/** As configurações valendo num tipo de dia: o geral com os ajustes daquele dia por cima. */
+export function settingsForDay(s: PlanSettings, key: string | null): PlanSettings {
+  const ov = key ? s.days?.[key] : undefined
+  if (!ov) return s
+  return { ...s, times: { ...s.times, ...ov.times }, off: ov.off ?? s.off, add: ov.add ?? s.add }
+}
+
+/** Refeições que dá para pôr a mais no dia. */
+export const ADDABLE: SlotKind[] = ['morning_snack', 'afternoon_snack', 'supper']
 
 /** Whey cadastrado pela pessoa (valores por 100 g do rótulo). */
 export interface WheyFood {
@@ -187,7 +212,7 @@ function allowed(key: FoodKey, s: PlanSettings) {
 
 export type SlotKind = 'breakfast' | 'morning_snack' | 'lunch' | 'afternoon_snack' | 'pre_workout' | 'post_workout' | 'dinner' | 'supper'
 
-const KIND: Record<SlotKind, { label: string; log: Meal }> = {
+export const KIND: Record<SlotKind, { label: string; log: Meal }> = {
   breakfast: { label: 'Café da manhã', log: 'breakfast' },
   morning_snack: { label: 'Lanche da manhã', log: 'snack' },
   lunch: { label: 'Almoço', log: 'lunch' },
@@ -314,6 +339,9 @@ export function buildSlots(s: PlanSettings): Slot[] {
   if (s.meals >= 4) kinds.push(['afternoon_snack', (lunch + dinner) / 2])
   if (s.meals >= 5) kinds.push(['morning_snack', (breakfast + lunch) / 2])
   if (s.meals >= 6) kinds.push(['supper', Math.min(sleep - 45, dinner + 150)])
+  // Refeições que a pessoa pôs a mais.
+  const extraAt: Partial<Record<SlotKind, number>> = { morning_snack: (breakfast + lunch) / 2, afternoon_snack: (lunch + dinner) / 2, supper: Math.min(sleep - 45, dinner + 150) }
+  for (const k of s.add ?? []) if (extraAt[k] != null && !kinds.some(([x]) => x === k)) kinds.push([k, extraAt[k]!])
   kinds.sort((a, b) => a[1] - b[1])
 
   if (train != null && early) {
@@ -364,7 +392,11 @@ export function buildSlots(s: PlanSettings): Slot[] {
   }
 
   const label = (kind: SlotKind) => (kind === 'breakfast' && early ? 'Café da manhã (pós-treino)' : kind === 'pre_workout' && early ? 'Pré-treino leve' : KIND[kind].label)
-  const slots = kinds.map(([kind, at], i) => ({ key: `${i}-${kind}`, kind, label: label(kind), time: toHHMM(at), log: KIND[kind].log, auto: toHHMM(at) }))
+  const off = new Set(s.off ?? [])
+  // A chave sai antes de tirar as refeições, para as trocas salvas não mudarem de refeição.
+  const built = kinds.map(([kind, at], i) => ({ key: `${i}-${kind}`, kind, label: label(kind), time: toHHMM(at), log: KIND[kind].log, auto: toHHMM(at) }))
+  const kept = built.filter(sl => !off.has(sl.kind))
+  const slots = kept.length ? kept : built
   // Horário escolhido na mão vale por cima da regra. A chave continua a da ordem automática,
   // para as trocas salvas não mudarem de refeição; a lista é reordenada pelo dia de quem acorda.
   for (const sl of slots) {
