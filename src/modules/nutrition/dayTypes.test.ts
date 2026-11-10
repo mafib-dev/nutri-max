@@ -75,7 +75,7 @@ describe('tipos de dia', () => {
       weightKg: 77,
       countKcal: true,
     })
-    expect(s[1].sessions).toEqual([{ kind: 'strength', name: 'Perna', time: '07:00', kcal: 277, water_ml: 0 }])
+    expect(s[1].sessions).toEqual([{ kind: 'strength', name: 'Perna', time: '07:00', kcal: 277, water_ml: 0, minutes: 60 }])
     // 6,5 km no ritmo típico (6 min/km) ≈ 39 min.
     expect(s[6].sessions[0]).toMatchObject({ kind: 'run', time: '19:00', water_ml: 250 })
     expect(s[6].sessions[0].kcal).toBeGreaterThan(300)

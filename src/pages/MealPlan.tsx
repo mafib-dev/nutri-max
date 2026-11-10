@@ -71,7 +71,7 @@ export default function MealPlan() {
   const day = days.find(d => d.id === dayId) ?? data?.today ?? null
   const baseTargets = data?.targets ?? null
   const targets = day?.targets ?? baseTargets
-  const plan = targets && current ? buildPlan(targets, day ? { ...current, settings: { ...current.settings, train: day.train } } : current) : null
+  const plan = targets && current ? buildPlan(targets, day ? { ...current, settings: { ...current.settings, train: day.train, extraTrains: day.extraTrains } } : current) : null
 
   async function removePlan() {
     if (!window.confirm('Excluir o plano alimentar? A consulta e as trocas que você fez serão apagadas.')) return
@@ -154,7 +154,7 @@ export default function MealPlan() {
           {day && (
             <span className="muted small">
               {daysLabel(day.weekdays)}
-              {day.train ? ` · treino às ${day.train}` : ' · sem treino'}
+              {day.train ? ` · treino às ${[day.train, ...day.extraTrains.map(t => t.time)].join(' e ')}` : ' · sem treino'}
               {day.activityKcal ? ` · +${fmt(day.activityKcal)} kcal dos treinos` : ''}
             </span>
           )}

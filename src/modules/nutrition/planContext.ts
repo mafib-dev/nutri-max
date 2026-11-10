@@ -15,6 +15,8 @@ export interface PlanDay {
   weekdays: number[]
   /** Horário do treino usado para o pré e o pós-treino; null = dia sem treino. */
   train: string | null
+  /** Os outros treinos com horário deste dia (ex.: a corrida da noite). */
+  extraTrains: { time: string; minutes: number }[]
   /** Calorias dos treinos somadas às metas neste dia (0 se o nível de atividade já conta os treinos). */
   activityKcal: number
   waterMl: number
@@ -36,12 +38,19 @@ export interface PlanContext {
   plan: MealPlan | null
 }
 
-/** Horário que vale para o pré/pós-treino: o da musculação, senão o primeiro treino com horário. */
-function trainTime(schedule: DaySchedule[], weekdays: number[], fallback: string | null): string | null {
-  const sessions = schedule.filter(d => weekdays.includes(d.weekday)).flatMap(d => d.sessions)
-  if (!sessions.length) return null
+/**
+ * Horários de treino de um tipo de dia: o principal (a musculação, senão o primeiro com horário)
+ * e os outros do mesmo dia, cada um com pré e pós-treino próprios.
+ */
+export function trainTimes(schedule: DaySchedule[], weekdays: number[], fallback: string | null): { train: string | null; extraTrains: { time: string; minutes: number }[] } {
+  const first = schedule.find(d => weekdays.includes(d.weekday))
+  const sessions = first?.sessions ?? []
+  if (!sessions.length) return { train: null, extraTrains: [] }
   const timed = sessions.filter(s => s.time).sort((a, b) => a.time!.localeCompare(b.time!))
-  return (timed.find(s => s.kind === 'strength') ?? timed[0])?.time ?? fallback
+  const main = timed.find(s => s.kind === 'strength') ?? timed[0]
+  const seen = new Set([main?.time])
+  const extraTrains = timed.filter(s => s !== main && !seen.has(s.time) && seen.add(s.time)).map(s => ({ time: s.time!, minutes: s.minutes ?? 45 }))
+  return { train: main?.time ?? fallback, extraTrains }
 }
 
 /** Os tipos de dia com metas e cardápio de cada um. */
@@ -51,9 +60,9 @@ export function planDays(profile: NutritionProfile, weight: number | null, saved
     const activity = dayActivity(t, schedule)
     const targets = dailyTargets(profile, weight, now, activity.kcal)
     if (!targets) return []
-    const train = trainTime(schedule, t.weekdays, saved?.settings.train ?? null)
-    const plan = saved ? buildPlan(targets, { ...saved, settings: { ...saved.settings, train } }) : null
-    return [{ id: t.id, name: t.name, weekdays: t.weekdays, train, activityKcal: activity.kcal, waterMl: waterTarget(weight) + activity.water_ml, targets, plan }]
+    const { train, extraTrains } = trainTimes(schedule, t.weekdays, saved?.settings.train ?? null)
+    const plan = saved ? buildPlan(targets, { ...saved, settings: { ...saved.settings, train, extraTrains } }) : null
+    return [{ id: t.id, name: t.name, weekdays: t.weekdays, train, extraTrains, activityKcal: activity.kcal, waterMl: waterTarget(weight) + activity.water_ml, targets, plan }]
   })
 }
 

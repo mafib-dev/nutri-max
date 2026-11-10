@@ -4,6 +4,7 @@ import { replanDay, optionsFor, withDefaults, buildPlan, buildSlots, buyAmount, 
 import { DEFAULT_ANAMNESIS } from './anamnesis'
 import { RECIPE_INGREDIENTS, RECIPES } from './planFoodsMore'
 
+const toMinutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3))
 const targets = { kcal: 2400, protein_g: 160, carbs_g: 290, fat_g: 67 }
 const plan = (s: Partial<PlanSettings> = {}, t = targets) => buildPlan(t, { settings: { ...DEFAULT_SETTINGS, ...s }, picks: {} })
 
@@ -81,6 +82,24 @@ describe('buildSlots', () => {
     ])
     expect(slots.map(s => s.kind)).toContain('supper')
     expect(slots).toHaveLength(7)
+  })
+
+  it('dois treinos no dia: musculação cedo e corrida à noite, cada um com pré e pós', () => {
+    const slots = buildSlots({ ...DEFAULT_SETTINGS, wake: '06:00', sleep: '23:00', train: '07:00', meals: 5, extraTrains: [{ time: '18:30', minutes: 40 }] })
+    const kinds = slots.map(s => `${s.time} ${s.kind}`)
+    expect(kinds[0]).toBe('06:15 pre_workout')
+    expect(kinds).toContain('17:30 pre_workout')
+    expect(slots.filter(s => s.kind === 'pre_workout')).toHaveLength(2)
+    // Depois da corrida (até 19:10) vem o jantar, que faz o papel de pós-treino.
+    expect(slots.at(-1)!.kind).toBe('dinner')
+    expect(toMinutes(slots.at(-1)!.time)).toBeGreaterThan(19 * 60 + 10)
+  })
+
+  it('segundo treino sem lanche por perto ganha pré e pós-treino curtos', () => {
+    const slots = buildSlots({ ...DEFAULT_SETTINGS, wake: '07:00', sleep: '23:30', train: '12:00', meals: 3, extraTrains: [{ time: '17:00', minutes: 45 }] })
+    const kinds = slots.map(s => `${s.time} ${s.kind}`)
+    expect(kinds).toContain('16:00 pre_workout')
+    expect(kinds).toContain('18:15 post_workout')
   })
 
   it('em jejum, sem pré-treino; treino longo empurra o pós-treino', () => {

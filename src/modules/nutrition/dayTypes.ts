@@ -12,6 +12,8 @@ export interface Session {
   kcal: number
   /** Água a mais por causa deste treino. */
   water_ml: number
+  /** Duração prevista, em minutos. */
+  minutes?: number
 }
 
 export interface DaySchedule {
@@ -116,7 +118,7 @@ export function weekSchedule(input: {
   return [0, 1, 2, 3, 4, 5, 6].map(weekday => {
     const sessions: Session[] = []
     for (const r of input.routines.filter(r => r.weekdays.includes(weekday)))
-      sessions.push({ kind: 'strength', name: r.name, time: r.time, kcal: input.countKcal && w ? workoutKcal(input.strengthMin, w) : 0, water_ml: 0 })
+      sessions.push({ kind: 'strength', name: r.name, time: r.time, kcal: input.countKcal && w ? workoutKcal(input.strengthMin, w) : 0, water_ml: 0, minutes: input.strengthMin })
     for (const p of input.cardio.filter(p => p.weekdays.includes(weekday))) {
       const distance = nextDistance(p, input.lastCardioByPlan.get(p.id) ?? null)
       const sec = plannedDurationSec(p, distance) ?? 1800
@@ -126,6 +128,7 @@ export function weekSchedule(input: {
         time: p.time,
         kcal: input.countKcal && w ? creditedKcal(estimateKcal(p.activity, p.intensity, distance, sec, w)) : 0,
         water_ml: cardioWaterMl([], [sec]),
+        minutes: Math.round(sec / 60),
       })
     }
     return { weekday, sessions }

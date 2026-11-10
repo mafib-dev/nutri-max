@@ -102,6 +102,8 @@ export interface PlanSettings {
   sleep: string
   /** Horário do treino; nulo = não treina ou varia. */
   train: string | null
+  /** Outros treinos do mesmo dia (ex.: musculação de manhã e corrida à noite), com a duração em minutos. */
+  extraTrains?: { time: string; minutes: number }[]
   diet: Diet
   noLactose: boolean
   noGluten: boolean
@@ -330,6 +332,33 @@ export function buildSlots(s: PlanSettings): Slot[] {
     if (after && isSnack(after[0]) && after[1] - trainEnd! <= 3 * 60) {
       after[0] = 'post_workout'
       after[1] = Math.min(after[1], trainEnd! + 30)
+    }
+    kinds.sort((a, b) => a[1] - b[1])
+  }
+
+  // Segundo treino do dia (corrida à noite, por exemplo): o lanche antes dele vira pré-treino e o
+  // lanche logo depois, pós-treino. Sem lanche livre por perto, almoço e jantar cumprem o papel.
+  for (const extra of s.extraTrains ?? []) {
+    if (!isHHMM(extra.time)) continue
+    let at = toMin(extra.time)
+    if (at < wake) at += 1440
+    if (train != null && Math.abs(at - train) < 60) continue
+    const end = at + extra.minutes
+    const isFree = (k: SlotKind) => k === 'morning_snack' || k === 'afternoon_snack' || k === 'supper'
+    const before = kinds.filter(([, m]) => m <= at).at(-1)
+    if (before && isFree(before[0]) && at - before[1] <= 4 * 60) {
+      before[0] = 'pre_workout'
+      before[1] = Math.max(before[1], at - 60)
+    } else if (!before || at - before[1] > 3 * 60) {
+      kinds.push(['pre_workout', at - 60])
+    }
+    const after = kinds.find(([, m]) => m > end)
+    if (after && isFree(after[0]) && after[1] - end <= 3 * 60) {
+      after[0] = 'post_workout'
+      after[1] = Math.min(after[1], end + 30)
+    } else if (!after || after[1] - end > 2 * 60) {
+      // Nada logo depois: um pós-treino curto, desde que não seja em cima da hora de dormir.
+      if (sleep - (end + 30) >= 45) kinds.push(['post_workout', end + 30])
     }
     kinds.sort((a, b) => a[1] - b[1])
   }
