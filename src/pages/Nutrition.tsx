@@ -266,9 +266,26 @@ export default function Nutrition() {
                   </div>
                 )}
                 {mealItems.length === 0 && sec.plan && (
-                  <button type="button" className="btn ghost small follow-plan" onClick={() => followPlan(sec.plan!)} disabled={planBusy != null}>
-                    {planBusy === sec.plan.key ? 'Lançando…' : `Seguir o plano · ${sec.plan.items.length} ${sec.plan.items.length === 1 ? 'alimento' : 'alimentos'} · ${fmt(sec.plan.total.kcal)} kcal`}
-                  </button>
+                  <div className="stack" style={{ gap: 8, marginTop: 8 }}>
+                    <span className="eyebrow">O que comer · {fmt(sec.plan.total.kcal)} kcal</span>
+                    <div className="meal-items planned">
+                      {sec.plan.items.map(i => (
+                        <div key={i.key} className="meal-item" style={{ opacity: 0.85 }}>
+                          <span className="food-main grow">
+                            <span className="food-name">{i.food.name}</span>
+                            <span className="food-detail">{formatGrams(i.grams)}</span>
+                          </span>
+                          <Kcal value={Math.round((i.food.kcal * i.grams) / 100)} />
+                        </div>
+                      ))}
+                      {sec.plan.items.length === 0 && <p className="muted small" style={{ margin: 0 }}>Nenhum alimento nesta refeição do plano.</p>}
+                    </div>
+                    {sec.plan.items.length > 0 && (
+                      <button type="button" className="btn small" style={{ justifySelf: 'start' }} onClick={() => followPlan(sec.plan!)} disabled={planBusy != null}>
+                        {planBusy === sec.plan.key ? 'Lançando…' : 'Comi isso'}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {mealItems.length > 0 && (
                   <div className="meal-items">
